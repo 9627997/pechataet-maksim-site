@@ -159,9 +159,13 @@ textarea:focus-visible {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 2.5rem;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  gap: clamp(1.6rem, 3vw, 3rem);
   align-items: center;
+}
+
+.hero-copy {
+  max-width: 640px;
 }
 
 .eyebrow {
@@ -181,8 +185,11 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2.2rem, 4.2vw, 3.9rem);
-  max-width: 12ch;
+  font-size: clamp(2.05rem, 4.2vw, 3.35rem);
+  max-width: min(10.5ch, 100%);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 
 h2 {
@@ -213,41 +220,136 @@ h3 {
 .hero-visual {
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 360px;
 }
 
-.ribbon-card {
-  width: min(100%, 400px);
-  padding: 1.3rem;
-  border-radius: 30px;
-  background: var(--color-surface-strong);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 24px 60px var(--color-shadow);
-}
-
-.ribbon-band {
-  display: grid;
-  gap: 0.7rem;
-  padding: 1.3rem 1rem;
-  border-radius: 24px;
-  border: 2px solid #f3eadf;
-  background: #fff;
-  min-height: 320px;
-  justify-items: center;
-}
-
-.ribbon-band span {
-  display: inline-flex;
+.ribbon-stage {
+  position: relative;
+  width: min(100%, 430px);
+  aspect-ratio: 1 / 1.08;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 190px;
-  padding: 0.7rem 1rem;
+}
+
+.ribbon-stage::after {
+  content: "";
+  position: absolute;
+  inset: 14% 10% auto auto;
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  background: rgba(24, 17, 15, 0.08);
+  filter: blur(26px);
+  z-index: 0;
+}
+
+.ribbon-mockup {
+  position: relative;
+  width: min(92%, 360px);
+  height: min(78%, 300px);
+  border-radius: 42px;
+  background: linear-gradient(135deg, rgba(255, 250, 244, 0.96), rgba(247, 239, 231, 0.95));
+  border: 1px solid rgba(234, 223, 206, 0.9);
+  box-shadow: 0 24px 55px rgba(24, 17, 15, 0.12);
+  transform: rotate(-11deg);
+  z-index: 1;
+}
+
+.ribbon-mockup::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 30px;
+  border: 1px solid rgba(234, 223, 206, 0.8);
+}
+
+.ribbon-satin {
+  position: absolute;
+  inset: 28px 24px 34px 24px;
   border-radius: 999px;
-  background: #fff;
-  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, #ffffff 0%, #f5ebdf 55%, #fffdf8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -10px 18px rgba(24, 17, 15, 0.05);
+  transform: rotate(-4deg) skewX(-3deg);
+  overflow: hidden;
+}
+
+.ribbon-satin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(110deg, transparent 0 10px, rgba(24, 17, 15, 0.035) 10px 12px);
+  opacity: 0.6;
+}
+
+.ribbon-satin::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.35) 100%);
+}
+
+.ribbon-track {
+  position: absolute;
+  inset: 0;
+}
+
+.ribbon-word {
+  position: absolute;
+  font-size: clamp(0.95rem, 1.45vw, 1.05rem);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text);
+  letter-spacing: 0.18em;
   text-transform: lowercase;
+  color: var(--color-text);
+  white-space: nowrap;
+  transform: rotate(-10deg);
+  opacity: 0.94;
+}
+
+.ribbon-word-1 {
+  top: 42%;
+  left: 8%;
+}
+
+.ribbon-word-2 {
+  top: 24%;
+  left: 34%;
+}
+
+.ribbon-word-3 {
+  top: 58%;
+  left: 46%;
+}
+
+.ribbon-word-4 {
+  top: 36%;
+  left: 62%;
+}
+
+.ribbon-word-5 {
+  top: 18%;
+  left: 74%;
+}
+
+.ribbon-accent {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  width: 72px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(177, 31, 45, 0.96), rgba(177, 31, 45, 0.82));
+  transform: rotate(-12deg);
+  box-shadow: 0 10px 20px rgba(177, 31, 45, 0.18);
+}
+
+.ribbon-accent::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .section {
@@ -429,6 +531,25 @@ h3 {
     padding-top: 2.6rem;
   }
 
+  .hero-copy {
+    max-width: none;
+  }
+
+  .hero-visual {
+    min-height: 300px;
+    padding-top: 0.4rem;
+  }
+
+  .ribbon-stage {
+    width: min(100%, 360px);
+    aspect-ratio: 1 / 1.1;
+  }
+
+  .ribbon-mockup {
+    width: min(100%, 320px);
+    height: min(78%, 260px);
+  }
+
   .steps,
   .cards-grid,
   .benefits-list {
@@ -439,6 +560,72 @@ h3 {
 @media (max-width: 680px) {
   .header-inner {
     flex-wrap: wrap;
+  }
+
+  h1 {
+    max-width: 100%;
+    font-size: clamp(1.95rem, 7vw, 2.75rem);
+  }
+
+  .hero {
+    padding: 2.2rem 0 2.2rem;
+  }
+
+  .hero-visual {
+    min-height: 260px;
+  }
+
+  .ribbon-stage {
+    width: min(100%, 320px);
+    aspect-ratio: 1 / 1.05;
+  }
+
+  .ribbon-mockup {
+    width: 100%;
+    height: 240px;
+    transform: rotate(-8deg);
+  }
+
+  .ribbon-satin {
+    inset: 22px 18px 28px 18px;
+    transform: rotate(-3deg) skewX(-2deg);
+  }
+
+  .ribbon-word {
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+  }
+
+  .ribbon-word-1 {
+    top: 44%;
+    left: 8%;
+  }
+
+  .ribbon-word-2 {
+    top: 26%;
+    left: 32%;
+  }
+
+  .ribbon-word-3 {
+    top: 58%;
+    left: 46%;
+  }
+
+  .ribbon-word-4 {
+    top: 36%;
+    left: 62%;
+  }
+
+  .ribbon-word-5 {
+    top: 17%;
+    left: 74%;
+  }
+
+  .ribbon-accent {
+    width: 60px;
+    height: 18px;
+    right: 10px;
+    bottom: 12px;
   }
 
   .site-nav {
@@ -479,6 +666,12 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .ribbon-mockup,
+  .ribbon-satin,
+  .ribbon-accent {
+    transform: none;
   }
 
   *,
