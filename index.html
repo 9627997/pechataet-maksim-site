@@ -1,238 +1,248 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
-  <title>Ribbon Studio Next — Печатает Максим</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Сатиновые и силиконовые ленты с логотипом, а также фирменные стикеры для упаковки. Ширина 15 мм, 20 мм и индивидуальные заказы.">
+  <title>Печатает Максим — ленты и стикеры с логотипом</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/hero-v03.css">
+  <link rel="stylesheet" href="css/products-v04.css">
+  <link rel="canonical" href="https://печатаетмаксим.рф/">
+  <meta property="og:title" content="Печатает Максим — ленты и стикеры с логотипом">
+  <meta property="og:description" content="Сатиновые и силиконовые ленты, а также фирменные стикеры для упаковки бренда.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://печатаетмаксим.рф/">
+  <meta property="og:site_name" content="Печатает Максим">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Печатает Максим",
+    "url": "https://печатаетмаксим.рф/",
+    "description": "Печать логотипов и надписей на сатиновых и силиконовых лентах, а также изготовление фирменных стикеров"
+  }
+  </script>
 </head>
 <body>
-<header class="topbar">
-  <a class="brand" href="#" aria-label="Печатает Максим">
-    <span class="brand-mark">🎀</span>
-    <span><strong>Ribbon Studio</strong><small>Печатает Максим</small></span>
-  </a>
-  <div class="top-actions">
-    <button class="button ghost" id="resetProject">Новый проект</button>
-    <span class="version">Next v0.1</span>
-  </div>
-</header>
+  <a class="skip-link" href="#main-content">Перейти к содержимому</a>
 
-<div class="app-shell">
-  <aside class="sidebar">
-    <nav class="main-nav" aria-label="Разделы конструктора">
-      <button class="nav-item active" data-panel="ribbon"><span>01</span>Лента</button>
-      <button class="nav-item" data-panel="design"><span>02</span>Дизайн</button>
-      <button class="nav-item" data-panel="sticker"><span>03</span>Стикер</button>
-      <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
-    </nav>
-
-    <section class="panel active" id="panel-ribbon">
-      <div class="panel-head"><p>Лента</p><h2>Выберите основу</h2></div>
-
-      <label>Ширина</label>
-      <div class="segmented" id="widthChoice">
-        <button class="active" data-value="15">15 мм</button>
-        <button data-value="20">20 мм</button>
-      </div>
-
-      <label>Цвет ленты</label>
-      <div class="swatches" id="ribbonSwatches"></div>
-
-      <label>Цвет печати</label>
-      <div class="print-options" id="printChoice">
-        <button class="active" data-value="#171717"><i class="print-dot black"></i>Чёрный</button>
-        <button data-value="#b69249"><i class="print-dot gold"></i>Золото</button>
-        <button data-value="#c6c8cd"><i class="print-dot silver"></i>Серебро</button>
-        <button data-value="#ffffff"><i class="print-dot white"></i>Белый</button>
-      </div>
-
-      <button class="button primary wide next-panel" data-next="design">Далее: дизайн</button>
-    </section>
-
-    <section class="panel" id="panel-design">
-      <div class="panel-head"><p>Дизайн</p><h2>Добавьте логотип</h2></div>
-
-      <label class="upload">
-        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/jpeg,.jpg,.jpeg" hidden>
-        <strong>Загрузить SVG или JPEG</strong>
-        <span>SVG сохраняется векторным</span>
-      </label>
-      <div class="file-status" id="fileStatus">Логотип не загружен</div>
-
-      <label>Надпись</label>
-      <input class="input" id="textInput" type="text" value="печатаетмаксим">
-
-      <label>Шрифт</label>
-      <select class="input" id="fontSelect">
-        <option value="Manrope">Manrope</option>
-        <option value="PT Serif">PT Serif</option>
-        <option value="Arial">Arial</option>
-      </select>
-
-      <div class="two-cols">
-        <div>
-          <label>Размер</label>
-          <input id="fontSize" type="range" min="16" max="64" value="32">
-        </div>
-        <div>
-          <label>Шаг, мм</label>
-          <input class="input" id="repeatMm" type="number" min="40" max="250" value="100">
-        </div>
-      </div>
-
-      <button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
-      <button class="button primary wide next-panel" data-next="sticker">Далее: стикер</button>
-    </section>
-
-    <section class="panel" id="panel-sticker">
-      <div class="panel-head"><p>Стикер</p><h2>Настройте комплект</h2></div>
-
-      <label>Режим заказа</label>
-      <div class="segmented" id="bundleChoice">
-        <button data-value="ribbon">Только лента</button>
-        <button class="active" data-value="bundle">Лента + стикер</button>
-      </div>
-
-      <label>Размер круглого стикера</label>
-      <div class="segmented" id="stickerSizeChoice">
-        <button data-value="30">30 мм</button>
-        <button class="active" data-value="40">40 мм</button>
-        <button data-value="50">50 мм</button>
-      </div>
-
-      <label>Фон стикера</label>
-      <div class="segmented" id="stickerBgChoice">
-        <button class="active" data-value="#ffffff">Белый</button>
-        <button data-value="#f3f0ea">Кремовый</button>
-        <button data-value="#171717">Чёрный</button>
-      </div>
-
-      <div class="recommendation">
-        <strong>Максим рекомендует</strong>
-        <p id="recommendationText">Круглый стикер Ø40 мм завершит комплект и будет хорошо читаться на коробке.</p>
-      </div>
-
-      <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
-    </section>
-
-    <section class="panel" id="panel-order">
-      <div class="panel-head"><p>Заказ</p><h2>Ваш комплект</h2></div>
-
-      <div class="order-card">
-        <div><span>Лента</span><strong id="orderRibbon">15 мм · 100 м</strong></div>
-        <div id="orderStickerRow"><span>Стикер</span><strong id="orderSticker">Ø40 мм</strong></div>
-        <div><span>Шаг повтора</span><strong id="orderRepeat">100 мм</strong></div>
-      </div>
-
-      <label>Метраж ленты</label>
-      <select class="input" id="meters">
-        <option value="10">10 м</option>
-        <option value="25">25 м</option>
-        <option value="50">50 м</option>
-        <option value="100" selected>100 м</option>
-        <option value="200">200 м</option>
-      </select>
-
-      <label>Количество стикеров</label>
-      <select class="input" id="stickerQty">
-        <option value="50">50 шт.</option>
-        <option value="100" selected>100 шт.</option>
-        <option value="250">250 шт.</option>
-        <option value="500">500 шт.</option>
-      </select>
-
-      <div class="total">
-        <span>Предварительная стоимость</span>
-        <strong id="totalPrice">1 790 ₽</strong>
-      </div>
-
-      <button class="button primary wide" id="openOrder">Отправить Максиму</button>
-    </section>
-  </aside>
-
-  <main class="studio">
-    <div class="studio-head">
-      <div>
-        <p class="eyebrow">Фирменный комплект</p>
-        <h1>Лента и стикер в одном стиле</h1>
-      </div>
-      <div class="studio-tabs" id="viewTabs">
-        <button class="active" data-view="kit">Комплект</button>
-        <button data-view="ribbon">Лента</button>
-        <button data-view="sticker">Стикер</button>
-      </div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand brand-v03" href="#top" aria-label="Печатает Максим — на главную">
+        <img src="svg/печатаетмаксим.svg" alt="Печатает Максим" width="76" height="84">
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <ul>
+          <li><a href="#products">Продукция</a></li>
+          <li><a href="#materials">Материалы</a></li>
+          <li><a href="#stickers">Стикеры</a></li>
+          <li><a href="#order">Как заказать</a></li>
+          <li><a href="#faq">Вопросы</a></li>
+        </ul>
+      </nav>
+      <a class="button button-primary header-cta" href="#contact">Рассчитать стоимость</a>
     </div>
+  </header>
 
-    <section class="canvas" id="canvas">
-      <div class="kit-layout">
-        <div class="ribbon-area" id="ribbonArea">
-          <div class="object-label">Лента</div>
-          <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="satinGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#fff" stop-opacity=".50"/>
-                <stop offset=".22" stop-color="#fff" stop-opacity=".08"/>
-                <stop offset=".58" stop-color="#000" stop-opacity=".10"/>
-                <stop offset=".84" stop-color="#fff" stop-opacity=".20"/>
-                <stop offset="1" stop-color="#000" stop-opacity=".10"/>
-              </linearGradient>
-              <filter id="metallic">
-                <feSpecularLighting result="spec" specularExponent="22" lighting-color="white">
-                  <feDistantLight azimuth="225" elevation="55"/>
-                </feSpecularLighting>
-                <feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/>
-                <feBlend in="SourceGraphic" in2="specOut" mode="screen"/>
-              </filter>
-              <clipPath id="ribbonClip"><rect id="clipRect" x="28" y="70" width="1144" height="120" rx="6"/></clipPath>
-            </defs>
-            <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
-            <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="url(#satinGradient)"/>
-            <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="rgba(0,0,0,.25)" stroke-dasharray="8 8"/>
-            <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
-          </svg>
+  <main id="main-content">
+    <section class="hero hero-v02" id="top">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy hero-copy-v02">
+          <p class="eyebrow hero-kicker">Ленты и стикеры с логотипом</p>
+          <h1>Лента, которую не хочется развязывать.</h1>
+          <p class="hero-text">Печатаем на сатиновых и силиконовых лентах, а также создаём фирменные стикеры для упаковки, которую запоминают.</p>
+          <div class="hero-actions">
+            <a class="button button-primary button-hero" href="#contact">Рассчитать заказ</a>
+            <a class="button button-secondary button-hero-secondary" href="#products">Выбрать продукт</a>
+          </div>
+          <ul class="hero-proof" aria-label="Преимущества услуги">
+            <li>Ленты 15 мм и 20 мм</li>
+            <li>Индивидуальные заказы</li>
+            <li>Сатин и силикон</li>
+            <li>Фирменные стикеры</li>
+          </ul>
         </div>
 
-        <div class="sticker-area" id="stickerArea">
-          <div class="object-label">Стикер</div>
-          <div class="sticker-shadow">
-            <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-              <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
-              <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="3"/>
-              <g id="stickerContent"></g>
-            </svg>
-          </div>
-          <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
+        <div class="hero-visual hero-visual-v03">
+          <figure class="hero-photo-card">
+            <img src="images/hero-ribbon-v03.webp"
+                 alt="Кремовая сатиновая лента с золотой печатью логотипа"
+                 width="1040"
+                 height="900"
+                 fetchpriority="high">
+            <figcaption>Сатиновая лента с фирменной печатью</figcaption>
+          </figure>
         </div>
       </div>
+    </section>
 
-      <div class="canvas-footer">
-        <span id="status">Лента 15 мм · стикер Ø40 мм · шаг 100 мм</span>
-        <span>SVG/JPEG · сохранение в браузере</span>
+    <section class="section product-system" id="products">
+      <div class="container">
+        <div class="section-heading product-heading">
+          <p class="eyebrow">Продукция</p>
+          <h2>Два способа сделать упаковку частью бренда</h2>
+          <p>Ленты создают впечатление при вручении, стикеры завершают упаковку и делают её узнаваемой.</p>
+        </div>
+
+        <div class="product-showcase">
+          <article class="product-panel product-panel-ribbon">
+            <div class="product-panel-copy">
+              <p class="product-label">Ленты с логотипом</p>
+              <h3>Сатиновые и силиконовые ленты</h3>
+              <p>Для коробок, подарков, букетов, одежды и корпоративной упаковки.</p>
+              <ul class="product-specs">
+                <li><strong>15 мм</strong><span>для аккуратной упаковки, бирок и небольших коробок</span></li>
+                <li><strong>20 мм</strong><span>универсальная ширина для подарков и брендированной упаковки</span></li>
+                <li><strong>Индивидуальный заказ</strong><span>нестандартный формат, композиция или особая задача</span></li>
+              </ul>
+              <a class="text-link" href="#contact">Рассчитать ленту →</a>
+            </div>
+            <div class="product-ribbon-visual" aria-hidden="true">
+              <div class="mini-roll"></div>
+              <div class="mini-tail">
+                <span>ваш логотип</span>
+                <span>ваш логотип</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="product-panel product-panel-sticker" id="stickers">
+            <div class="product-panel-copy">
+              <p class="product-label">Стикеры с логотипом</p>
+              <h3>Фирменные наклейки для упаковки</h3>
+              <p>Для коробок, пакетов, тубусов, подарочных наборов, бирок и отправлений.</p>
+              <ul class="sticker-types">
+                <li>Круглые</li>
+                <li>Прямоугольные</li>
+                <li>Фигурные</li>
+                <li>Индивидуальный размер</li>
+              </ul>
+              <a class="text-link" href="#contact">Рассчитать стикеры →</a>
+            </div>
+            <div class="sticker-visual" aria-hidden="true">
+              <span class="sticker sticker-round">M</span>
+              <span class="sticker sticker-square">brand</span>
+              <span class="sticker sticker-arch">studio</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section materials-section" id="materials">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Материалы лент</p>
+          <h2>Выберите характер упаковки</h2>
+        </div>
+        <div class="materials-grid">
+          <article class="material-card">
+            <div class="material-swatch swatch-satin" aria-hidden="true"></div>
+            <div>
+              <p class="material-number">01</p>
+              <h3>Сатин</h3>
+              <p>Мягкий блеск и классическое ощущение подарочной упаковки. Хорошо подходит для бутиков, флористики, свадеб и корпоративных наборов.</p>
+            </div>
+          </article>
+          <article class="material-card">
+            <div class="material-swatch swatch-silicone" aria-hidden="true"></div>
+            <div>
+              <p class="material-number">02</p>
+              <h3>Силикон</h3>
+              <p>Современный тактильный материал для необычной упаковки, аксессуаров и проектов, которым нужен более технологичный характер.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-intro" id="about">
+      <div class="container intro-grid">
+        <div>
+          <p class="eyebrow">Короткий ответ</p>
+          <h2>Что можно брендировать у Максима?</h2>
+        </div>
+        <div class="intro-copy">
+          <p>Мы наносим логотипы, названия и надписи на сатиновые и силиконовые ленты, а также создаём фирменные стикеры. Эти решения используют для подарочной упаковки, коробок, пакетов, букетов, одежды и корпоративных заказов.</p>
+          <ul class="feature-list">
+            <li>ленты шириной 15 мм и 20 мм;</li>
+            <li>индивидуальные заказы;</li>
+            <li>золотая, серебряная и чёрная печать;</li>
+            <li>стикеры разных форматов;</li>
+            <li>помощь с подготовкой макета.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="order">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Как заказать</p>
+          <h2>Четыре понятных шага к готовому заказу</h2>
+        </div>
+        <div class="steps">
+          <article class="card step-card"><span class="step-number">01</span><h3>Прислать логотип</h3><p>Отправьте файл или фотографию логотипа, и мы уточним, как лучше подготовить его к печати.</p></article>
+          <article class="card step-card"><span class="step-number">02</span><h3>Выбрать продукт</h3><p>Определимся: лента или стикеры, сатин или силикон, стандартный или индивидуальный формат.</p></article>
+          <article class="card step-card"><span class="step-number">03</span><h3>Согласовать макет</h3><p>Проверим композицию, текст и расположение, чтобы результат выглядел точно и аккуратно.</p></article>
+          <article class="card step-card"><span class="step-number">04</span><h3>Получить заказ</h3><p>После согласования изготовим и отправим готовый заказ.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="benefits">
+      <div class="container">
+        <div class="section-heading"><p class="eyebrow">Почему Максим</p><h2>Не просто печать, а внимание к тому, как выглядит бренд</h2></div>
+        <div class="benefits-list">
+          <article class="card benefit-card"><h3>Работа с SVG и векторными макетами</h3><p>Проверим файл и сохраним чёткость изображения при печати.</p></article>
+          <article class="card benefit-card"><h3>Помощь с подготовкой файла</h3><p>Если макет требует правок, поможем привести его в рабочее состояние.</p></article>
+          <article class="card benefit-card"><h3>Подбор материала и формата</h3><p>Поможем выбрать ширину ленты, материал или размер стикера под упаковку.</p></article>
+          <article class="card benefit-card"><h3>Отправка заказов по России</h3><p>Поможем оформить доставку готового заказа.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-heading"><p class="eyebrow">FAQ</p><h2>Ответы на частые вопросы</h2></div>
+        <div class="faq-list">
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Какой файл логотипа лучше прислать?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Лучше прислать векторный файл SVG, PDF, AI или EPS. Если логотип только в растровом виде, мы подскажем, как привести его к рабочему состоянию.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Какие ширины ленты доступны?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Основные форматы — 15 мм и 20 мм. Для нестандартных задач можно обсудить индивидуальный заказ.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Чем сатин отличается от силикона?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Сатин мягкий и блестящий, он привычен для подарочной упаковки. Силикон более тактильный и современный, поэтому подходит для необычных и технологичных проектов.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Какие стикеры можно заказать?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Круглые, прямоугольные, фигурные и стикеры индивидуального размера. Формат подбирается под упаковку и макет.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Какие цвета печати доступны на лентах?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Основные варианты — золото, серебро и чёрный. Подходящий цвет зависит от материала и цвета самой ленты.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Поможете ли вы подготовить макет?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Да. Поможем проверить файл, уточнить размеры и подготовить макет под печать.</p></div></article>
+          <article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">Как получить расчёт стоимости?<span class="faq-icon" aria-hidden="true">+</span></button><div class="faq-answer" hidden><p>Пришлите логотип, выберите продукт и кратко опишите задачу. Для ленты укажите материал, ширину и объём, для стикеров — форму, размер и количество.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section contact-section" id="contact">
+      <div class="container contact-grid">
+        <div class="contact-copy">
+          <p class="eyebrow">Контакты и заявка</p>
+          <h2>Расскажите, что нужно брендировать</h2>
+          <p>Лента, стикеры или комплект для упаковки — опишите задачу, и мы поможем выбрать материал и формат.</p>
+          <ul class="contact-list"><li>Подготовим макет под печать.</li><li>Согласуем материал, формат и нанесение.</li><li>Подскажем, как лучше оформить заказ.</li></ul>
+        </div>
+        <form class="contact-form" id="contact-form" novalidate>
+          <label class="field"><span>Имя</span><input type="text" name="name" placeholder="Ваше имя" autocomplete="name" required></label>
+          <label class="field"><span>Телефон или Telegram</span><input type="text" name="contact" placeholder="+7 ... / @nickname" autocomplete="tel" required></label>
+          <label class="field"><span>Комментарий</span><textarea name="comment" rows="5" placeholder="Лента или стикеры, материал, размер и количество"></textarea></label>
+          <button class="button button-primary" type="submit">Отправить заявку</button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
     </section>
   </main>
-</div>
 
-<div class="modal" id="orderModal" aria-hidden="true">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div><p class="eyebrow">Заявка</p><h2>Отправить фирменный комплект</h2></div>
-      <button class="close" id="closeOrder">×</button>
-    </div>
-    <div class="summary" id="orderSummary"></div>
-    <label>Имя</label><input class="input" id="customerName" placeholder="Как к вам обращаться">
-    <label>Телефон</label><input class="input" id="customerPhone" placeholder="+7">
-    <label>Telegram</label><input class="input" id="customerTelegram" placeholder="@username">
-    <label>Комментарий</label><textarea class="input" id="customerComment" placeholder="Срок, доставка, пожелания"></textarea>
-    <button class="button primary wide" id="downloadOrder">Сформировать заявку</button>
-  </div>
-</div>
+  <footer class="site-footer">
+    <div class="container footer-inner"><p>© <span id="year"></span> Печатает Максим</p><p>Ленты и стикеры с логотипом для упаковки бренда.</p></div>
+  </footer>
 
-<script src="assets/js/app.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
