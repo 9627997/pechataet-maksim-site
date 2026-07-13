@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ribbon Studio — Design System v1.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f3f0ea;--surface:#ffffff;--surface-2:#ebe7df;--ink:#151515;--muted:#706b64;
+      --line:#d9d3ca;--accent:#d8323d;--accent-dark:#b51f29;--gold:#b69249;--silver:#c6c8cd;
+      --radius-xs:8px;--radius-sm:12px;--radius-md:18px;--radius-lg:28px;
+      --shadow-sm:0 6px 24px rgba(18,18,18,.06);--shadow-lg:0 24px 70px rgba(18,18,18,.14);
+      --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:48px;--space-8:72px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,Arial,sans-serif}
+    button,input,select,textarea{font:inherit}
+    .app{min-height:100vh;display:grid;grid-template-columns:260px 1fr}
+    aside{position:sticky;top:0;height:100vh;background:#111;color:#fff;padding:24px 18px;overflow:auto}
+    .brand{font-weight:800;font-size:18px;margin-bottom:4px}.brand-sub{font-size:11px;color:#aaa;margin-bottom:30px}
+    nav{display:grid;gap:6px}
+    nav button{border:0;background:transparent;color:#aaa;text-align:left;padding:10px 12px;border-radius:10px;cursor:pointer}
+    nav button.active,nav button:hover{background:#242424;color:#fff}
+    main{padding:32px;min-width:0}
+    .page{display:none}.page.active{display:block}
+    .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:800}
+    h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:8px 0 14px;letter-spacing:-.04em}
+    h2{font-size:30px;letter-spacing:-.03em;margin:0 0 16px}
+    h3{font-size:18px;margin:0 0 8px}
+    p{color:var(--muted);line-height:1.6}
+    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;min-height:72vh}
+    .hero-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:28px}
+    .ribbon-scene{height:360px;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#d9d0c1,#f6f1e8)}
+    .ribbon{position:absolute;left:-8%;right:-8%;top:45%;height:84px;transform:rotate(-6deg);border-radius:7px;background:
+      linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.05) 28%,rgba(0,0,0,.08) 68%,rgba(255,255,255,.22)),
+      #ead7bf;box-shadow:0 24px 35px rgba(0,0,0,.22)}
+    .ribbon:after{content:"ваш логотип   •   ваш логотип   •   ваш логотип";position:absolute;inset:0;display:grid;place-items:center;font-weight:700;letter-spacing:.04em;color:#a77e2b}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-sm)}
+    .token{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+    .token:last-child{border-bottom:0}
+    .swatch{width:64px;height:40px;border-radius:10px;border:1px solid rgba(0,0,0,.1)}
+    .button-row{display:flex;flex-wrap:wrap;gap:10px}
+    .btn{border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}
+    .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-dark)}
+    .btn-dark{background:#171717;color:#fff}.btn-light{background:#eee9e2}.btn-ghost{background:#fff;border:1px solid var(--line)}
+    .field{display:grid;gap:6px}.field label{font-size:12px;font-weight:700}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+    .component-demo{display:grid;gap:16px}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--line);padding:12px;border-radius:16px}
+    .segmented{display:flex;background:#ece8e1;border-radius:11px;padding:3px;gap:3px}.segmented button{border:0;background:transparent;padding:8px 12px;border-radius:8px}.segmented button.active{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .prototype{display:grid;grid-template-columns:220px 1fr;background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;min-height:620px;box-shadow:var(--shadow-lg)}
+    .proto-side{background:#171717;color:#fff;padding:18px}
+    .proto-side button{width:100%;border:0;background:transparent;color:#999;text-align:left;padding:12px;border-radius:10px;margin-bottom:5px}
+    .proto-side button.active{background:#2b2b2b;color:#fff}
+    .proto-main{display:flex;flex-direction:column;min-width:0}
+    .proto-top{display:flex;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+    .canvas{flex:1;display:grid;place-items:center;padding:30px;background:
+      linear-gradient(45deg,#eeeae4 25%,transparent 25%),linear-gradient(-45deg,#eeeae4 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#eeeae4 75%),linear-gradient(-45deg,transparent 75%,#eeeae4 75%);
+      background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0}
+    .canvas-ribbon{width:min(880px,90%);height:110px;border-radius:8px;background:
+      linear-gradient(180deg,rgba(255,255,255,.45),transparent 28%,rgba(0,0,0,.09) 68%,rgba(255,255,255,.2)),#ead7bf;
+      box-shadow:0 24px 40px rgba(0,0,0,.18);display:grid;place-items:center;font-weight:800;color:#a78239;letter-spacing:.05em}
+    .proto-bottom{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-top:1px solid var(--line)}
+    .screen{display:none}.screen.active{display:flex;flex-direction:column;min-height:620px}
+    .recommend{position:absolute;right:28px;top:28px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;width:250px;box-shadow:var(--shadow-sm)}
+    .canvas{position:relative}
+    .flow{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+    .flow span{background:#fff;border:1px solid var(--line);padding:12px 14px;border-radius:12px;font-weight:700}
+    .flow i{font-style:normal;color:#999}
+    .rule{padding:14px 16px;border-left:4px solid var(--accent);background:#fff;border-radius:0 12px 12px 0;margin:10px 0}
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}
+      aside{position:static;height:auto}
+      nav{grid-template-columns:repeat(3,1fr)}
+      main{padding:18px}
+      .hero,.grid{grid-template-columns:1fr}
+      .prototype{grid-template-columns:1fr}
+      .proto-side{display:flex;gap:5px;overflow:auto}.proto-side button{min-width:110px}
+      .recommend{position:static;margin-top:16px;width:auto}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">Ribbon Studio</div>
+    <div class="brand-sub">Design System v1.0</div>
+    <nav id="nav">
+      <button class="active" data-page="overview">Обзор</button>
+      <button data-page="foundations">Основа</button>
+      <button data-page="components">Компоненты</button>
+      <button data-page="prototype">UX-прототип</button>
+      <button data-page="flow">Сценарий</button>
+      <button data-page="rules">Правила</button>
+    </nav>
+  </aside>
+
+  <main>
+    <section class="page active" id="overview">
+      <div class="hero">
+        <div>
+          <div class="eyebrow">Печатает Максим</div>
+          <h1>Ribbon Studio</h1>
+          <p style="font-size:19px;max-width:650px">Визуальная студия для создания брендированных лент. Человек должен увидеть свою будущую ленту, понять цену и оформить заказ менее чем за 60 секунд.</p>
+          <div class="button-row">
+            <button class="btn btn-primary" onclick="openPage('prototype')">Открыть прототип</button>
+            <button class="btn btn-ghost" onclick="openPage('rules')">Принципы продукта</button>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="ribbon-scene"><div class="ribbon"></div></div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card"><h3>Главная ценность</h3><p>Не дать клиенту инструменты, а помочь ему быстро получить красивое решение.</p></div>
+        <div class="card"><h3>Главный KPI</h3><p>Первый понятный макет и цена — не более чем за 60 секунд.</p></div>
+        <div class="card"><h3>Обещание бренда</h3><p>Ваш бренд будет выглядеть лучше ещё до оформления заказа.</p></div>
+      </div>
+    </section>
+
+    <section class="page" id="foundations">
+      <div class="eyebrow">Foundations</div><h2>Визуальная основа</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Цвета</h3>
+          <div class="token"><span>Основной фон</span><span class="swatch" style="background:#f3f0ea"></span></div>
+          <div class="token"><span>Поверхность</span><span class="swatch" style="background:#fff"></span></div>
+          <div class="token"><span>Текст</span><span class="swatch" style="background:#151515"></span></div>
+          <div class="token"><span>Акцент</span><span class="swatch" style="background:#d8323d"></span></div>
+          <div class="token"><span>Золото</span><span class="swatch" style="background:#b69249"></span></div>
+        </div>
+        <div class="card">
+          <h3>Типографика</h3>
+          <p style="font-size:42px;font-weight:800;letter-spacing:-.04em;margin:12px 0">Manrope</p>
+          <p>Основной интерфейсный шрифт. Современный, чистый, с хорошей кириллицей.</p>
+          <p style="font-family:'PT Serif';font-size:32px;color:#151515">PT Serif</p>
+          <p>Редкий акцент для эмоциональных и редакционных блоков.</p>
+        </div>
+        <div class="card">
+          <h3>Ритм</h3>
+          <div class="token"><span>4 px</span><small>микроинтервал</small></div>
+          <div class="token"><span>8 px</span><small>связанные элементы</small></div>
+          <div class="token"><span>16 px</span><small>обычный отступ</small></div>
+          <div class="token"><span>24–32 px</span><small>группы и карточки</small></div>
+          <div class="token"><span>48–72 px</span><small>секции</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="components">
+      <div class="eyebrow">Components</div><h2>Компоненты интерфейса</h2>
+      <div class="grid">
+        <div class="card component-demo">
+          <h3>Кнопки</h3>
+          <div class="button-row">
+            <button class="btn btn-primary">Создать ленту</button>
+            <button class="btn btn-dark">Отправить макет</button>
+            <button class="btn btn-light">Сделать красиво</button>
+            <button class="btn btn-ghost">Отмена</button>
+          </div>
+        </div>
+        <div class="card component-demo">
+          <h3>Поля</h3>
+          <div class="field"><label>Текст на ленте</label><input value="печатаетмаксим"></div>
+          <div class="field"><label>Шрифт</label><select><option>Manrope</option><option>PT Serif</option></select></div>
+        </div>
+        <div class="card component-demo">
+          <h3>Сегментированный выбор</h3>
+          <div class="segmented"><button class="active">15 мм</button><button>20 мм</button><button>Иной</button></div>
+          <div class="segmented"><button>Логотип</button><button class="active">Вместе</button><button>Текст</button></div>
+        </div>
+        <div class="card">
+          <h3>Контекстная панель</h3>
+          <div class="toolbar"><strong>Логотип</strong><div class="button-row"><button class="btn btn-light">Центр</button><button class="btn btn-light">Копировать</button><button class="btn btn-ghost">Удалить</button></div></div>
+        </div>
+        <div class="card">
+          <h3>Рекомендация</h3>
+          <div class="rule"><strong>Максим рекомендует</strong><p style="margin:5px 0 0">Для этого логотипа лучше выбрать 20 мм и золотую печать.</p></div>
+        </div>
+        <div class="card">
+          <h3>Состояния</h3>
+          <p>Обычное → Наведение → Активное → Загрузка → Успех → Ошибка.</p>
+          <p>Каждое действие должно иметь немедленную визуальную обратную связь.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="prototype">
+      <div class="eyebrow">Interactive prototype</div><h2>Ribbon Studio Next</h2>
+      <div class="prototype">
+        <div class="proto-side">
+          <button class="active" data-screen="ribbon">Лента</button>
+          <button data-screen="design">Дизайн</button>
+          <button data-screen="visual">Визуализация</button>
+          <button data-screen="order">Заказ</button>
+        </div>
+        <div class="proto-main">
+          <div class="screen active" id="screen-ribbon">
+            <div class="proto-top"><strong>Выберите ленту</strong><span style="color:#777">Шаг 1 из 4</span></div>
+            <div class="canvas">
+              <div class="canvas-ribbon">ваш логотип • ваш логотип • ваш логотип</div>
+              <div class="recommend"><strong>Максим рекомендует</strong><p>Кремовый сатин 20 мм с золотой печатью.</p><button class="btn btn-light">Применить</button></div>
+            </div>
+            <div class="proto-bottom"><div class="segmented"><button>15 мм</button><button class="active">20 мм</button></div><button class="btn btn-primary" onclick="showScreen('design')">Далее: дизайн</button></div>
+          </div>
+
+          <div class="screen" id="screen-design">
+            <div class="proto-top"><strong>Добавьте дизайн</strong><span style="color:#777">Шаг 2 из 4</span></div>
+            <div class="canvas"><div class="canvas-ribbon">ПЕЧАТАЕТ МАКСИМ • ПЕЧАТАЕТ МАКСИМ</div></div>
+            <div class="proto-bottom"><div class="button-row"><button class="btn btn-light">Загрузить SVG</button><button class="btn btn-light">Добавить текст</button><button class="btn btn-light">✨ Сделать красиво</button></div><button class="btn btn-primary" onclick="showScreen('visual')">Посмотреть в использовании</button></div>
+          </div>
+
+          <div class="screen" id="screen-visual">
+            <div class="proto-top"><strong>Посмотреть в использовании</strong><span style="color:#777">Шаг 3 из 4</span></div>
+            <div class="canvas">
+              <div class="grid" style="width:100%">
+                <div class="card"><h3>📦 Коробка</h3><p>Подарочная упаковка</p></div>
+                <div class="card"><h3>💐 Букет</h3><p>Флористика</p></div>
+                <div class="card"><h3>🍾 Бутылка</h3><p>Подарки и бутики</p></div>
+              </div>
+            </div>
+            <div class="proto-bottom"><span>Выберите сцену</span><button class="btn btn-primary" onclick="showScreen('order')">Перейти к заказу</button></div>
+          </div>
+
+          <div class="screen" id="screen-order">
+            <div class="proto-top"><strong>Оформить заказ</strong><span style="color:#777">Шаг 4 из 4</span></div>
+            <div style="padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1">
+              <div class="card"><h3>Ваш макет</h3><p>Сатин 20 мм<br>Кремовый<br>Золотая печать<br>100 метров</p><h2>1 270 ₽</h2></div>
+              <div class="component-demo"><div class="field"><label>Имя</label><input></div><div class="field"><label>Телефон</label><input></div><div class="field"><label>Telegram</label><input></div><button class="btn btn-primary">Отправить Максиму</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="flow">
+      <div class="eyebrow">User flow</div><h2>Сценарий за 60 секунд</h2>
+      <div class="flow">
+        <span>Открыл</span><i>→</i><span>Выбрал ленту</span><i>→</i><span>Загрузил логотип</span><i>→</i><span>Получил рекомендацию</span><i>→</i><span>Увидел цену</span><i>→</i><span>Отправил заявку</span>
+      </div>
+      <div class="grid" style="margin-top:24px">
+        <div class="card"><h3>0–10 секунд</h3><p>Пользователь понимает, что здесь можно создать свою ленту.</p></div>
+        <div class="card"><h3>10–40 секунд</h3><p>Выбирает материал, ширину и загружает логотип.</p></div>
+        <div class="card"><h3>40–60 секунд</h3><p>Видит результат, цену и отправляет заявку.</p></div>
+      </div>
+    </section>
+
+    <section class="page" id="rules">
+      <div class="eyebrow">Product rules</div><h2>Правила Ribbon Studio</h2>
+      <div class="rule"><strong>1. Лента всегда главный объект.</strong><p>Настройки не должны визуально конкурировать с результатом.</p></div>
+      <div class="rule"><strong>2. Не более одного главного действия на экране.</strong><p>Пользователь всегда понимает следующий шаг.</p></div>
+      <div class="rule"><strong>3. Профессиональные термины скрыты.</strong><p>DPI, вылеты, кривые и риббон остаются внутри производства.</p></div>
+      <div class="rule"><strong>4. Рекомендации объясняются.</strong><p>Не просто «выберите 20 мм», а почему именно 20 мм.</p></div>
+      <div class="rule"><strong>5. Красота не мешает скорости.</strong><p>Анимации и визуализации не должны замедлять оформление заказа.</p></div>
+      <div class="rule"><strong>6. Каждый релиз проверяется продажами.</strong><p>Функция либо облегчает заказ, либо усиливает бренд.</p></div>
+    </section>
+  </main>
+</div>
+<script>
+  const pages=[...document.querySelectorAll('.page')];
+  const navButtons=[...document.querySelectorAll('#nav button')];
+  function openPage(id){
+    pages.forEach(p=>p.classList.toggle('active',p.id===id));
+    navButtons.forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+    window.scrollTo(0,0);
+  }
+  navButtons.forEach(b=>b.onclick=()=>openPage(b.dataset.page));
+
+  const sideButtons=[...document.querySelectorAll('.proto-side button')];
+  const screens=[...document.querySelectorAll('.screen')];
+  function showScreen(id){
+    screens.forEach(s=>s.classList.toggle('active',s.id==='screen-'+id));
+    sideButtons.forEach(b=>b.classList.toggle('active',b.dataset.screen===id));
+  }
+  sideButtons.forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
+
+  document.querySelectorAll('.segmented').forEach(group=>{
+    group.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      group.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
