@@ -3,324 +3,378 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Онлайн-конструктор сатиновой ленты с логотипом и текстом — Печатает Максим">
   <title>Конструктор ленты — Печатает Максим</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Playfair+Display:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#f4f2ee; --card:#fff; --text:#1b1b1b; --muted:#73706b;
-      --line:#dedbd5; --accent:#df2e38; --shadow:0 18px 60px rgba(0,0,0,.08);
-    }
+    :root{--bg:#f4f1eb;--panel:#fff;--text:#171717;--muted:#77726a;--line:#ded9d0;--accent:#d82f39;--dark:#161616}
     *{box-sizing:border-box}
-    body{margin:0;font-family:Manrope,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    header{display:flex;justify-content:space-between;align-items:center;padding:22px 28px;background:#fff;border-bottom:1px solid var(--line)}
-    .brand{display:flex;align-items:center;gap:12px;font-weight:800}
-    .bow{font-size:28px}.badge{font-size:12px;color:#fff;background:#111;border-radius:999px;padding:6px 10px}
-    main{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;padding:20px;min-height:calc(100vh - 82px)}
-    aside,.workspace{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow)}
-    aside{padding:18px;overflow:auto;max-height:calc(100vh - 105px)}
-    h1{font-size:20px;margin:0 0 4px}.sub{font-size:12px;color:var(--muted);margin-bottom:18px}
-    .section{border-top:1px solid var(--line);padding-top:15px;margin-top:15px}
-    .section:first-of-type{border-top:0;margin-top:0;padding-top:0}
-    .section-title{font-weight:800;font-size:13px;margin-bottom:11px}
-    label{display:block;font-size:12px;font-weight:700;margin:11px 0 6px}
-    input,select,button{font:inherit}
-    input[type=text],input[type=number],select{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,Arial,sans-serif}
+    button,input,select{font:inherit}
+    header{height:74px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#fff;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}.brand-mark{font-size:26px}
+    .version{font-size:11px;background:#171717;color:#fff;padding:6px 9px;border-radius:999px}
+    .layout{display:grid;grid-template-columns:390px 1fr;min-height:calc(100vh - 74px)}
+    aside{background:#fff;border-right:1px solid var(--line);padding:18px;overflow:auto;max-height:calc(100vh - 74px)}
+    .workspace{min-width:0;display:flex;flex-direction:column}
+    h1{font-size:22px;margin:0 0 5px}.lead{font-size:12px;line-height:1.5;color:var(--muted);margin:0 0 16px}
+    .step{border-top:1px solid var(--line);padding-top:15px;margin-top:15px}
+    .step:first-of-type{border-top:0;margin-top:0}
+    .step-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;margin-bottom:11px}
+    .num{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#171717;color:#fff;font-size:11px}
+    label{display:block;font-size:12px;font-weight:700;margin:10px 0 6px}
+    input[type=text],input[type=number],select{width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;background:#fff}
     input[type=range]{width:100%}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-    .chips{display:flex;flex-wrap:wrap;gap:8px}
-    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;cursor:pointer;font-size:12px}
-    .chip.active{border-color:#111;background:#111;color:#fff}
-    .color-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .chips{display:flex;flex-wrap:wrap;gap:7px}
+    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;font-size:12px;cursor:pointer}
+    .chip.active{background:#171717;color:#fff;border-color:#171717}
+    .swatches{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
     .swatch{aspect-ratio:1;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
-    .swatch.active{box-shadow:0 0 0 3px #111}
-    .upload{display:block;border:1.5px dashed #aaa;border-radius:14px;padding:18px;text-align:center;cursor:pointer;background:#fafafa}
+    .swatch.active{box-shadow:0 0 0 3px #171717}
+    .upload{display:block;padding:16px;border:1.5px dashed #aaa;border-radius:13px;text-align:center;background:#faf9f7;cursor:pointer}
     .upload strong{display:block;font-size:13px}.upload span{font-size:11px;color:var(--muted)}
-    .tiny{font-size:11px;color:var(--muted);line-height:1.45}
-    .btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
-    button{border:0;border-radius:13px;padding:12px 14px;font-weight:800;cursor:pointer}
-    .primary{background:var(--accent);color:#fff}.secondary{background:#111;color:#fff}.ghost{background:#eeeae4}
-    .workspace{display:flex;flex-direction:column;overflow:hidden;min-width:0}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line)}
+    .info{font-size:11px;line-height:1.45;color:var(--muted);margin-top:7px}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+    .toggle-row label{margin:0}
+    .switch{position:relative;width:42px;height:24px}
+    .switch input{display:none}
+    .slider{position:absolute;inset:0;background:#d7d3cc;border-radius:999px;cursor:pointer}
+    .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.2s}
+    .switch input:checked + .slider{background:#171717}.switch input:checked + .slider:before{transform:translateX(18px)}
+    .stage-head,.bottom{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;background:#fff}
+    .stage-head{border-bottom:1px solid var(--line)}.bottom{border-top:1px solid var(--line)}
     .status{font-size:12px;color:var(--muted)}
-    .stage-wrap{position:relative;flex:1;display:grid;place-items:center;padding:34px;background:
-      linear-gradient(45deg,#eceae6 25%,transparent 25%),linear-gradient(-45deg,#eceae6 25%,transparent 25%),
-      linear-gradient(45deg,transparent 75%,#eceae6 75%),linear-gradient(-45deg,transparent 75%,#eceae6 75%);
+    .stage-wrap{position:relative;flex:1;display:grid;place-items:center;padding:28px;background:
+      linear-gradient(45deg,#ece9e3 25%,transparent 25%),linear-gradient(-45deg,#ece9e3 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#ece9e3 75%),linear-gradient(-45deg,transparent 75%,#ece9e3 75%);
       background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
-    svg#preview{width:min(100%,1100px);height:auto;filter:drop-shadow(0 18px 25px rgba(0,0,0,.22));touch-action:none}
-    .hint{position:absolute;left:18px;bottom:15px;font-size:11px;color:#666;background:rgba(255,255,255,.84);padding:8px 10px;border-radius:9px}
-    .pricebar{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-top:1px solid var(--line);background:#fff}
-    .price strong{font-size:23px}.price span{font-size:11px;color:var(--muted);display:block}
+    #preview{width:min(100%,1200px);height:auto;filter:drop-shadow(0 20px 30px rgba(0,0,0,.20));touch-action:none}
+    .guide{position:absolute;left:16px;bottom:14px;background:rgba(255,255,255,.9);padding:8px 10px;border-radius:10px;font-size:11px;color:#666}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+    .stat{padding:10px;border:1px solid var(--line);border-radius:11px;background:#faf9f7}
+    .stat strong{display:block;font-size:15px}.stat span{font-size:10px;color:var(--muted)}
+    .price strong{font-size:24px}.price small{display:block;color:var(--muted)}
+    .actions{display:flex;gap:8px}
+    button.main,button.dark,button.light{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer}
+    button.main{background:var(--accent);color:#fff}.dark{background:#171717;color:#fff}.light{background:#ece8e1}
+    .warning{display:none;margin-top:9px;padding:9px 10px;background:#fff3cd;border:1px solid #ead49a;border-radius:9px;font-size:11px}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.48);display:none;align-items:center;justify-content:center;padding:18px;z-index:100}
+    .modal.open{display:flex}.modal-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.modal-head h2{margin:0;font-size:20px}
+    .close{border:0;background:#eee8e1;width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer}
+    textarea{width:100%;min-height:100px;padding:11px;border:1px solid var(--line);border-radius:11px;resize:vertical;font:inherit}
+    .order-summary{font-size:12px;line-height:1.6;background:#faf9f7;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
     @media(max-width:900px){
-      main{grid-template-columns:1fr;padding:10px}
-      aside{max-height:none}
-      .workspace{min-height:500px}
-      header{padding:16px}
+      .layout{grid-template-columns:1fr}
+      aside{max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+      .workspace{min-height:560px}
+      .bottom{gap:10px;align-items:flex-start;flex-direction:column}
+      .actions{width:100%}.actions button{flex:1}
     }
   </style>
 </head>
 <body>
 <header>
-  <div class="brand"><span class="bow">🎀</span><span>Печатает Максим</span></div>
-  <span class="badge">Прототип конструктора v1</span>
+  <div class="brand"><span class="brand-mark">🎀</span><span>Печатает Максим</span></div>
+  <span class="version">Конструктор 2.1</span>
 </header>
 
-<main>
+<div class="layout">
 <aside>
   <h1>Создайте свою ленту</h1>
-  <div class="sub">SVG сохраняется векторным. JPEG используется без принудительной конвертации.</div>
+  <p class="lead">Загрузите логотип, добавьте текст и сразу увидите повтор на ленте. SVG сохраняется без принудительной конвертации.</p>
 
-  <div class="section">
-    <div class="section-title">1. Лента</div>
+  <section class="step">
+    <div class="step-title"><span class="num">0</span>Режим макета</div>
+    <div class="chips" id="modeChips">
+      <button class="chip" data-mode="logo">Только логотип</button>
+      <button class="chip" data-mode="text">Только текст</button>
+      <button class="chip active" data-mode="both">Логотип + текст</button>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-title"><span class="num">1</span>Лента</div>
     <label>Ширина</label>
     <div class="chips" id="widthChips">
       <button class="chip active" data-width="15">15 мм</button>
       <button class="chip" data-width="20">20 мм</button>
     </div>
-
-    <label>Цвет ленты</label>
-    <div class="color-grid" id="ribbonColors"></div>
-
+    <label>Цвет ленты</label><div class="swatches" id="ribbonColors"></div>
     <label>Цвет печати</label>
     <div class="chips" id="printChips">
-      <button class="chip active" data-print="#191919">Чёрный</button>
-      <button class="chip" data-print="#c8a44d">Золото</button>
-      <button class="chip" data-print="#c9cbd0">Серебро</button>
+      <button class="chip active" data-print="#171717">Чёрный</button>
+      <button class="chip" data-print="#bd9442">Золото</button>
+      <button class="chip" data-print="#c7c9ce">Серебро</button>
       <button class="chip" data-print="#ffffff">Белый</button>
     </div>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-title">2. Логотип</div>
+  <section class="step">
+    <div class="step-title"><span class="num">2</span>Логотип</div>
+    <div class="toggle-row"><label>Показывать логотип</label><label class="switch"><input id="showLogo" type="checkbox" checked><span class="slider"></span></label></div>
     <label class="upload">
       <input id="logoInput" type="file" accept=".svg,image/svg+xml,image/jpeg,.jpg,.jpeg" hidden>
-      <strong>Загрузить SVG или JPEG</strong>
-      <span>Нажмите или перетащите файл сюда</span>
+      <strong>Загрузить SVG или JPEG</strong><span>Нажмите или перетащите файл</span>
     </label>
-    <div class="tiny" id="fileInfo" style="margin-top:7px">Файл не выбран</div>
-
-    <div class="grid2">
-      <div><label>Размер логотипа</label><input id="logoScale" type="range" min="10" max="130" value="55"></div>
-      <div><label>Положение по высоте</label><input id="logoY" type="range" min="-35" max="35" value="0"></div>
+    <div id="fileInfo" class="info">Файл не выбран</div>
+    <div class="row2" style="margin-top:8px">
+      <button class="light" id="replaceLogo" type="button">Заменить</button>
+      <button class="light" id="removeLogo" type="button">Удалить</button>
     </div>
-    <label>Поворот логотипа</label>
-    <input id="logoRotate" type="range" min="-180" max="180" value="0">
-  </div>
+    <div class="row2">
+      <div><label>Размер</label><input id="logoScale" type="range" min="10" max="95" value="48"></div>
+      <div><label>По высоте</label><input id="logoY" type="range" min="-40" max="40" value="0"></div>
+    </div>
+    <label>По горизонтали</label><input id="logoX" type="range" min="-120" max="120" value="-70">
+    <label>Поворот</label><input id="logoRotate" type="range" min="-180" max="180" value="0">
+  </section>
 
-  <div class="section">
-    <div class="section-title">3. Текст</div>
-    <label>Надпись</label>
-    <input id="textInput" type="text" value="печатаетмаксим" placeholder="Введите текст">
+  <section class="step">
+    <div class="step-title"><span class="num">3</span>Текст</div>
+    <div class="toggle-row"><label>Показывать текст</label><label class="switch"><input id="showText" type="checkbox" checked><span class="slider"></span></label></div>
+    <label>Надпись</label><input id="textInput" type="text" value="печатаетмаксим">
     <label>Шрифт</label>
     <select id="fontSelect">
       <option value="Manrope">Manrope — современный</option>
       <option value="Montserrat">Montserrat — универсальный</option>
-      <option value="PT Sans">PT Sans — чистый кириллический</option>
+      <option value="PT Sans">PT Sans — лаконичный</option>
       <option value="PT Serif">PT Serif — классический</option>
       <option value="Cormorant Garamond">Cormorant Garamond — премиальный</option>
       <option value="Playfair Display">Playfair Display — выразительный</option>
       <option value="Russo One">Russo One — акцентный</option>
     </select>
-    <div class="grid2">
-      <div><label>Размер текста</label><input id="fontSize" type="range" min="10" max="90" value="34"></div>
-      <div><label>Положение по высоте</label><input id="textY" type="range" min="-35" max="35" value="0"></div>
+    <div class="row2">
+      <div><label>Размер</label><input id="fontSize" type="range" min="10" max="80" value="31"></div>
+      <div><label>По высоте</label><input id="textY" type="range" min="-40" max="40" value="0"></div>
     </div>
-    <label><input id="boldText" type="checkbox"> Полужирный текст</label>
-  </div>
+    <label>По горизонтали</label><input id="textX" type="range" min="-120" max="120" value="65">
+    <label><input id="boldText" type="checkbox"> Полужирный</label>
+  </section>
 
-  <div class="section">
-    <div class="section-title">4. Повтор и заказ</div>
-    <label>Расстояние между повторами</label>
-    <input id="repeatGap" type="range" min="10" max="180" value="70">
+  <section class="step">
+    <div class="step-title"><span class="num">4</span>Повтор и заказ</div>
+    <label>Шаг повтора, мм</label><input id="repeatMm" type="number" min="20" max="300" value="100">
     <label>Метраж</label>
-    <select id="meters">
-      <option value="10">10 м</option><option value="25">25 м</option>
-      <option value="50">50 м</option><option value="100" selected>100 м</option>
-      <option value="200">200 м</option>
-    </select>
-    <div class="btns">
-      <button class="secondary" id="exportSvg">Скачать SVG</button>
-      <button class="ghost" id="exportPng">Скачать PNG</button>
+    <select id="meters"><option>10</option><option>25</option><option>50</option><option selected>100</option><option>200</option></select>
+    <div class="stats">
+      <div class="stat"><strong id="perMeter">10</strong><span>повторов на метр</span></div>
+      <div class="stat"><strong id="totalRepeats">1000</strong><span>повторов в заказе</span></div>
+      <div class="stat"><strong id="ribbonWidthStat">15 мм</strong><span>ширина ленты</span></div>
     </div>
-    <button class="primary" style="width:100%;margin-top:9px" id="resetBtn">Новый макет</button>
-  </div>
+    <div class="stats">
+      <div class="stat"><strong id="logoMm">—</strong><span>размер логотипа</span></div>
+      <div class="stat"><strong id="textMm">—</strong><span>высота текста</span></div>
+      <div class="stat"><strong id="safeMm">13 мм</strong><span>безопасная зона</span></div>
+    </div>
+    <div class="warning" id="warning"></div>
+  </section>
 </aside>
 
-<section class="workspace">
-  <div class="toolbar">
+<main class="workspace">
+  <div class="stage-head">
     <strong>Предпросмотр</strong>
-    <span class="status" id="status">Лента 15 мм · 100 м</span>
+    <span class="status" id="status">15 мм · 100 м · шаг 100 мм</span>
   </div>
   <div class="stage-wrap">
-    <svg id="preview" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
+    <svg id="preview" viewBox="0 0 1200 280" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="satin" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fff" stop-opacity=".32"/>
-          <stop offset=".25" stop-color="#fff" stop-opacity=".04"/>
-          <stop offset=".55" stop-color="#000" stop-opacity=".08"/>
-          <stop offset=".82" stop-color="#fff" stop-opacity=".18"/>
+          <stop offset="0" stop-color="#fff" stop-opacity=".34"/>
+          <stop offset=".22" stop-color="#fff" stop-opacity=".05"/>
+          <stop offset=".52" stop-color="#000" stop-opacity=".08"/>
+          <stop offset=".82" stop-color="#fff" stop-opacity=".17"/>
           <stop offset="1" stop-color="#000" stop-opacity=".11"/>
         </linearGradient>
-        <filter id="metal">
-          <feSpecularLighting result="spec" specularExponent="18" lighting-color="white">
-            <feDistantLight azimuth="225" elevation="55"/>
-          </feSpecularLighting>
-          <feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/>
-          <feBlend in="SourceGraphic" in2="specOut" mode="screen"/>
-        </filter>
-        <clipPath id="ribbonClip"><rect id="clipRect" x="30" y="70" width="1140" height="120" rx="5"/></clipPath>
+        <filter id="metal"><feSpecularLighting result="spec" specularExponent="18" lighting-color="white"><feDistantLight azimuth="225" elevation="55"/></feSpecularLighting><feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/><feBlend in="SourceGraphic" in2="specOut" mode="screen"/></filter>
+        <clipPath id="clip"><rect id="clipRect" x="30" y="80" width="1140" height="120" rx="5"/></clipPath>
       </defs>
-      <rect x="30" y="70" width="1140" height="120" rx="5" id="ribbonBase" fill="#f4efe5"/>
-      <rect x="30" y="70" width="1140" height="120" rx="5" fill="url(#satin)" pointer-events="none"/>
-      <g id="repeatLayer" clip-path="url(#ribbonClip)"></g>
+      <rect id="ribbonBase" x="30" y="80" width="1140" height="120" rx="5" fill="#f4efe5"/>
+      <rect id="ribbonShine" x="30" y="80" width="1140" height="120" rx="5" fill="url(#satin)"/>
+      <rect id="safeZone" x="30" y="91" width="1140" height="98" rx="4" fill="none" stroke="rgba(0,0,0,.28)" stroke-dasharray="7 7" stroke-width="1.5"/>
+      <g id="repeatLayer" clip-path="url(#clip)"></g>
     </svg>
-    <div class="hint">Логотип можно перемещать мышью или пальцем прямо на ленте.</div>
+    <div class="guide">Перетаскивайте ленту мышью или пальцем, чтобы проверить повтор.</div>
   </div>
-  <div class="pricebar">
-    <div class="price"><strong id="price">1 090 ₽</strong><span>предварительная стоимость</span></div>
-    <button class="primary" id="orderBtn">Перейти к заказу</button>
+  <div class="bottom">
+    <div class="price"><strong id="price">1 090 ₽</strong><small>предварительная стоимость</small></div>
+    <div class="actions">
+      <button class="light" id="exportPng">PNG</button>
+      <button class="dark" id="exportSvg">SVG</button>
+      <button class="main" id="orderBtn">Отправить макет</button>
+    </div>
   </div>
-</section>
 </main>
+</div>
+
+<div class="modal" id="orderModal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head"><h2>Отправить макет Максиму</h2><button class="close" id="closeModal" type="button">×</button></div>
+    <div class="order-summary" id="orderSummary"></div>
+    <label>Имя</label><input id="customerName" type="text" placeholder="Как к вам обращаться">
+    <label>Телефон</label><input id="customerPhone" type="text" placeholder="+7">
+    <label>Telegram</label><input id="customerTelegram" type="text" placeholder="@username">
+    <label>Комментарий</label><textarea id="customerComment" placeholder="Срок, доставка, особенности заказа"></textarea>
+    <button class="main" id="sendOrder" style="width:100%;margin-top:12px">Сформировать заявку</button>
+    <div class="info" id="sendInfo">На следующем этапе подключим отправку в Telegram/CRM.</div>
+  </div>
+</div>
 
 <script>
-const $ = s => document.querySelector(s);
-const colors = [
-  ['Молочный','#f4efe5'],['Белый','#ffffff'],['Пудровый','#e8c8c5'],['Красный','#b71f2c'],
-  ['Бордовый','#6f1d2c'],['Персиковый','#e7a481'],['Жёлтый','#e5c950'],['Изумрудный','#0b6b50'],
-  ['Оливковый','#69704a'],['Голубой','#8bbccc'],['Синий','#254c85'],['Лавандовый','#9c8db7'],
-  ['Серый','#8e8d8a'],['Чёрный','#171717']
-];
-const state = {
-  width:15, ribbon:'#f4efe5', print:'#191919', logo:null, logoType:null,
-  logoScale:55, logoY:0, logoRotate:0, text:'печатаетмаксим',
-  font:'Manrope', fontSize:34, textY:0, bold:false, gap:70, meters:100, dragX:0
-};
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const state={mode:'both',width:15,ribbon:'#f4efe5',print:'#171717',logo:null,logoType:null,showLogo:true,showText:true,
+logoScale:48,logoX:-70,logoY:0,logoRotate:0,text:'печатаетмаксим',font:'Manrope',fontSize:31,textX:65,textY:0,bold:false,repeatMm:100,meters:100,drag:0};
 
-const colorBox = $('#ribbonColors');
-colors.forEach(([name,c],i)=>{
-  const b=document.createElement('button'); b.className='swatch'+(i===0?' active':'');
-  b.style.background=c; b.title=name; b.dataset.color=c;
-  b.onclick=()=>{document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.ribbon=c;render()};
-  colorBox.appendChild(b);
-});
+const colors=[['Молочный','#f4efe5'],['Белый','#fff'],['Пудровый','#e5c5c4'],['Красный','#b7202d'],['Бордовый','#6b1f2d'],['Персиковый','#e3a07c'],['Жёлтый','#e2c64e'],['Изумрудный','#0c6a4f'],['Оливковый','#6f754e'],['Голубой','#86b9ca'],['Синий','#274d83'],['Лавандовый','#9b8db5'],['Серый','#8e8d89'],['Чёрный','#171717']];
+colors.forEach(([n,c],i)=>{let b=document.createElement('button');b.className='swatch'+(i===0?' active':'');b.style.background=c;b.title=n;b.onclick=()=>{document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.ribbon=c;render()};$('#ribbonColors').appendChild(b)});
 
-document.querySelectorAll('#widthChips .chip').forEach(b=>b.onclick=()=>{setActive('#widthChips',b);state.width=+b.dataset.width;render()});
-document.querySelectorAll('#printChips .chip').forEach(b=>b.onclick=()=>{setActive('#printChips',b);state.print=b.dataset.print;render()});
-function setActive(root,b){document.querySelectorAll(root+' .chip').forEach(x=>x.classList.remove('active'));b.classList.add('active')}
+function activate(root,b){document.querySelectorAll(root+' .chip').forEach(x=>x.classList.remove('active'));b.classList.add('active')}
+document.querySelectorAll('#modeChips .chip').forEach(b=>b.onclick=()=>{activate('#modeChips',b);state.mode=b.dataset.mode;state.showLogo=state.mode!=='text';state.showText=state.mode!=='logo';$('#showLogo').checked=state.showLogo;$('#showText').checked=state.showText;render();saveState()});
+document.querySelectorAll('#widthChips .chip').forEach(b=>b.onclick=()=>{activate('#widthChips',b);state.width=+b.dataset.width;render()});
+document.querySelectorAll('#printChips .chip').forEach(b=>b.onclick=()=>{activate('#printChips',b);state.print=b.dataset.print;render()});
 
-const bind=(id,key,number=false)=>$(id).addEventListener('input',e=>{state[key]=number?+e.target.value:e.target.value;render()});
-bind('#logoScale','logoScale',true);bind('#logoY','logoY',true);bind('#logoRotate','logoRotate',true);
-bind('#textInput','text');bind('#fontSelect','font');bind('#fontSize','fontSize',true);bind('#textY','textY',true);
-bind('#repeatGap','gap',true);bind('#meters','meters',true);
+const bind=(id,key,num=false)=>$(id).addEventListener('input',e=>{state[key]=num?+e.target.value:e.target.value;render()});
+['logoScale','logoX','logoY','logoRotate','fontSize','textX','textY','repeatMm','meters'].forEach(k=>bind('#'+k,k,true));
+bind('#textInput','text');bind('#fontSelect','font');
 $('#boldText').oninput=e=>{state.bold=e.target.checked;render()};
-
-$('#logoInput').addEventListener('change',e=>loadFile(e.target.files[0]));
-document.querySelector('.upload').addEventListener('dragover',e=>{e.preventDefault()});
-document.querySelector('.upload').addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0])});
+$('#showLogo').oninput=e=>{state.showLogo=e.target.checked;render()};
+$('#showText').oninput=e=>{state.showText=e.target.checked;render()};
 
 function loadFile(file){
   if(!file)return;
   const ext=file.name.split('.').pop().toLowerCase();
   if(!['svg','jpg','jpeg'].includes(ext)){alert('Поддерживаются SVG и JPEG');return}
-  const reader=new FileReader();
+  const r=new FileReader();
   if(ext==='svg'){
-    reader.onload=()=>{
-      const parser=new DOMParser();
-      const doc=parser.parseFromString(reader.result,'image/svg+xml');
-      const svg=doc.documentElement;
-      if(svg.nodeName.toLowerCase()!=='svg'){alert('Не удалось прочитать SVG');return}
-      svg.querySelectorAll('script,foreignObject').forEach(n=>n.remove());
-      svg.querySelectorAll('*').forEach(n=>[...n.attributes].forEach(a=>{if(/^on/i.test(a.name))n.removeAttribute(a.name)}));
-      state.logo={markup:new XMLSerializer().serializeToString(svg), ratio:getSvgRatio(svg)};
-      state.logoType='svg';
-      $('#fileInfo').textContent=file.name+' · SVG остаётся векторным';
-      render();
-    };
-    reader.readAsText(file);
-  } else {
-    reader.onload=()=>{const img=new Image();img.onload=()=>{state.logo={url:reader.result,ratio:img.width/img.height};state.logoType='jpeg';$('#fileInfo').textContent=file.name+' · JPEG '+img.width+'×'+img.height;render()};img.src=reader.result};
-    reader.readAsDataURL(file);
+    r.onload=()=>{const d=new DOMParser().parseFromString(r.result,'image/svg+xml');const s=d.documentElement;
+      if(s.nodeName.toLowerCase()!=='svg'){alert('Некорректный SVG');return}
+      s.querySelectorAll('script,foreignObject').forEach(n=>n.remove());
+      s.querySelectorAll('*').forEach(n=>[...n.attributes].forEach(a=>{if(/^on/i.test(a.name))n.removeAttribute(a.name)}));
+      const vb=(s.getAttribute('viewBox')||'').trim().split(/\s+/).map(Number);
+      const ratio=vb.length===4&&vb[3]?vb[2]/vb[3]:(parseFloat(s.getAttribute('width'))||100)/(parseFloat(s.getAttribute('height'))||100);
+      state.logo={markup:new XMLSerializer().serializeToString(s),ratio};state.logoType='svg';
+      $('#fileInfo').textContent=file.name+' · SVG сохранён как вектор';render()};
+    r.readAsText(file);
+  }else{
+    r.onload=()=>{let img=new Image();img.onload=()=>{state.logo={url:r.result,ratio:img.width/img.height};state.logoType='jpeg';$('#fileInfo').textContent=file.name+' · '+img.width+'×'+img.height+' px';render()};img.src=r.result};r.readAsDataURL(file)
   }
 }
-function getSvgRatio(svg){
-  const vb=(svg.getAttribute('viewBox')||'').trim().split(/\s+/).map(Number);
-  if(vb.length===4&&vb[3])return vb[2]/vb[3];
-  const w=parseFloat(svg.getAttribute('width'))||100,h=parseFloat(svg.getAttribute('height'))||100;return w/h;
+$('#logoInput').onchange=e=>loadFile(e.target.files[0]);
+$('#replaceLogo').onclick=()=>$('#logoInput').click();
+$('#removeLogo').onclick=()=>{state.logo=null;state.logoType=null;$('#fileInfo').textContent='Файл не выбран';render();saveState()};
+document.querySelector('.upload').ondragover=e=>e.preventDefault();
+document.querySelector('.upload').ondrop=e=>{e.preventDefault();loadFile(e.dataTransfer.files[0])};
+
+function make(tag,attrs={}){const e=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e}
+function saveState(){
+  const copy={...state,logo:null};
+  localStorage.setItem('pm-constructor-v21',JSON.stringify(copy));
 }
-function escaped(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function restoreState(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('pm-constructor-v21')||'null');
+    if(saved) Object.assign(state,saved);
+  }catch(e){}
+}
+restoreState();
 
 function render(){
-  const h=state.width===15?90:120, y=130-h/2;
-  $('#ribbonBase').setAttribute('y',y);$('#ribbonBase').setAttribute('height',h);$('#ribbonBase').setAttribute('fill',state.ribbon);
-  $('#clipRect').setAttribute('y',y);$('#clipRect').setAttribute('height',h);
+  const h=state.width===15?90:120,y=140-h/2;
+  ['ribbonBase','ribbonShine','clipRect'].forEach(id=>{$('#'+id).setAttribute('y',y);$('#'+id).setAttribute('height',h)});
+  const safeH=h-14,safeY=140-safeH/2;$('#safeZone').setAttribute('y',safeY);$('#safeZone').setAttribute('height',safeH);
+  $('#ribbonBase').setAttribute('fill',state.ribbon);
   const layer=$('#repeatLayer');layer.innerHTML='';
-  const itemW=260+state.gap;
-  for(let x=-itemW+state.dragX;x<1250;x+=itemW){
-    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('transform',`translate(${x+70} ${130})`);
-    if(state.logo){
-      const logoH=Math.min(h*.72,state.logoScale);
-      const logoW=logoH*state.logo.ratio;
-      const fg=document.createElementNS('http://www.w3.org/2000/svg','g');
-      fg.setAttribute('transform',`translate(${-logoW/2} ${-logoH/2+state.logoY}) rotate(${state.logoRotate} ${logoW/2} ${logoH/2})`);
-      if(state.logoType==='jpeg'){
-        const im=document.createElementNS('http://www.w3.org/2000/svg','image');
-        im.setAttribute('href',state.logo.url);im.setAttribute('width',logoW);im.setAttribute('height',logoH);im.setAttribute('preserveAspectRatio','xMidYMid meet');
-        fg.appendChild(im);
-      }else{
-        const fo=document.createElementNS('http://www.w3.org/2000/svg','g');
-        const svg64='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(state.logo.markup)));
-        const im=document.createElementNS('http://www.w3.org/2000/svg','image');
-        im.setAttribute('href',svg64);im.setAttribute('width',logoW);im.setAttribute('height',logoH);im.setAttribute('preserveAspectRatio','xMidYMid meet');
-        fg.appendChild(im);
-      }
-      g.appendChild(fg);
+  const stepPx=state.repeatMm*4.0;
+  const first=-stepPx+state.drag;
+  for(let x=first;x<1250;x+=stepPx){
+    const g=make('g',{transform:`translate(${x+90} 140)`});
+    if(state.logo&&state.showLogo){
+      const logoH=Math.min(h*.76,state.logoScale),logoW=logoH*state.logo.ratio;
+      const lg=make('g',{transform:`translate(${state.logoX-logoW/2} ${state.logoY-logoH/2}) rotate(${state.logoRotate} ${logoW/2} ${logoH/2})`});
+      const im=make('image',{width:logoW,height:logoH,preserveAspectRatio:'xMidYMid meet'});
+      const href=state.logoType==='svg'?'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(state.logo.markup))):state.logo.url;
+      im.setAttribute('href',href);lg.appendChild(im);g.appendChild(lg);
     }
-    if(state.text){
-      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('x',state.logo?105:0);t.setAttribute('y',state.textY);
-      t.setAttribute('dominant-baseline','middle');t.setAttribute('text-anchor',state.logo?'start':'middle');
-      t.setAttribute('font-family',state.font);t.setAttribute('font-size',state.fontSize);
-      t.setAttribute('font-weight',state.bold?'700':'500');t.setAttribute('fill',state.print);
-      if(state.print==='#c8a44d'||state.print==='#c9cbd0')t.setAttribute('filter','url(#metal)');
+    if(state.showText&&state.text){
+      const t=make('text',{x:state.textX,y:state.textY,'dominant-baseline':'middle','text-anchor':'middle','font-family':state.font,'font-size':state.fontSize,'font-weight':state.bold?'700':'500',fill:state.print});
+      if(['#bd9442','#c7c9ce'].includes(state.print))t.setAttribute('filter','url(#metal)');
       t.textContent=state.text;g.appendChild(t);
     }
     layer.appendChild(g);
   }
+  const per=Math.max(1,Math.floor(1000/state.repeatMm)),total=per*state.meters;
+  $('#perMeter').textContent=per;$('#totalRepeats').textContent=total.toLocaleString('ru-RU');$('#ribbonWidthStat').textContent=state.width+' мм';
+  const pxPerMm=4,logoMm=state.logo&&state.showLogo?(Math.min(h*.76,state.logoScale)/pxPerMm).toFixed(1)+' мм':'—';
+  const textMm=state.showText?(state.fontSize/pxPerMm).toFixed(1)+' мм':'—';
+  $('#logoMm').textContent=logoMm;$('#textMm').textContent=textMm;$('#safeMm').textContent=(state.width===15?13:18)+' мм';
+  $('#status').textContent=`${state.width} мм · ${state.meters} м · шаг ${state.repeatMm} мм`;
   const base={10:390,25:590,50:790,100:1090,200:1590}[state.meters]||1090;
-  const widthAdd=state.width===20?180:0;
-  $('#price').textContent=(base+widthAdd).toLocaleString('ru-RU')+' ₽';
-  $('#status').textContent=`Лента ${state.width} мм · ${state.meters} м`;
+  $('#price').textContent=(base+(state.width===20?180:0)).toLocaleString('ru-RU')+' ₽';
+  const warn=$('#warning');let msg='';
+  if(state.repeatMm<55)msg='Слишком частый повтор: макет может сливаться при печати.';
+  if(state.fontSize>58&&state.width===15)msg='Текст слишком крупный для ленты 15 мм.';
+  if(state.logoScale>72&&state.width===15)msg='Логотип может не поместиться по высоте на ленте 15 мм.';
+  warn.textContent=msg;warn.style.display=msg?'block':'none';
+  saveState();
 }
+['logoScale','logoX','logoY','logoRotate','fontSize','textX','textY','repeatMm','meters'].forEach(k=>{const el=$('#'+k);if(el)el.value=state[k]});
+$('#textInput').value=state.text;$('#fontSelect').value=state.font;$('#boldText').checked=state.bold;$('#showLogo').checked=state.showLogo;$('#showText').checked=state.showText;
+document.querySelectorAll('#modeChips .chip').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
+document.querySelectorAll('#widthChips .chip').forEach(b=>b.classList.toggle('active',+b.dataset.width===state.width));
 render();
 
-let dragging=false,lastX=0;
-$('#preview').addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;$('#preview').setPointerCapture(e.pointerId)});
-$('#preview').addEventListener('pointermove',e=>{if(!dragging)return;state.dragX+=e.clientX-lastX;lastX=e.clientX;state.dragX=((state.dragX%(330+state.gap))+(330+state.gap))%(330+state.gap);render()});
-$('#preview').addEventListener('pointerup',()=>dragging=false);
-
-function serializedSvg(){
-  const clone=$('#preview').cloneNode(true);
-  clone.setAttribute('width','1200');clone.setAttribute('height','260');
-  clone.removeAttribute('style');clone.removeAttribute('class');
-  const style=document.createElementNS('http://www.w3.org/2000/svg','style');
-  style.textContent=`text{font-family:${state.font},Arial,sans-serif}`;
-  clone.insertBefore(style,clone.firstChild);
-  return new XMLSerializer().serializeToString(clone);
-}
-function download(blob,name){
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
-}
-$('#exportSvg').onclick=()=>download(new Blob([serializedSvg()],{type:'image/svg+xml'}),'maket-lenty.svg');
-$('#exportPng').onclick=()=>{
-  const svg=serializedSvg(),img=new Image(),url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
-  img.onload=()=>{const c=document.createElement('canvas');c.width=2400;c.height=520;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>download(b,'maket-lenty.png'),'image/png');URL.revokeObjectURL(url)};
-  img.src=url;
+let dragging=false,lastX=0,lastY=0,dragTarget='ribbon';
+$('#preview').onpointerdown=e=>{
+  dragging=true;lastX=e.clientX;lastY=e.clientY;$('#preview').setPointerCapture(e.pointerId);
+  const r=$('#preview').getBoundingClientRect(),sx=(e.clientX-r.left)/r.width*1200,sy=(e.clientY-r.top)/r.height*280;
+  const center=((sx-90-state.drag)%(state.repeatMm*4)+(state.repeatMm*4))%(state.repeatMm*4);
+  const relX=center>state.repeatMm*2?center-state.repeatMm*4:center;
+  const dl=Math.hypot(relX-state.logoX,sy-140-state.logoY);
+  const dt=Math.hypot(relX-state.textX,sy-140-state.textY);
+  if(state.logo&&state.showLogo&&dl<70)dragTarget='logo';
+  else if(state.showText&&dt<90)dragTarget='text';
+  else dragTarget='ribbon';
 };
-$('#resetBtn').onclick=()=>location.reload();
-$('#orderBtn').onclick=()=>alert('Следующий этап: форма заказа с контактами, сроком и отправкой макета менеджеру.');
+$('#preview').onpointermove=e=>{
+  if(!dragging)return;
+  const r=$('#preview').getBoundingClientRect(),dx=(e.clientX-lastX)/r.width*1200,dy=(e.clientY-lastY)/r.height*280;
+  lastX=e.clientX;lastY=e.clientY;
+  if(dragTarget==='logo'){state.logoX+=dx;state.logoY+=dy;$('#logoX').value=state.logoX;$('#logoY').value=state.logoY}
+  else if(dragTarget==='text'){state.textX+=dx;state.textY+=dy;$('#textX').value=state.textX;$('#textY').value=state.textY}
+  else{state.drag+=dx;const step=state.repeatMm*4;state.drag=((state.drag%step)+step)%step}
+  render();
+};
+$('#preview').onpointerup=()=>dragging=false;
+
+function svgText(){const c=$('#preview').cloneNode(true);c.setAttribute('width','1200');c.setAttribute('height','280');return new XMLSerializer().serializeToString(c)}
+function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('#exportSvg').onclick=()=>save(new Blob([svgText()],{type:'image/svg+xml'}),'maket-lenty.svg');
+$('#exportPng').onclick=()=>{const u=URL.createObjectURL(new Blob([svgText()],{type:'image/svg+xml'})),img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=2400;c.height=560;c.getContext('2d').drawImage(img,0,0,c.width,c.height);c.toBlob(b=>save(b,'maket-lenty.png'));URL.revokeObjectURL(u)};img.src=u};
+$('#orderBtn').onclick=()=>{
+  $('#orderSummary').innerHTML=`<strong>Лента ${state.width} мм, ${state.meters} м</strong><br>Шаг повтора: ${state.repeatMm} мм<br>Цвет печати: ${state.print}<br>Режим: ${state.mode}`;
+  $('#orderModal').classList.add('open');$('#orderModal').setAttribute('aria-hidden','false');
+};
+$('#closeModal').onclick=()=>{$('#orderModal').classList.remove('open');$('#orderModal').setAttribute('aria-hidden','true')};
+$('#sendOrder').onclick=()=>{
+  const data=[
+    'Заявка — Печатает Максим',
+    'Имя: '+$('#customerName').value,
+    'Телефон: '+$('#customerPhone').value,
+    'Telegram: '+$('#customerTelegram').value,
+    'Комментарий: '+$('#customerComment').value,
+    `Лента: ${state.width} мм`,
+    `Метраж: ${state.meters} м`,
+    `Шаг повтора: ${state.repeatMm} мм`,
+    `Текст: ${state.showText?state.text:'нет'}`,
+    `Логотип: ${state.showLogo&&state.logo?'да':'нет'}`
+  ].join('\n');
+  save(new Blob([data],{type:'text/plain'}),'zayavka-pechataet-maksim.txt');
+  $('#sendInfo').textContent='Заявка сформирована. На следующем шаге подключим автоматическую отправку.';
+};
 </script>
 </body>
 </html>
