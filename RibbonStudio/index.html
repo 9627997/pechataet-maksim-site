@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
-  <title>Ribbon Studio v0.3 DEV — Печатает Максим</title>
+  <title>Ribbon Studio v0.4.8 DEV — Печатает Максим</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
@@ -14,11 +14,11 @@
 <header class="topbar">
   <a class="brand" href="#" aria-label="Печатает Максим">
     <span class="brand-mark">🎀</span>
-    <span><strong>Ribbon Studio</strong><small>Печатает Максим</small></span>
+    <span><strong>Печатает Максим</strong><small>Студия лент и стикеров</small></span>
   </a>
   <div class="top-actions">
     <button class="button ghost" id="resetProject">Новый проект</button>
-    <span class="version version-dev">v0.3 DEV</span>
+    
   </div>
 </header>
 
@@ -33,14 +33,14 @@
 
     
     <section class="panel active" id="panel-upload">
-      <div class="panel-head"><p>Шаг 1</p><h2>Загрузите изображение</h2></div>
-      <p class="panel-copy">Логотип, надпись, монограмма, QR-код или рисунок — загрузите то, что у вас есть.</p>
+      <div class="panel-head"><p>Шаг 1</p><h2>Ваш бренд</h2></div>
+      <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
       <label class="upload upload-large" id="dropZone">
         <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg" hidden>
         <span class="upload-icon">↑</span>
-        <strong>Перетащите файл сюда</strong>
-        <span>или нажмите, чтобы выбрать</span>
+        <strong>Загрузить логотип</strong>
+        <span>SVG, PNG или JPEG</span>
       </label>
 
       <div class="format-list"><span>SVG</span><span>PNG</span><span>JPEG</span></div>
@@ -52,6 +52,25 @@
           <span id="fileCardMeta"></span>
           <small id="fileCardQuality"></small>
         </div>
+      </div>
+
+      <div class="upload-text-card">
+        <div class="upload-text-head">
+          <strong>Или введите название</strong>
+          <span>Надпись можно использовать отдельно или вместе с логотипом</span>
+        </div>
+
+        <label for="textInput">Текст на ленте и стикере</label>
+        <input class="input" id="textInput" type="text" value="печатаетмаксим" placeholder="Введите текст">
+
+        <label for="fontSelect">Шрифт</label>
+        <select class="input" id="fontSelect">
+          <option value="Manrope">Manrope — современный</option>
+          <option value="PT Serif">PT Serif — классический</option>
+          <option value="Arial">Arial — нейтральный</option>
+          <option value="Georgia">Georgia — элегантный</option>
+          <option value="Times New Roman">Times New Roman — традиционный</option>
+        </select>
       </div>
 
       <div class="help-note">
@@ -92,11 +111,7 @@
         <button data-value="#c6c8cd"><i class="print-dot silver"></i>Серебро</button>
         <button data-value="#ffffff"><i class="print-dot white"></i>Белый</button>
       </div>
-
-      <label>Надпись</label>
-      <input class="input" id="textInput" type="text" value="печатаетмаксим">
-
-      <label>Размер круглого стикера</label>
+<label>Размер круглого стикера</label>
       <div class="segmented" id="stickerSizeChoice">
         <button data-value="30">30 мм</button>
         <button class="active" data-value="40">40 мм</button>
@@ -107,9 +122,7 @@
         <div><label>Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
         <div><label>Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
       </div>
-
-      <select class="input visually-hidden" id="fontSelect"><option value="Manrope">Manrope</option></select>
-      <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
+<div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
       
       <div class="transform-card">
@@ -122,7 +135,23 @@
         <label>Смещение по горизонтали</label>
         <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
       </div>
-<button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
+
+      <div class="recommend-card" id="recommendCard">
+        <div class="recommend-card-head">
+          <div>
+            <span>Автоматический подбор</span>
+            <strong>Рекомендовано для вашего бренда</strong>
+          </div>
+          <button class="recommend-apply" id="makeBeautiful" type="button">Применить</button>
+        </div>
+        <div class="recommend-grid">
+          <div><span>Лента</span><strong id="recWidth">15 мм</strong></div>
+          <div><span>Стикер</span><strong id="recSticker">Ø40 мм</strong></div>
+          <div><span>Шаг</span><strong id="recRepeat">80 мм</strong></div>
+        </div>
+        <p id="recommendReason">Подходит для большинства логотипов и надписей.</p>
+      </div>
+
       <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
     </section>
 
@@ -164,63 +193,106 @@
   <main class="studio">
     <div class="studio-head">
       <div>
-        <p class="eyebrow">Фирменный комплект</p>
+        <p class="eyebrow">Студия фирменной упаковки</p>
         <h1>Создайте ленту и стикер вашего бренда</h1>
       </div>
-      <div class="studio-tabs" id="viewTabs">
-        <button class="active" data-view="kit">Комплект</button>
-        <button data-view="ribbon">Лента</button>
-        <button data-view="sticker">Стикер</button>
+      <div class="studio-tabs scene-tabs" id="sceneTabs">
+        <button class="active" data-scene="kit">Комплект</button>
+        <button data-scene="macro">Макро</button>
+        <button data-scene="package">Упаковка</button>
       </div>
     </div>
 
-    <section class="canvas" id="canvas">
-      <div class="kit-layout">
-        <div class="ribbon-area" id="ribbonArea">
-          <div class="object-label">Лента</div>
-          <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="satinGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#fff" stop-opacity=".50"/>
-                <stop offset=".22" stop-color="#fff" stop-opacity=".08"/>
-                <stop offset=".58" stop-color="#000" stop-opacity=".10"/>
-                <stop offset=".84" stop-color="#fff" stop-opacity=".20"/>
-                <stop offset="1" stop-color="#000" stop-opacity=".10"/>
-              </linearGradient>
-              <filter id="metallic">
-                <feSpecularLighting result="spec" specularExponent="22" lighting-color="white">
-                  <feDistantLight azimuth="225" elevation="55"/>
-                </feSpecularLighting>
-                <feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/>
-                <feBlend in="SourceGraphic" in2="specOut" mode="screen"/>
-              </filter>
-              <clipPath id="ribbonClip"><rect id="clipRect" x="28" y="70" width="1144" height="120" rx="6"/></clipPath>
-            </defs>
-            <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
-            <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="url(#satinGradient)"/>
-            <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="rgba(0,0,0,.25)" stroke-dasharray="8 8"/>
-            <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
-          </svg>
+    
+    <section class="canvas render-canvas" id="canvas">
+      <div class="scene active" id="scene-kit">
+        <div class="scene-caption">
+          <span>Фирменный комплект</span>
+          <strong>Сатиновая лента и круглый стикер</strong>
         </div>
 
-        <div class="sticker-area" id="stickerArea">
-          <div class="object-label">Стикер</div>
-          <div class="sticker-shadow">
-            <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-              <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
-              <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="3"/>
-              <g id="stickerContent"></g>
-            </svg>
+        <div class="kit-table">
+          <div class="table-shadow"></div>
+
+          <div class="ribbon-mockup">
+            <div class="ribbon-edge ribbon-edge-top"></div>
+            <div class="ribbon-surface" id="ribbonSurface">
+              <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="metallic">
+                    <feSpecularLighting result="spec" specularExponent="22" lighting-color="white">
+                      <feDistantLight azimuth="225" elevation="55"/>
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/>
+                    <feBlend in="SourceGraphic" in2="specOut" mode="screen"/>
+                  </filter>
+                  <clipPath id="ribbonClip"><rect id="clipRect" x="28" y="70" width="1144" height="120" rx="6"/></clipPath>
+                </defs>
+                <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
+                <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="transparent"/>
+                <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="transparent"/>
+                <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
+              </svg>
+            </div>
+            <div class="ribbon-edge ribbon-edge-bottom"></div>
           </div>
-          <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
+
+          <div class="sticker-mockup" id="stickerArea">
+            <div class="sticker-paper">
+              <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
+                <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="3"/>
+                <g id="stickerContent"></g>
+              </svg>
+            </div>
+            <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="scene-macro">
+        <div class="scene-caption">
+          <span>Макро</span>
+          <strong>Фактура сатина и качество печати</strong>
+        </div>
+        <div class="macro-stage">
+          <div class="macro-ribbon" id="macroRibbon">
+            <div class="macro-fibers"></div>
+            <div class="macro-logo" id="macroLogo">
+      <img id="macroLogoImage" alt="" hidden>
+      <span id="macroLogoText">печатаетмаксим</span>
+    </div>
+          </div>
+          <div class="macro-note">Мягкий сатиновый блик · фактура ткани · имитация фольги</div>
+        </div>
+      </div>
+
+      <div class="scene" id="scene-package">
+        <div class="scene-caption">
+          <span>Упаковка</span>
+          <strong>Готовый комплект на подарочной коробке</strong>
+        </div>
+        <div class="package-stage">
+          <div class="gift-box">
+            <div class="box-top"></div>
+            <div class="box-front"></div>
+            <div class="box-ribbon-v" id="boxRibbonV"></div>
+            <div class="box-ribbon-h" id="boxRibbonH">
+              <img id="boxRibbonImage" alt="" hidden><span id="boxRibbonText">печатаетмаксим</span>
+            </div>
+            <div class="box-sticker" id="boxSticker">
+              <img id="boxStickerImage" alt="" hidden><span id="boxStickerText">печатаетмаксим</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="canvas-footer">
         <span id="status">Лента 15 мм · стикер Ø40 мм · шаг 100 мм</span>
-        <span>SVG/JPEG · сохранение в браузере</span>
+        <span>Фотореалистичный предпросмотр · цвета и масштаб в реальном времени</span>
       </div>
     </section>
+
   </main>
 </div>
 
@@ -239,6 +311,6 @@
   </div>
 </div>
 
-<script type="module" src="assets/js/main.js"></script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 {
-  "version": "0.3",
+  "version": "0.5",
   "product": "Ribbon Studio Next",
   "products": [
     "ribbon",
@@ -23,6 +23,49 @@
     "jpg",
     "jpeg"
   ],
-  "status": "DEV",
-  "architecture": "modular"
+  "status": "preview",
+  "architecture": "modular",
+  "render_engine": {
+    "type": "web-native",
+    "scenes": [
+      "kit",
+      "macro",
+      "package"
+    ],
+    "external_psd_dependency": false
+  },
+  "fixes": [
+    "scene images refresh immediately on tab switch",
+    "automatic logo fitting by aspect ratio",
+    "separate scaling rules for macro, ribbon and sticker mockups",
+    "force monochrome SVG print color",
+    "remove embedded SVG CSS classes and style blocks",
+    "preserve transparent fill and stroke areas",
+    "force image repaint across all scenes",
+    "sticker-only mode hides ribbon",
+    "30/40/50 mm sticker sizes scale visually",
+    "sticker scales in kit and package scenes"
+  ],
+  "runtime": "classic-script",
+  "local_file_support": true,
+  "features": [
+    "text entry in upload step",
+    "font selection in upload step",
+    "font synchronized across all scenes",
+    "SVG recoloring by print color",
+    "logo and text shown together in macro scene",
+    "logo and text shown together in package scene",
+    "simplified brand-first upload screen",
+    "automatic recommendations by logo aspect ratio",
+    "one-click recommended configuration"
+  ],
+  "customer_name": "Печатает Максим — Студия",
+  "internal_name": "RibbonStudio",
+  "visual_system": {
+    "satin_texture": true,
+    "paper_texture": true,
+    "metallic_print_simulation": true,
+    "subtle_motion": true,
+    "dev_badge_visible": false
+  }
 }
