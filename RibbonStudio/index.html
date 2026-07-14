@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
+  <title>Ribbon Studio Next — Печатает Максим</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#" aria-label="Печатает Максим">
+    <span class="brand-mark">🎀</span>
+    <span><strong>Ribbon Studio</strong><small>Печатает Максим</small></span>
+  </a>
+  <div class="top-actions">
+    <button class="button ghost" id="resetProject">Новый проект</button>
+    <span class="version">Next v0.1</span>
+  </div>
+</header>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <nav class="main-nav" aria-label="Разделы конструктора">
+      <button class="nav-item active" data-panel="ribbon"><span>01</span>Лента</button>
+      <button class="nav-item" data-panel="design"><span>02</span>Дизайн</button>
+      <button class="nav-item" data-panel="sticker"><span>03</span>Стикер</button>
+      <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
+    </nav>
+
+    <section class="panel active" id="panel-ribbon">
+      <div class="panel-head"><p>Лента</p><h2>Выберите основу</h2></div>
+
+      <label>Ширина</label>
+      <div class="segmented" id="widthChoice">
+        <button class="active" data-value="15">15 мм</button>
+        <button data-value="20">20 мм</button>
+      </div>
+
+      <label>Цвет ленты</label>
+      <div class="swatches" id="ribbonSwatches"></div>
+
+      <label>Цвет печати</label>
+      <div class="print-options" id="printChoice">
+        <button class="active" data-value="#171717"><i class="print-dot black"></i>Чёрный</button>
+        <button data-value="#b69249"><i class="print-dot gold"></i>Золото</button>
+        <button data-value="#c6c8cd"><i class="print-dot silver"></i>Серебро</button>
+        <button data-value="#ffffff"><i class="print-dot white"></i>Белый</button>
+      </div>
+
+      <button class="button primary wide next-panel" data-next="design">Далее: дизайн</button>
+    </section>
+
+    <section class="panel" id="panel-design">
+      <div class="panel-head"><p>Дизайн</p><h2>Добавьте логотип</h2></div>
+
+      <label class="upload">
+        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/jpeg,.jpg,.jpeg" hidden>
+        <strong>Загрузить SVG или JPEG</strong>
+        <span>SVG сохраняется векторным</span>
+      </label>
+      <div class="file-status" id="fileStatus">Логотип не загружен</div>
+
+      <label>Надпись</label>
+      <input class="input" id="textInput" type="text" value="печатаетмаксим">
+
+      <label>Шрифт</label>
+      <select class="input" id="fontSelect">
+        <option value="Manrope">Manrope</option>
+        <option value="PT Serif">PT Serif</option>
+        <option value="Arial">Arial</option>
+      </select>
+
+      <div class="two-cols">
+        <div>
+          <label>Размер</label>
+          <input id="fontSize" type="range" min="16" max="64" value="32">
+        </div>
+        <div>
+          <label>Шаг, мм</label>
+          <input class="input" id="repeatMm" type="number" min="40" max="250" value="100">
+        </div>
+      </div>
+
+      <button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
+      <button class="button primary wide next-panel" data-next="sticker">Далее: стикер</button>
+    </section>
+
+    <section class="panel" id="panel-sticker">
+      <div class="panel-head"><p>Стикер</p><h2>Настройте комплект</h2></div>
+
+      <label>Режим заказа</label>
+      <div class="segmented" id="bundleChoice">
+        <button data-value="ribbon">Только лента</button>
+        <button class="active" data-value="bundle">Лента + стикер</button>
+      </div>
+
+      <label>Размер круглого стикера</label>
+      <div class="segmented" id="stickerSizeChoice">
+        <button data-value="30">30 мм</button>
+        <button class="active" data-value="40">40 мм</button>
+        <button data-value="50">50 мм</button>
+      </div>
+
+      <label>Фон стикера</label>
+      <div class="segmented" id="stickerBgChoice">
+        <button class="active" data-value="#ffffff">Белый</button>
+        <button data-value="#f3f0ea">Кремовый</button>
+        <button data-value="#171717">Чёрный</button>
+      </div>
+
+      <div class="recommendation">
+        <strong>Максим рекомендует</strong>
+        <p id="recommendationText">Круглый стикер Ø40 мм завершит комплект и будет хорошо читаться на коробке.</p>
+      </div>
+
+      <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
+    </section>
+
+    <section class="panel" id="panel-order">
+      <div class="panel-head"><p>Заказ</p><h2>Ваш комплект</h2></div>
+
+      <div class="order-card">
+        <div><span>Лента</span><strong id="orderRibbon">15 мм · 100 м</strong></div>
+        <div id="orderStickerRow"><span>Стикер</span><strong id="orderSticker">Ø40 мм</strong></div>
+        <div><span>Шаг повтора</span><strong id="orderRepeat">100 мм</strong></div>
+      </div>
+
+      <label>Метраж ленты</label>
+      <select class="input" id="meters">
+        <option value="10">10 м</option>
+        <option value="25">25 м</option>
+        <option value="50">50 м</option>
+        <option value="100" selected>100 м</option>
+        <option value="200">200 м</option>
+      </select>
+
+      <label>Количество стикеров</label>
+      <select class="input" id="stickerQty">
+        <option value="50">50 шт.</option>
+        <option value="100" selected>100 шт.</option>
+        <option value="250">250 шт.</option>
+        <option value="500">500 шт.</option>
+      </select>
+
+      <div class="total">
+        <span>Предварительная стоимость</span>
+        <strong id="totalPrice">1 790 ₽</strong>
+      </div>
+
+      <button class="button primary wide" id="openOrder">Отправить Максиму</button>
+    </section>
+  </aside>
+
+  <main class="studio">
+    <div class="studio-head">
+      <div>
+        <p class="eyebrow">Фирменный комплект</p>
+        <h1>Лента и стикер в одном стиле</h1>
+      </div>
+      <div class="studio-tabs" id="viewTabs">
+        <button class="active" data-view="kit">Комплект</button>
+        <button data-view="ribbon">Лента</button>
+        <button data-view="sticker">Стикер</button>
+      </div>
+    </div>
+
+    <section class="canvas" id="canvas">
+      <div class="kit-layout">
+        <div class="ribbon-area" id="ribbonArea">
+          <div class="object-label">Лента</div>
+          <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="satinGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff" stop-opacity=".50"/>
+                <stop offset=".22" stop-color="#fff" stop-opacity=".08"/>
+                <stop offset=".58" stop-color="#000" stop-opacity=".10"/>
+                <stop offset=".84" stop-color="#fff" stop-opacity=".20"/>
+                <stop offset="1" stop-color="#000" stop-opacity=".10"/>
+              </linearGradient>
+              <filter id="metallic">
+                <feSpecularLighting result="spec" specularExponent="22" lighting-color="white">
+                  <feDistantLight azimuth="225" elevation="55"/>
+                </feSpecularLighting>
+                <feComposite in="spec" in2="SourceGraphic" operator="in" result="specOut"/>
+                <feBlend in="SourceGraphic" in2="specOut" mode="screen"/>
+              </filter>
+              <clipPath id="ribbonClip"><rect id="clipRect" x="28" y="70" width="1144" height="120" rx="6"/></clipPath>
+            </defs>
+            <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
+            <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="url(#satinGradient)"/>
+            <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="rgba(0,0,0,.25)" stroke-dasharray="8 8"/>
+            <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
+          </svg>
+        </div>
+
+        <div class="sticker-area" id="stickerArea">
+          <div class="object-label">Стикер</div>
+          <div class="sticker-shadow">
+            <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+              <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
+              <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="3"/>
+              <g id="stickerContent"></g>
+            </svg>
+          </div>
+          <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
+        </div>
+      </div>
+
+      <div class="canvas-footer">
+        <span id="status">Лента 15 мм · стикер Ø40 мм · шаг 100 мм</span>
+        <span>SVG/JPEG · сохранение в браузере</span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="orderModal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><p class="eyebrow">Заявка</p><h2>Отправить фирменный комплект</h2></div>
+      <button class="close" id="closeOrder">×</button>
+    </div>
+    <div class="summary" id="orderSummary"></div>
+    <label>Имя</label><input class="input" id="customerName" placeholder="Как к вам обращаться">
+    <label>Телефон</label><input class="input" id="customerPhone" placeholder="+7">
+    <label>Telegram</label><input class="input" id="customerTelegram" placeholder="@username">
+    <label>Комментарий</label><textarea class="input" id="customerComment" placeholder="Срок, доставка, пожелания"></textarea>
+    <button class="button primary wide" id="downloadOrder">Сформировать заявку</button>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
