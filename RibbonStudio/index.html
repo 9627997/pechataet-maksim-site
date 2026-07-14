@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
-  <title>Ribbon Studio Next — Печатает Максим</title>
+  <title>Ribbon Studio v0.3 DEV — Печатает Максим</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
   </a>
   <div class="top-actions">
     <button class="button ghost" id="resetProject">Новый проект</button>
-    <span class="version">Next v0.1</span>
+    <span class="version version-dev">v0.3 DEV</span>
   </div>
 </header>
 
@@ -111,7 +111,18 @@
       <select class="input visually-hidden" id="fontSelect"><option value="Manrope">Manrope</option></select>
       <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
-      <button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
+      
+      <div class="transform-card">
+        <div class="transform-head">
+          <strong>Положение логотипа</strong>
+          <button class="mini-button" id="resetTransform" type="button">Сбросить</button>
+        </div>
+        <label>Масштаб</label>
+        <input id="logoScale" type="range" min="50" max="180" value="100">
+        <label>Смещение по горизонтали</label>
+        <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+      </div>
+<button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
       <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
     </section>
 
@@ -228,6 +239,6 @@
   </div>
 </div>
 
-<script src="assets/js/app.js"></script>
+<script type="module" src="assets/js/main.js"></script>
 </body>
 </html>

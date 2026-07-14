@@ -1,5 +1,5 @@
 {
-  "version": "0.2",
+  "version": "0.3",
   "product": "Ribbon Studio Next",
   "products": [
     "ribbon",
@@ -22,5 +22,7 @@
     "png",
     "jpg",
     "jpeg"
-  ]
+  ],
+  "status": "DEV",
+  "architecture": "modular"
 }
