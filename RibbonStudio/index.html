@@ -25,16 +25,58 @@
 <div class="app-shell">
   <aside class="sidebar">
     <nav class="main-nav" aria-label="Разделы конструктора">
-      <button class="nav-item active" data-panel="ribbon"><span>01</span>Лента</button>
-      <button class="nav-item" data-panel="design"><span>02</span>Дизайн</button>
-      <button class="nav-item" data-panel="sticker"><span>03</span>Стикер</button>
+      <button class="nav-item active" data-panel="upload"><span>01</span>Загрузить</button>
+      <button class="nav-item" data-panel="bundle"><span>02</span>Комплект</button>
+      <button class="nav-item" data-panel="settings"><span>03</span>Настройка</button>
       <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
     </nav>
 
-    <section class="panel active" id="panel-ribbon">
-      <div class="panel-head"><p>Лента</p><h2>Выберите основу</h2></div>
+    
+    <section class="panel active" id="panel-upload">
+      <div class="panel-head"><p>Шаг 1</p><h2>Загрузите изображение</h2></div>
+      <p class="panel-copy">Логотип, надпись, монограмма, QR-код или рисунок — загрузите то, что у вас есть.</p>
 
-      <label>Ширина</label>
+      <label class="upload upload-large" id="dropZone">
+        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg" hidden>
+        <span class="upload-icon">↑</span>
+        <strong>Перетащите файл сюда</strong>
+        <span>или нажмите, чтобы выбрать</span>
+      </label>
+
+      <div class="format-list"><span>SVG</span><span>PNG</span><span>JPEG</span></div>
+
+      <div class="file-card" id="fileCard" hidden>
+        <div class="file-card-icon" id="fileCardIcon">✓</div>
+        <div>
+          <strong id="fileCardName">Файл загружен</strong>
+          <span id="fileCardMeta"></span>
+          <small id="fileCardQuality"></small>
+        </div>
+      </div>
+
+      <div class="help-note">
+        <strong>Нет векторного файла? Не проблема.</strong>
+        <p>Загрузите JPEG или PNG — мы бесплатно проверим качество и при необходимости подготовим изображение к печати.</p>
+      </div>
+
+      <button class="button primary wide next-panel" id="continueUpload" data-next="bundle" disabled>Далее: комплект</button>
+    </section>
+
+    <section class="panel" id="panel-bundle">
+      <div class="panel-head"><p>Шаг 2</p><h2>Выберите комплект</h2></div>
+      <p class="panel-copy">Можно заказать только ленту, только стикеры или готовый комплект.</p>
+      <div class="bundle-cards" id="bundleChoice">
+        <button data-value="ribbon"><strong>Лента</strong><span>Брендированная сатиновая лента</span></button>
+        <button data-value="sticker"><strong>Стикеры</strong><span>Круглые наклейки для упаковки</span></button>
+        <button class="active" data-value="bundle"><strong>Лента + стикеры</strong><span>Единое оформление бренда</span></button>
+      </div>
+      <button class="button primary wide next-panel" data-next="settings">Далее: настройка</button>
+    </section>
+
+    <section class="panel" id="panel-settings">
+      <div class="panel-head"><p>Шаг 3</p><h2>Настройте комплект</h2></div>
+
+      <label>Ширина ленты</label>
       <div class="segmented" id="widthChoice">
         <button class="active" data-value="15">15 мм</button>
         <button data-value="20">20 мм</button>
@@ -51,52 +93,8 @@
         <button data-value="#ffffff"><i class="print-dot white"></i>Белый</button>
       </div>
 
-      <button class="button primary wide next-panel" data-next="design">Далее: дизайн</button>
-    </section>
-
-    <section class="panel" id="panel-design">
-      <div class="panel-head"><p>Дизайн</p><h2>Добавьте логотип</h2></div>
-
-      <label class="upload">
-        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/jpeg,.jpg,.jpeg" hidden>
-        <strong>Загрузить SVG или JPEG</strong>
-        <span>SVG сохраняется векторным</span>
-      </label>
-      <div class="file-status" id="fileStatus">Логотип не загружен</div>
-
       <label>Надпись</label>
       <input class="input" id="textInput" type="text" value="печатаетмаксим">
-
-      <label>Шрифт</label>
-      <select class="input" id="fontSelect">
-        <option value="Manrope">Manrope</option>
-        <option value="PT Serif">PT Serif</option>
-        <option value="Arial">Arial</option>
-      </select>
-
-      <div class="two-cols">
-        <div>
-          <label>Размер</label>
-          <input id="fontSize" type="range" min="16" max="64" value="32">
-        </div>
-        <div>
-          <label>Шаг, мм</label>
-          <input class="input" id="repeatMm" type="number" min="40" max="250" value="100">
-        </div>
-      </div>
-
-      <button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
-      <button class="button primary wide next-panel" data-next="sticker">Далее: стикер</button>
-    </section>
-
-    <section class="panel" id="panel-sticker">
-      <div class="panel-head"><p>Стикер</p><h2>Настройте комплект</h2></div>
-
-      <label>Режим заказа</label>
-      <div class="segmented" id="bundleChoice">
-        <button data-value="ribbon">Только лента</button>
-        <button class="active" data-value="bundle">Лента + стикер</button>
-      </div>
 
       <label>Размер круглого стикера</label>
       <div class="segmented" id="stickerSizeChoice">
@@ -105,22 +103,19 @@
         <button data-value="50">50 мм</button>
       </div>
 
-      <label>Фон стикера</label>
-      <div class="segmented" id="stickerBgChoice">
-        <button class="active" data-value="#ffffff">Белый</button>
-        <button data-value="#f3f0ea">Кремовый</button>
-        <button data-value="#171717">Чёрный</button>
+      <div class="two-cols">
+        <div><label>Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
+        <div><label>Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
       </div>
 
-      <div class="recommendation">
-        <strong>Максим рекомендует</strong>
-        <p id="recommendationText">Круглый стикер Ø40 мм завершит комплект и будет хорошо читаться на коробке.</p>
-      </div>
+      <select class="input visually-hidden" id="fontSelect"><option value="Manrope">Manrope</option></select>
+      <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
+      <button class="button magic wide" id="makeBeautiful">✨ Сделать красиво</button>
       <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
     </section>
 
-    <section class="panel" id="panel-order">
+<section class="panel" id="panel-order">
       <div class="panel-head"><p>Заказ</p><h2>Ваш комплект</h2></div>
 
       <div class="order-card">
@@ -159,7 +154,7 @@
     <div class="studio-head">
       <div>
         <p class="eyebrow">Фирменный комплект</p>
-        <h1>Лента и стикер в одном стиле</h1>
+        <h1>Создайте ленту и стикер вашего бренда</h1>
       </div>
       <div class="studio-tabs" id="viewTabs">
         <button class="active" data-view="kit">Комплект</button>

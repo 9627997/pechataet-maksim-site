@@ -1,5 +1,5 @@
 {
-  "version": "0.1",
+  "version": "0.2",
   "product": "Ribbon Studio Next",
   "products": [
     "ribbon",
@@ -16,5 +16,11 @@
     30,
     40,
     50
+  ],
+  "upload_formats": [
+    "svg",
+    "png",
+    "jpg",
+    "jpeg"
   ]
 }

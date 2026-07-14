@@ -8,7 +8,7 @@ const colors=[
 ];
 
 const state={
- panel:'ribbon',width:15,ribbon:'#f3eadc',print:'#171717',logo:null,logoType:null,
+ panel:'upload',width:15,ribbon:'#f3eadc',print:'#171717',logo:null,logoType:null,
  text:'печатаетмаксим',font:'Manrope',fontSize:32,repeatMm:100,bundle:'bundle',
  stickerSize:40,stickerBg:'#ffffff',meters:100,stickerQty:100
 };
@@ -52,6 +52,19 @@ $('#meters').oninput=e=>{state.meters=+e.target.value;render()};
 $('#stickerQty').oninput=e=>{state.stickerQty=+e.target.value;render()};
 
 $('#logoInput').onchange=e=>loadFile(e.target.files[0]);
+const dropZone=$('#dropZone');
+['dragenter','dragover'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();dropZone.style.borderColor='#171717'}));
+['dragleave','drop'].forEach(type=>dropZone.addEventListener(type,e=>{e.preventDefault();dropZone.style.borderColor=''}));
+dropZone.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+function showFileCard(file,meta,quality,isWarning=false){
+  $('#fileCard').hidden=false;
+  $('#fileCard').classList.toggle('warning',isWarning);
+  $('#fileCardIcon').textContent=isWarning?'!':'✓';
+  $('#fileCardName').textContent=file.name;
+  $('#fileCardMeta').textContent=meta;
+  $('#fileCardQuality').textContent=quality;
+  $('#continueUpload').disabled=false;
+}
 function loadFile(file){
  if(!file)return;
  const ext=file.name.split('.').pop().toLowerCase(),r=new FileReader();
@@ -63,11 +76,15 @@ function loadFile(file){
    const vb=(s.getAttribute('viewBox')||'').trim().split(/\s+/).map(Number);
    const ratio=vb.length===4&&vb[3]?vb[2]/vb[3]:1;
    state.logo={data:'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(s)))),ratio};
-   state.logoType='svg';$('#fileStatus').textContent=file.name+' · SVG';render();
+   state.logoType='svg';showFileCard(file,'SVG · векторный файл','Отлично: файл готов к печати');render();
   };r.readAsText(file);
- }else if(['jpg','jpeg'].includes(ext)){
-  r.onload=()=>{const im=new Image();im.onload=()=>{state.logo={data:r.result,ratio:im.width/im.height};state.logoType='jpeg';$('#fileStatus').textContent=file.name+' · JPEG';render()};im.src=r.result};r.readAsDataURL(file)
- }else alert('Поддерживаются SVG и JPEG');
+ }else if(['jpg','jpeg','png'].includes(ext)){
+  r.onload=()=>{const im=new Image();im.onload=()=>{state.logo={data:r.result,ratio:im.width/im.height};state.logoType=ext==='png'?'png':'jpeg';
+const minSide=Math.min(im.width,im.height);
+const warning=minSide<1000;
+showFileCard(file,`${ext.toUpperCase()} · ${im.width} × ${im.height} px`,warning?'Мы бесплатно проверим и подготовим файл':'Качество изображения хорошее',warning);
+render()};im.src=r.result};r.readAsDataURL(file)
+ }else alert('Поддерживаются SVG, PNG и JPEG');
 }
 
 $('#makeBeautiful').onclick=()=>{
