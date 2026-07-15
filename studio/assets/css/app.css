@@ -370,3 +370,996 @@ body[data-print="silver"] .box-sticker{
 @media (prefers-reduced-motion:reduce){
   .ribbon-mockup,.ribbon-surface:after{animation:none}
 }
+
+.trace-status{
+  display:grid;
+  grid-template-columns:36px 1fr;
+  gap:10px;
+  align-items:start;
+  margin-top:12px;
+  padding:12px;
+  border:1px solid #cfe4d5;
+  border-radius:13px;
+  background:#f2faf4;
+}
+.trace-status[hidden]{display:none}
+.trace-status-icon{
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:#dff3e4;
+  color:#16713a;
+  font-weight:900;
+}
+.trace-status strong{display:block;font-size:11px}
+.trace-status p{font-size:10px;line-height:1.45;color:#53645a;margin:4px 0}
+.trace-status small{display:block;font-size:9px;color:#6e7d73}
+.trace-status.warning{
+  border-color:#ead9b7;
+  background:#fff9ec;
+}
+.trace-status.warning .trace-status-icon{
+  background:#fff0cf;
+  color:#956200;
+}
+
+.crop-modal{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(20,18,16,.72);
+  backdrop-filter:blur(8px);
+}
+.crop-modal.open{display:flex}
+.crop-dialog{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:22px;
+  padding:18px;
+  box-shadow:0 30px 80px rgba(0,0,0,.34);
+}
+.crop-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+}
+.crop-head h2{margin:4px 0 6px}
+.crop-head p:last-child{font-size:12px;color:var(--muted);margin:0}
+.crop-stage{
+  position:relative;
+  margin-top:16px;
+  height:min(58vh,520px);
+  min-height:320px;
+  overflow:hidden;
+  border-radius:16px;
+  background:
+    linear-gradient(45deg,#e9e5df 25%,transparent 25%),
+    linear-gradient(-45deg,#e9e5df 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#e9e5df 75%),
+    linear-gradient(-45deg,transparent 75%,#e9e5df 75%);
+  background-size:22px 22px;
+  background-position:0 0,0 11px,11px -11px,-11px 0;
+  touch-action:none;
+}
+#cropCanvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  touch-action:none;
+}
+.crop-frame{
+  position:absolute;
+  left:18%;
+  top:18%;
+  width:64%;
+  height:64%;
+  border:2px solid #fff;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.48),0 0 0 1px rgba(0,0,0,.3);
+  border-radius:6px;
+  cursor:move;
+  touch-action:none;
+}
+.crop-frame:before,.crop-frame:after{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+}
+.crop-frame:before{
+  left:33.333%;top:0;bottom:0;width:33.333%;
+  border-left:1px solid rgba(255,255,255,.55);
+  border-right:1px solid rgba(255,255,255,.55);
+}
+.crop-frame:after{
+  top:33.333%;left:0;right:0;height:33.333%;
+  border-top:1px solid rgba(255,255,255,.55);
+  border-bottom:1px solid rgba(255,255,255,.55);
+}
+.crop-handle{
+  position:absolute;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  background:#fff;
+  border:2px solid #171717;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.crop-handle.nw{left:-12px;top:-12px;cursor:nwse-resize}
+.crop-handle.ne{right:-12px;top:-12px;cursor:nesw-resize}
+.crop-handle.sw{left:-12px;bottom:-12px;cursor:nesw-resize}
+.crop-handle.se{right:-12px;bottom:-12px;cursor:nwse-resize}
+.crop-controls{
+  display:flex;
+  align-items:end;
+  gap:12px;
+  margin-top:14px;
+}
+.crop-controls label{
+  flex:1;
+  margin:0;
+}
+.crop-controls input{width:100%}
+.crop-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:14px;
+}
+@media(max-width:700px){
+  .crop-dialog{padding:14px;border-radius:18px}
+  .crop-stage{height:55vh;min-height:300px}
+  .crop-controls,.crop-actions{flex-direction:column;align-items:stretch}
+  .crop-actions .button,.crop-controls .button{width:100%}
+}
+
+.studio-brand-logo{
+  display:block;
+  width:118px;
+  height:auto;
+  max-height:46px;
+  object-fit:contain;
+}
+.brand small{
+  margin-top:2px;
+}
+@media(max-width:700px){
+  .studio-brand-logo{width:98px;max-height:40px}
+}
+
+/* v0.8.1 product visibility and macro sticker */
+.product-hidden{
+  display:none!important;
+}
+
+.macro-stage{
+  grid-template-columns:minmax(0,1fr) minmax(220px,34%);
+  gap:34px;
+  padding:80px 6% 70px;
+}
+.macro-ribbon{
+  width:100%;
+}
+.macro-sticker{
+  --sticker-scale:1;
+  display:grid;
+  place-items:center;
+  transform:scale(var(--sticker-scale));
+  transform-origin:center;
+  transition:transform .18s ease;
+}
+.macro-sticker-paper{
+  width:245px;
+  height:245px;
+  border-radius:50%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:28px;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 30% 22%,rgba(255,255,255,.95),transparent 36%),
+    repeating-radial-gradient(circle at 50% 50%,rgba(80,70,60,.025) 0 1px,transparent 1px 3px),
+    #fffdf9;
+  box-shadow:
+    0 38px 52px rgba(54,42,30,.28),
+    0 5px 8px rgba(0,0,0,.1),
+    inset 0 0 0 1px rgba(70,55,40,.08);
+}
+.macro-sticker-paper img{
+  max-width:70%;
+  max-height:58%;
+  object-fit:contain;
+}
+.macro-sticker-paper span{
+  max-width:86%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:22px;
+  font-weight:800;
+  text-align:center;
+}
+.macro-only-ribbon{
+  grid-template-columns:1fr;
+}
+.macro-only-ribbon .macro-ribbon{
+  width:88%;
+  justify-self:center;
+}
+.macro-only-sticker{
+  grid-template-columns:1fr;
+}
+.macro-only-sticker .macro-sticker{
+  justify-self:center;
+}
+.macro-note{
+  grid-column:1/-1;
+}
+
+@media(max-width:850px){
+  .macro-stage{
+    grid-template-columns:1fr;
+    padding:82px 24px 72px;
+  }
+  .macro-ribbon{height:210px}
+  .macro-sticker-paper{width:210px;height:210px}
+}
+
+body[data-ribbon-width="15"] .ribbon-mockup{height:124px}
+body[data-ribbon-width="20"] .ribbon-mockup{height:165px}
+body[data-ribbon-width="15"] .macro-ribbon{height:220px}
+body[data-ribbon-width="20"] .macro-ribbon{height:292px}
+body[data-ribbon-width="15"] .box-ribbon-h{height:66px}
+body[data-ribbon-width="20"] .box-ribbon-h{height:88px}
+body[data-ribbon-width="15"] .box-ribbon-v{width:70px;left:228px}
+body[data-ribbon-width="20"] .box-ribbon-v{width:93px;left:217px}
+
+.macro-logo{display:grid!important;grid-template-columns:minmax(80px,34%) minmax(0,1fr);align-items:center;column-gap:42px;padding:24px 7%}
+.macro-logo img{justify-self:end;max-width:100%;max-height:64%}
+.macro-logo span{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(30px,4.5vw,68px)}
+.macro-sticker-paper{display:grid!important;grid-template-rows:minmax(0,1fr) auto;align-items:center;justify-items:center;gap:12px}
+.macro-sticker-paper img{align-self:end;max-width:64%;max-height:76%}
+.macro-sticker-paper span{align-self:start;font-size:clamp(15px,2vw,22px)}
+
+.box-ribbon-content{width:100%;display:grid;grid-template-columns:minmax(42px,30%) minmax(0,1fr);align-items:center;gap:16px}
+.box-ribbon-content img{justify-self:end;max-width:100%!important;max-height:48px!important}
+.box-ribbon-content span{justify-self:start;max-width:100%!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.box-sticker-content{width:100%;height:100%;display:grid;grid-template-rows:minmax(0,1fr) auto;align-items:center;justify-items:center;gap:5px}
+.box-sticker-content img{align-self:end;max-width:66%!important;max-height:62%!important}
+.box-sticker-content span{align-self:start;max-width:90%!important;font-size:9px!important;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+body[data-sticker-size="30"] .sticker-paper{width:188px;height:188px}
+body[data-sticker-size="40"] .sticker-paper{width:250px;height:250px}
+body[data-sticker-size="50"] .sticker-paper{width:313px;height:313px}
+body[data-sticker-size="30"] .macro-sticker-paper{width:184px;height:184px}
+body[data-sticker-size="40"] .macro-sticker-paper{width:245px;height:245px}
+body[data-sticker-size="50"] .macro-sticker-paper{width:306px;height:306px}
+.sticker-paper,.macro-sticker{transform:none!important}
+body[data-sticker-size="30"] .box-sticker{width:83px;height:83px;right:76px;top:169px}
+body[data-sticker-size="40"] .box-sticker{width:110px;height:110px;right:62px;top:155px}
+body[data-sticker-size="50"] .box-sticker{width:138px;height:138px;right:48px;top:141px}
+
+@media(max-width:850px){
+  body[data-ribbon-width="15"] .macro-ribbon{height:180px}
+  body[data-ribbon-width="20"] .macro-ribbon{height:240px}
+  body[data-sticker-size="30"] .macro-sticker-paper{width:158px;height:158px}
+  body[data-sticker-size="40"] .macro-sticker-paper{width:210px;height:210px}
+  body[data-sticker-size="50"] .macro-sticker-paper{width:263px;height:263px}
+  .macro-logo{column-gap:20px;padding:18px 6%}
+}
+
+/* v0.8.3 — corrected proportions and collision-free compositions */
+
+:root{
+  --preview-mm:4px;
+}
+
+/* One scale: ribbon width and sticker diameter use the same px/mm ratio. */
+body[data-ribbon-width="15"] .ribbon-mockup{height:60px!important}
+body[data-ribbon-width="20"] .ribbon-mockup{height:80px!important}
+
+body[data-ribbon-width="15"] .macro-ribbon{height:72px!important}
+body[data-ribbon-width="20"] .macro-ribbon{height:96px!important}
+
+body[data-ribbon-width="15"] .box-ribbon-h{height:48px!important}
+body[data-ribbon-width="20"] .box-ribbon-h{height:64px!important}
+body[data-ribbon-width="15"] .box-ribbon-v{width:48px!important}
+body[data-ribbon-width="20"] .box-ribbon-v{width:64px!important}
+
+/* 30:40:50 is preserved exactly. */
+body[data-sticker-size="30"] .sticker-paper{width:150px!important;height:150px!important}
+body[data-sticker-size="40"] .sticker-paper{width:200px!important;height:200px!important}
+body[data-sticker-size="50"] .sticker-paper{width:250px!important;height:250px!important}
+
+body[data-sticker-size="30"] .macro-sticker-paper{width:144px!important;height:144px!important}
+body[data-sticker-size="40"] .macro-sticker-paper{width:192px!important;height:192px!important}
+body[data-sticker-size="50"] .macro-sticker-paper{width:240px!important;height:240px!important}
+
+body[data-sticker-size="30"] .box-sticker{width:72px!important;height:72px!important}
+body[data-sticker-size="40"] .box-sticker{width:96px!important;height:96px!important}
+body[data-sticker-size="50"] .box-sticker{width:120px!important;height:120px!important}
+
+/* Macro scene: 50 mm sticker is visibly 2.5× a 20 mm ribbon. */
+.macro-stage{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:48px!important;
+}
+
+.macro-ribbon{
+  align-self:center!important;
+  min-width:0!important;
+}
+
+.macro-logo{
+  display:grid!important;
+  grid-template-columns:minmax(0,32%) minmax(0,1fr)!important;
+  gap:28px!important;
+  align-items:center!important;
+  padding:10px 7%!important;
+}
+
+.macro-logo img{
+  position:static!important;
+  justify-self:end!important;
+  max-width:100%!important;
+  max-height:52px!important;
+}
+
+.macro-logo span{
+  position:static!important;
+  justify-self:start!important;
+  max-width:100%!important;
+  font-size:clamp(18px,2.4vw,34px)!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Sticker always has two separate rows. */
+.macro-sticker-paper,
+.box-sticker-content{
+  display:grid!important;
+  grid-template-rows:58% 42%!important;
+  align-items:center!important;
+  justify-items:center!important;
+}
+
+.macro-sticker-paper img,
+.box-sticker-content img{
+  align-self:end!important;
+  justify-self:center!important;
+  max-width:62%!important;
+  max-height:72%!important;
+  margin:0!important;
+}
+
+.macro-sticker-paper span,
+.box-sticker-content span{
+  align-self:start!important;
+  justify-self:center!important;
+  width:82%!important;
+  margin-top:7px!important;
+  text-align:center!important;
+  line-height:1.05!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Package ribbon uses protected left/right zones. */
+.box-ribbon-content{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:32% 1fr!important;
+  gap:14px!important;
+  align-items:center!important;
+  padding:0 10px!important;
+}
+
+.box-ribbon-content img{
+  justify-self:end!important;
+  max-width:100%!important;
+  max-height:62%!important;
+}
+
+.box-ribbon-content span{
+  justify-self:start!important;
+  max-width:100%!important;
+  font-size:11px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Manual logo scaling cannot escape its allocated zone. */
+.macro-logo img,
+.macro-sticker-paper img,
+.box-ribbon-content img,
+.box-sticker-content img{
+  transform-origin:center!important;
+}
+
+/* Correct package positions after resizing. */
+body[data-sticker-size="30"] .box-sticker{right:80px!important;top:174px!important}
+body[data-sticker-size="40"] .box-sticker{right:68px!important;top:162px!important}
+body[data-sticker-size="50"] .box-sticker{right:56px!important;top:150px!important}
+
+body[data-ribbon-width="15"] .box-ribbon-v{left:239px!important}
+body[data-ribbon-width="20"] .box-ribbon-v{left:231px!important}
+
+@media(max-width:850px){
+  .macro-stage{
+    grid-template-columns:1fr!important;
+    gap:30px!important;
+  }
+
+  body[data-ribbon-width="15"] .macro-ribbon{height:66px!important}
+  body[data-ribbon-width="20"] .macro-ribbon{height:88px!important}
+
+  .macro-logo{
+    grid-template-columns:30% 1fr!important;
+    gap:18px!important;
+  }
+}
+
+
+/* v0.8.4 — Комплект: печать напрямую на мокапе, без "ленты внутри ленты" */
+.kit-table .ribbon-mockup{
+  overflow:visible!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+.kit-table .ribbon-surface.kit-print-surface{
+  background:transparent!important;
+  box-shadow:none!important;
+  border:0!important;
+  overflow:visible!important;
+}
+
+.kit-table .ribbon-surface.kit-print-surface::before,
+.kit-table .ribbon-surface.kit-print-surface::after{
+  display:none!important;
+  content:none!important;
+}
+
+.kit-table .ribbon-surface.kit-print-surface svg{
+  background:transparent!important;
+  overflow:visible!important;
+}
+
+/* Hide only the generated ribbon body, shine and guide shapes in Комплект.
+   Keep logo/text layers visible. */
+.kit-table .ribbon-surface.kit-print-surface #ribbonBase,
+.kit-table .ribbon-surface.kit-print-surface #ribbonShine,
+.kit-table .ribbon-surface.kit-print-surface #safeZone{
+  fill:transparent!important;
+  stroke:transparent!important;
+  opacity:0!important;
+}
+
+/* Print overlay should sit naturally on the photographed ribbon */
+.kit-table .ribbon-surface.kit-print-surface #ribbonContent{
+  opacity:.96;
+  mix-blend-mode:multiply;
+}
+
+.kit-table .ribbon-surface.kit-print-surface #ribbonContent text,
+.kit-table .ribbon-surface.kit-print-surface #ribbonContent image{
+  filter:none!important;
+}
+
+/* Keep macro and package renderings unchanged */
+.macro-stage .macro-ribbon,
+.package-stage .box-ribbon-h,
+.package-stage .box-ribbon-v{
+  isolation:isolate;
+}
+
+
+/* v0.8.5 — definitive fix for ribbon-inside-ribbon in Комплект */
+#scene-kit #ribbonSurface{
+  position:absolute!important;
+  inset:0!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:inherit!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+
+#scene-kit #ribbonSurface::before,
+#scene-kit #ribbonSurface::after{
+  display:none!important;
+  content:none!important;
+  background:none!important;
+}
+
+#scene-kit #ribbonSvg{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  background:transparent!important;
+  overflow:visible!important;
+}
+
+#scene-kit #ribbonBase,
+#scene-kit #ribbonShine,
+#scene-kit #safeZone{
+  display:none!important;
+}
+
+#scene-kit #ribbonContent{
+  opacity:.96!important;
+  mix-blend-mode:multiply!important;
+}
+
+/* The outer mockup itself is the only visible ribbon body. */
+#scene-kit .ribbon-mockup{
+  overflow:hidden!important;
+  border-radius:10px!important;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,.72) 0%,
+      rgba(255,255,255,.22) 20%,
+      rgba(0,0,0,.08) 68%,
+      rgba(255,255,255,.20) 100%),
+    repeating-linear-gradient(89deg,
+      rgba(255,255,255,.15) 0 1px,
+      rgba(0,0,0,.035) 1px 2px,
+      transparent 2px 4px),
+    var(--ribbon-color,#f3eadc)!important;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.55),
+    inset 0 -2px 4px rgba(70,50,30,.13)!important;
+}
+
+/* Remove separate edge bars that visually create another ribbon outline. */
+#scene-kit .ribbon-edge{
+  display:none!important;
+}
+
+/* v0.8.9 fixes */
+:root{--ribbon-live-color:#f3eadc}
+.macro-ribbon,.box-ribbon-h,.box-ribbon-v{
+  background-color:var(--ribbon-live-color)!important;
+}
+#scene-kit .ribbon-mockup{
+  background-color:var(--ribbon-live-color)!important;
+}
+#scene-kit #ribbonSvg{
+  width:100%!important;
+  height:100%!important;
+}
+#scene-kit #ribbonContent{
+  transform-box:fill-box;
+  transform-origin:center;
+}
+
+/* v0.9.0 — новая фирменная шапка */
+.studio-brand-lockup{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+  min-width:0;
+  color:var(--ink);
+  text-decoration:none;
+}
+
+.studio-ribbon-m{
+  display:block;
+  width:58px;
+  height:42px;
+  object-fit:contain;
+  flex:0 0 auto;
+}
+
+.studio-wordmark{
+  display:block;
+  width:132px;
+  height:44px;
+  object-fit:contain;
+  flex:0 0 auto;
+}
+
+.studio-brand-divider{
+  width:1px;
+  height:34px;
+  background:rgba(21,21,21,.24);
+  flex:0 0 auto;
+  margin:0 2px;
+}
+
+.studio-brand-caption{
+  font-family:Manrope,Arial,sans-serif;
+  font-size:15px;
+  line-height:1;
+  font-weight:600;
+  letter-spacing:-.01em;
+  white-space:nowrap;
+  color:var(--ink);
+}
+
+@media(max-width:760px){
+  .studio-brand-lockup{
+    gap:8px!important;
+  }
+
+  .studio-ribbon-m{
+    width:42px;
+    height:32px;
+  }
+
+  .studio-wordmark{
+    width:104px;
+    height:36px;
+  }
+
+  .studio-brand-divider{
+    height:28px;
+  }
+
+  .studio-brand-caption{
+    font-size:12px;
+  }
+}
+
+@media(max-width:520px){
+  .studio-brand-caption{
+    display:none;
+  }
+
+  .studio-brand-divider{
+    display:none;
+  }
+
+  .studio-ribbon-m{
+    width:38px;
+    height:30px;
+  }
+
+  .studio-wordmark{
+    width:96px;
+    height:34px;
+  }
+}
+
+/* v0.9.1 — larger default print in the Комплект scene only */
+#scene-kit .ribbon-mockup{
+  min-height:100px;
+}
+
+body[data-ribbon-width="15"] #scene-kit .ribbon-mockup{
+  min-height:76px;
+}
+
+#scene-kit #ribbonContent{
+  opacity:1!important;
+}
+
+/* v0.9.2 — витрина продуктов для шагов 01 и 02 */
+.product-showcase-grid{
+  display:grid;
+  grid-template-columns:minmax(220px,1.35fr) minmax(250px,1.55fr) repeat(3,minmax(125px,.72fr));
+  gap:18px;
+  align-items:end;
+  width:100%;
+  padding:34px 28px 42px;
+}
+
+.showcase-item{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:12px;
+  min-width:0;
+}
+
+.showcase-item.is-hidden{display:none!important}
+
+.showcase-label{
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+.showcase-ribbon-body{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  border-radius:4px;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.12) 31%,rgba(0,0,0,.08) 74%,rgba(255,255,255,.16)),
+    repeating-linear-gradient(89deg,rgba(255,255,255,.15) 0 1px,rgba(0,0,0,.03) 1px 2px,transparent 2px 4px),
+    #f1e7d7;
+  box-shadow:0 18px 30px rgba(50,37,24,.18),inset 0 1px 0 rgba(255,255,255,.8),inset 0 -1px 2px rgba(65,45,25,.12);
+}
+.showcase-ribbon-15 .showcase-ribbon-body{height:60px}
+.showcase-ribbon-20 .showcase-ribbon-body{height:80px}
+
+.showcase-ribbon-print{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:38% 1fr;
+  gap:16px;
+  align-items:center;
+  padding:0 7%;
+}
+.showcase-ribbon-print .showcase-logo{
+  justify-self:end;
+  width:100%;
+  max-width:108px;
+  max-height:68%;
+  object-fit:contain;
+}
+.showcase-ribbon-print span{
+  justify-self:start;
+  font-size:clamp(14px,1.25vw,22px);
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.showcase-sticker-body{
+  width:140px;
+  aspect-ratio:1;
+  border-radius:50%;
+  display:grid;
+  grid-template-rows:58% 42%;
+  align-items:center;
+  justify-items:center;
+  padding:18px 15px 14px;
+  box-shadow:0 20px 30px rgba(45,35,25,.20),inset 0 0 0 1px rgba(0,0,0,.08);
+}
+.showcase-sticker-body .showcase-logo{
+  align-self:end;
+  width:72%;
+  max-height:72%;
+  object-fit:contain;
+}
+.showcase-sticker-body span{
+  align-self:start;
+  margin-top:7px;
+  max-width:88%;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.showcase-sticker-black .showcase-sticker-body{background:#111;color:#fff}
+.showcase-sticker-black .showcase-logo{filter:invert(1)}
+.showcase-sticker-white .showcase-sticker-body{background:#fff;color:#151515}
+.showcase-sticker-clear .showcase-sticker-body{
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.48),rgba(255,255,255,.14)),
+    repeating-linear-gradient(45deg,rgba(210,205,198,.34) 0 7px,rgba(255,255,255,.24) 7px 14px);
+  color:#151515;
+  border:1px solid rgba(255,255,255,.9);
+}
+
+#scene-kit.showcase-ribbons-only .product-showcase-grid{
+  grid-template-columns:repeat(2,minmax(300px,1fr));
+  max-width:980px;
+  margin:0 auto;
+}
+#scene-kit.showcase-stickers-only .product-showcase-grid{
+  grid-template-columns:repeat(3,minmax(170px,1fr));
+  max-width:780px;
+  margin:0 auto;
+}
+#scene-kit .kit-table{display:none!important}
+
+@media(max-width:1100px){
+  .product-showcase-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}
+}
+@media(max-width:700px){
+  .product-showcase-grid,
+  #scene-kit.showcase-ribbons-only .product-showcase-grid,
+  #scene-kit.showcase-stickers-only .product-showcase-grid{
+    display:flex;
+    overflow-x:auto;
+    gap:16px;
+    padding:26px 18px 34px;
+    scroll-snap-type:x mandatory;
+  }
+  .showcase-item{flex:0 0 78vw;scroll-snap-align:center}
+  .showcase-sticker{flex-basis:58vw}
+  .showcase-sticker-body{width:170px}
+}
+
+/* v0.9.3 — две ленты вертикально, три стикера в одной строке */
+.product-showcase-grid{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  gap:24px!important;
+  width:min(100%,980px)!important;
+  margin:0 auto!important;
+  padding:32px 34px 42px!important;
+}
+
+.product-showcase-grid > .showcase-ribbon{
+  width:100%!important;
+  align-items:stretch!important;
+  gap:10px!important;
+}
+
+.product-showcase-grid > .showcase-ribbon .showcase-label{
+  align-self:flex-start;
+}
+
+.showcase-ribbon-body{
+  width:100%!important;
+}
+
+.showcase-ribbon-15 .showcase-ribbon-body{
+  height:60px!important;
+}
+
+.showcase-ribbon-20 .showcase-ribbon-body{
+  height:80px!important;
+}
+
+.showcase-stickers-row{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(150px,1fr));
+  gap:28px;
+  align-items:start;
+  justify-items:center;
+  width:min(100%,680px);
+  margin:4px auto 0;
+}
+
+.showcase-stickers-row.is-hidden{
+  display:none!important;
+}
+
+.showcase-stickers-row .showcase-item{
+  width:100%;
+}
+
+.showcase-stickers-row .showcase-sticker-body{
+  width:150px;
+}
+
+/* Step 02: ribbon choice keeps the two stacked ribbons. */
+#scene-kit.showcase-ribbons-only .product-showcase-grid{
+  display:flex!important;
+  flex-direction:column!important;
+  width:min(100%,980px)!important;
+  max-width:none!important;
+}
+
+/* Step 02: sticker choice keeps only the single horizontal sticker row. */
+#scene-kit.showcase-stickers-only .product-showcase-grid{
+  display:flex!important;
+  flex-direction:column!important;
+  width:min(100%,760px)!important;
+  max-width:none!important;
+}
+
+#scene-kit.showcase-stickers-only .showcase-stickers-row{
+  margin-top:18px;
+}
+
+/* Override the earlier per-item hiding for the grouped sticker row. */
+#scene-kit.showcase-ribbons-only .showcase-stickers-row{
+  display:none!important;
+}
+
+#scene-kit.showcase-stickers-only .showcase-ribbon{
+  display:none!important;
+}
+
+@media(max-width:700px){
+  .product-showcase-grid,
+  #scene-kit.showcase-ribbons-only .product-showcase-grid,
+  #scene-kit.showcase-stickers-only .product-showcase-grid{
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:visible!important;
+    width:100%!important;
+    padding:24px 16px 34px!important;
+    gap:22px!important;
+  }
+
+  .product-showcase-grid > .showcase-item{
+    flex:none!important;
+    width:100%!important;
+  }
+
+  .showcase-stickers-row{
+    display:flex;
+    width:100%;
+    gap:14px;
+    overflow-x:auto;
+    justify-content:flex-start;
+    padding:4px 8px 18px;
+    scroll-snap-type:x mandatory;
+  }
+
+  .showcase-stickers-row .showcase-item{
+    flex:0 0 62vw!important;
+    width:auto!important;
+    scroll-snap-align:center;
+  }
+
+  .showcase-stickers-row .showcase-sticker-body{
+    width:156px;
+  }
+}
+
+/* v0.9.5 — showcase linked to live studio state */
+.dynamic-ribbon{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.12) 31%,rgba(0,0,0,.08) 74%,rgba(255,255,255,.16)),
+    repeating-linear-gradient(89deg,rgba(255,255,255,.15) 0 1px,rgba(0,0,0,.03) 1px 2px,transparent 2px 4px),
+    var(--showcase-ribbon-color,#f1e7d7)!important;
+}
+
+.dynamic-sticker{
+  background-color:var(--showcase-sticker-color,#fff)!important;
+}
+
+.dynamic-showcase-logo{
+  object-fit:contain;
+  transition:opacity .15s ease;
+}
+
+.dynamic-showcase-text{
+  transition:color .15s ease;
+}
+
+.showcase-sticker-clear .dynamic-sticker{
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.48),rgba(255,255,255,.14)),
+    repeating-linear-gradient(45deg,rgba(210,205,198,.34) 0 7px,rgba(255,255,255,.24) 7px 14px),
+    var(--showcase-sticker-color,rgba(255,255,255,.20))!important;
+}
+
+/* v0.9.6 — curated colors for step 01 */
+.demo-red-gold .showcase-ribbon-body{
+  --showcase-ribbon-color:#b51f2e;
+}
+
+.demo-beige-black .showcase-ribbon-body{
+  --showcase-ribbon-color:#e9dcc7;
+}
+
+.demo-black-silver .showcase-sticker-body{
+  background:#111!important;
+}
+
+.demo-white-black .showcase-sticker-body{
+  background:#fff!important;
+}
+
+.demo-clear-gold .showcase-sticker-body{
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.46),rgba(255,255,255,.10)),
+    repeating-linear-gradient(45deg,rgba(210,205,198,.30) 0 7px,rgba(255,255,255,.18) 7px 14px)!important;
+}

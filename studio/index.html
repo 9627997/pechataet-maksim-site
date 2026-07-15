@@ -12,10 +12,12 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="#" aria-label="Печатает Максим">
-    <span class="brand-mark">🎀</span>
-    <span><strong>Печатает Максим</strong><small>Студия лент и стикеров</small></span>
-  </a>
+  <a class="brand studio-brand-lockup" href="./" aria-label="Печатает Максим — Студия лент и стикеров">
+      <img class="studio-ribbon-m" src="assets/images/pechataet-maksim-ribbon-m.png" alt="">
+      <img class="studio-wordmark" src="assets/images/печатаетмаксим.svg" alt="Печатает Максим">
+      <span class="studio-brand-divider" aria-hidden="true"></span>
+      <span class="studio-brand-caption">Студия лент и стикеров</span>
+    </a>
   <div class="top-actions">
     <button class="button ghost" id="resetProject">Новый проект</button>
     
@@ -54,6 +56,15 @@
         </div>
       </div>
 
+      <div class="trace-status" id="traceStatus" hidden>
+        <div class="trace-status-icon">✓</div>
+        <div>
+          <strong>Макет автоматически подготовлен</strong>
+          <p>Для предпросмотра изображение переведено в одноцветный вектор. Перед производством мы вручную проверим контуры и качество печати.</p>
+          <small id="traceDetails"></small>
+        </div>
+      </div>
+
       <div class="upload-text-card">
         <div class="upload-text-head">
           <strong>Или введите название</strong>
@@ -61,7 +72,7 @@
         </div>
 
         <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" value="печатаетмаксим" placeholder="Введите текст">
+        <input class="input" id="textInput" type="text" value="ленты по любви" placeholder="Введите текст">
 
         <label for="fontSelect">Шрифт</label>
         <select class="input" id="fontSelect">
@@ -75,7 +86,7 @@
 
       <div class="help-note">
         <strong>Нет векторного файла? Не проблема.</strong>
-        <p>Загрузите JPEG или PNG — мы бесплатно проверим качество и при необходимости подготовим изображение к печати.</p>
+        <p>JPEG и PNG автоматически переводятся в одноцветный макет. Перед производством Максим вручную проверит контуры.</p>
       </div>
 
       <button class="button primary wide next-panel" id="continueUpload" data-next="bundle" disabled>Далее: комплект</button>
@@ -211,12 +222,61 @@
           <strong>Сатиновая лента и круглый стикер</strong>
         </div>
 
+
+        <div class="product-showcase-grid" id="productShowcase">
+          <article class="showcase-item showcase-ribbon showcase-ribbon-15 demo-red-gold" data-product-type="ribbon">
+            <div class="showcase-label">Лента 15 мм</div>
+            <div class="showcase-ribbon-body dynamic-ribbon">
+              <div class="showcase-ribbon-print">
+                <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+                <span class="dynamic-showcase-text">ленты по любви</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-ribbon showcase-ribbon-20 demo-beige-black" data-product-type="ribbon">
+            <div class="showcase-label">Лента 20 мм</div>
+            <div class="showcase-ribbon-body dynamic-ribbon">
+              <div class="showcase-ribbon-print">
+                <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+                <span class="dynamic-showcase-text">ленты по любви</span>
+              </div>
+            </div>
+          </article>
+
+                  <div class="showcase-stickers-row" data-product-group="stickers">
+<article class="showcase-item showcase-sticker showcase-sticker-black demo-black-silver" data-product-type="sticker">
+            <div class="showcase-label">Чёрный стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-sticker showcase-sticker-white demo-white-black" data-product-type="sticker">
+            <div class="showcase-label">Белый стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-sticker showcase-sticker-clear demo-clear-gold" data-product-type="sticker">
+            <div class="showcase-label">Прозрачный стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+        </div>
+        </div>
+
         <div class="kit-table">
           <div class="table-shadow"></div>
 
           <div class="ribbon-mockup">
             <div class="ribbon-edge ribbon-edge-top"></div>
-            <div class="ribbon-surface" id="ribbonSurface">
+            <div class="ribbon-surface kit-print-surface" id="ribbonSurface">
               <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                   <filter id="metallic">
@@ -255,15 +315,23 @@
           <span>Макро</span>
           <strong>Фактура сатина и качество печати</strong>
         </div>
-        <div class="macro-stage">
+        <div class="macro-stage" id="macroStage">
           <div class="macro-ribbon" id="macroRibbon">
             <div class="macro-fibers"></div>
             <div class="macro-logo" id="macroLogo">
-      <img id="macroLogoImage" alt="" hidden>
-      <span id="macroLogoText">печатаетмаксим</span>
-    </div>
+              <img id="macroLogoImage" alt="" hidden>
+              <span id="macroLogoText">ленты по любви</span>
+            </div>
           </div>
-          <div class="macro-note">Мягкий сатиновый блик · фактура ткани · имитация фольги</div>
+
+          <div class="macro-sticker" id="macroSticker">
+            <div class="macro-sticker-paper">
+              <img id="macroStickerImage" alt="" hidden>
+              <span id="macroStickerText">ленты по любви</span>
+            </div>
+          </div>
+
+          <div class="macro-note">Крупный план материала и печати</div>
         </div>
       </div>
 
@@ -294,6 +362,43 @@
     </section>
 
   </main>
+</div>
+
+
+<div class="crop-modal" id="cropModal" aria-hidden="true">
+  <div class="crop-dialog">
+    <div class="crop-head">
+      <div>
+        <p class="eyebrow">Подготовка изображения</p>
+        <h2>Выделите логотип</h2>
+        <p>Оставьте внутри рамки только нужный логотип или надпись.</p>
+      </div>
+      <button class="close" id="cropCancel" type="button">×</button>
+    </div>
+
+    <div class="crop-stage" id="cropStage">
+      <canvas id="cropCanvas"></canvas>
+      <div class="crop-frame" id="cropFrame">
+        <span class="crop-handle nw" data-handle="nw"></span>
+        <span class="crop-handle ne" data-handle="ne"></span>
+        <span class="crop-handle sw" data-handle="sw"></span>
+        <span class="crop-handle se" data-handle="se"></span>
+      </div>
+    </div>
+
+    <div class="crop-controls">
+      <label>
+        Масштаб
+        <input id="cropZoom" type="range" min="100" max="300" value="100">
+      </label>
+      <button class="button ghost" id="cropRotate" type="button">Повернуть 90°</button>
+    </div>
+
+    <div class="crop-actions">
+      <button class="button ghost" id="cropUseAll" type="button">Использовать всё изображение</button>
+      <button class="button primary" id="cropApply" type="button">Использовать выделенную область</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="orderModal" aria-hidden="true">

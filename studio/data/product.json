@@ -1,5 +1,5 @@
 {
-  "version": "0.5",
+  "version": "0.9.7",
   "product": "Ribbon Studio Next",
   "products": [
     "ribbon",
@@ -35,16 +35,11 @@
     "external_psd_dependency": false
   },
   "fixes": [
-    "scene images refresh immediately on tab switch",
-    "automatic logo fitting by aspect ratio",
-    "separate scaling rules for macro, ribbon and sticker mockups",
-    "force monochrome SVG print color",
-    "remove embedded SVG CSS classes and style blocks",
-    "preserve transparent fill and stroke areas",
-    "force image repaint across all scenes",
-    "sticker-only mode hides ribbon",
-    "30/40/50 mm sticker sizes scale visually",
-    "sticker scales in kit and package scenes"
+    "showcase logos linked to current uploaded logo",
+    "showcase text linked to current text input",
+    "print color updates on ribbons and stickers",
+    "ribbon color updates on both ribbon samples",
+    "SVG and svg-auto recoloring restored in showcase"
   ],
   "runtime": "classic-script",
   "local_file_support": true,
@@ -67,5 +62,127 @@
     "metallic_print_simulation": true,
     "subtle_motion": true,
     "dev_badge_visible": false
-  }
+  },
+  "auto_trace": {
+    "enabled": true,
+    "formats": [
+      "jpg",
+      "jpeg",
+      "png"
+    ],
+    "runs_in_browser": true,
+    "keeps_original": true,
+    "output": "single-color SVG",
+    "manual_review_required": true
+  },
+  "crop": {
+    "enabled_for": [
+      "jpg",
+      "jpeg",
+      "png_without_transparency"
+    ],
+    "skip_for": [
+      "svg",
+      "png_with_transparency"
+    ],
+    "touch_supported": true,
+    "controls": [
+      "move_image",
+      "zoom",
+      "rotate_90",
+      "move_frame",
+      "resize_frame",
+      "use_whole_image"
+    ],
+    "crop_metadata_saved": true
+  },
+  "default_demo": {
+    "logo": "assets/images/печатаетмаксим.svg",
+    "text": "ленты по любви",
+    "replaceable_by_user": true
+  },
+  "package_scene_product_visibility": true,
+  "composition": {
+    "overlap_prevention": true,
+    "ribbon": "separate horizontal zones",
+    "sticker": "logo above, text below"
+  },
+  "physical_proportions": {
+    "ribbon_widths_mm": [
+      15,
+      20
+    ],
+    "sticker_diameters_mm": [
+      30,
+      40,
+      50
+    ],
+    "true_relative_scaling": true
+  },
+  "render_mode": "procedural",
+  "photo_mockups_enabled": false,
+  "rollback_from": [
+    "0.8.6",
+    "0.8.7"
+  ],
+  "notes": [
+    "Возврат к программному рендеру",
+    "Фотографические мокапы не используются",
+    "Сохранены динамические цвета, фактура сатина и сцены Комплект/Макро/Упаковка"
+  ],
+  "header_brand": {
+    "ribbon_m": "assets/images/pechataet-maksim-ribbon-m.png",
+    "wordmark": "assets/images/печатаетмаксим.svg",
+    "caption": "Студия лент и стикеров",
+    "single_line": true
+  },
+  "showcase": {
+    "step_01": [
+      "15 mm ribbon",
+      "20 mm ribbon",
+      "black sticker",
+      "white sticker",
+      "transparent sticker"
+    ],
+    "step_02": {
+      "ribbon": "ribbons only",
+      "sticker": "stickers only",
+      "bundle": "all products"
+    }
+  },
+  "showcase_layout": {
+    "row_1": "15 mm ribbon",
+    "row_2": "20 mm ribbon",
+    "row_3": [
+      "black sticker",
+      "white sticker",
+      "transparent sticker"
+    ],
+    "sticker_row_horizontal": true
+  },
+  "step_01_demo_colors": {
+    "15mm_ribbon": {
+      "ribbon": "red",
+      "logo": "gold",
+      "text": "gold"
+    },
+    "20mm_ribbon": {
+      "ribbon": "beige",
+      "logo": "black",
+      "text": "black"
+    },
+    "black_sticker": {
+      "logo": "silver",
+      "text": "silver"
+    },
+    "white_sticker": {
+      "logo": "black",
+      "text": "black"
+    },
+    "transparent_sticker": {
+      "logo": "gold",
+      "text": "gold"
+    }
+  },
+  "customer_logo_uses_demo_palette_on_upload_step": true
 }
