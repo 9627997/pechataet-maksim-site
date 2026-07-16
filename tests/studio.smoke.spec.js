@@ -218,8 +218,12 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
   await expect(page.locator('#textInput')).toHaveValue('новый общий текст');
-  await expect(page.locator('#macroLogoText')).toHaveText('новый общий текст');
+  await expect(page.locator('#macroLogoText')).toBeHidden();
   await expect(page.locator('#macroStickerText')).toHaveText(
+    'новый общий текст',
+  );
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
     'новый общий текст',
   );
   await expect
@@ -233,6 +237,10 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
   expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
   expect(snapshot.logo.resolvedRibbon).toBeNull();
+  await expect(page.locator('#macroLogoText')).toBeHidden();
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'новый общий текст',
+  );
 
   await page.locator('#resetProject').click();
   await page.waitForLoadState('networkidle');
@@ -243,6 +251,114 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
   expect(snapshot.text.resolvedRibbon).toBe(snapshot.text.common);
   expect(snapshot.text.resolvedSticker).toBe(snapshot.text.common);
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('resolved product text stays independent from common editing', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('resolved-text-seeded')) return;
+    sessionStorage.setItem('resolved-text-seeded', 'true');
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        text: 'общий текст',
+        content: {
+          logo: {
+            common: null,
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+          text: {
+            common: 'общий текст',
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'override', value: 'только стикер' },
+          },
+        },
+      }),
+    );
+  });
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const macroRibbonText = page.locator('#macroLogoText');
+  const macroStickerText = page.locator('#macroStickerText');
+  const mobileRibbonText = page.locator('.mobile-products-ribbon-text');
+  const mobileStickerText = page.locator('.mobile-products-sticker-text');
+
+  await expect(textInput).toHaveValue('общий текст');
+  await expect(macroRibbonText).toHaveText('общий текст');
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText('общий текст');
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  const contentEvent = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-state-updated',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await textInput.fill('обновлённый общий');
+  expect(await contentEvent).toEqual({
+    text: {
+      common: 'обновлённый общий',
+      ribbon: { mode: 'inherit', resolved: 'обновлённый общий' },
+      sticker: { mode: 'override', resolved: 'только стикер' },
+    },
+  });
+  await expect(macroRibbonText).toHaveText('обновлённый общий');
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText('обновлённый общий');
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('обновлённый общий');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({
+    mode: 'override',
+    value: 'только стикер',
+  });
+
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
+    saved.content.text.ribbon = {
+      mode: 'override',
+      value: 'только лента',
+    };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
+  expect(snapshot.text.sticker).toEqual({
+    mode: 'override',
+    value: 'только стикер',
+  });
+  await expect(textInput).toHaveValue('обновлённый общий');
+  await expect(macroRibbonText).toHaveText('только лента');
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText('только лента');
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  await page.locator('[data-mobile-products-safe-zone="ribbon-text"]').click();
+  await expect(textInput).toBeFocused();
+  await page.locator('[data-mobile-products-safe-zone="sticker-text"]').click();
+  await expect(textInput).toBeFocused();
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);

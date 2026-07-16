@@ -11,6 +11,7 @@
     const samples = [...panel.querySelectorAll('[data-mobile-product-sample]')];
     const ribbonSurface = panel.querySelector('.mobile-products-ribbon-sample');
     const stickerSurface = panel.querySelector('.mobile-products-sticker-sample');
+    let contentTextState = null;
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -77,8 +78,34 @@
       syncVisibility();
     };
 
+    const readContentTextFallback = () => {
+      try {
+        const snapshot = JSON.parse(document.body.dataset.studioContent || '{}');
+        if (!snapshot.text) return null;
+        return {
+          common: snapshot.text.common || '',
+          ribbon: {
+            mode: snapshot.text.ribbon?.mode || 'inherit',
+            resolved: snapshot.text.resolvedRibbon || '',
+          },
+          sticker: {
+            mode: snapshot.text.sticker?.mode || 'inherit',
+            resolved: snapshot.text.resolvedSticker || '',
+          },
+        };
+      } catch {
+        return null;
+      }
+    };
+
     const syncStudioState = () => {
-      const text = document.querySelector('#textInput')?.value.trim() || '';
+      const commonText = document.querySelector('#textInput')?.value || '';
+      const ribbonTextValue =
+        contentTextState?.ribbon?.resolved ?? commonText;
+      const stickerTextValue =
+        contentTextState?.sticker?.resolved ?? commonText;
+      const ribbonTextValueTrimmed = ribbonTextValue.trim();
+      const stickerTextValueTrimmed = stickerTextValue.trim();
       const font = document.querySelector('#fontSelect')?.value || 'Manrope';
       const fontSize = Number(document.querySelector('#fontSize')?.value) || 32;
       const logoScale = Number(document.querySelector('#logoScale')?.value) || 100;
@@ -88,7 +115,8 @@
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const logoSrc = logoSource.getAttribute('src') || '';
       const hasLogo = Boolean(logoSrc && !logoSource.hidden);
-      const hasText = Boolean(text);
+      const hasRibbonText = Boolean(ribbonTextValueTrimmed);
+      const hasStickerText = Boolean(stickerTextValueTrimmed);
       const scale = Math.min(1.8, Math.max(0.5, logoScale / 100));
 
       [ribbonLogo.image, stickerLogo.image].forEach((image) => {
@@ -104,27 +132,42 @@
         action.textContent = label;
       });
 
-      [ribbonText.text, stickerText.text].forEach((element) => {
-        element.textContent = text;
-        element.hidden = !hasText;
-        element.style.color = print;
-        element.style.fontFamily = font;
-      });
-
-      [ribbonText, stickerText].forEach(({ zone, action }) => {
+      const updateText = ({ zone, text, action }, value, hasText, mode) => {
+        text.textContent = value;
+        text.hidden = !hasText;
+        text.style.color = print;
+        text.style.fontFamily = font;
         const label = hasText ? 'Изменить надпись' : 'Добавить надпись';
         zone.dataset.empty = String(!hasText);
+        zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
         action.textContent = label;
-      });
+      };
+      updateText(
+        ribbonText,
+        ribbonTextValueTrimmed,
+        hasRibbonText,
+        contentTextState?.ribbon?.mode || 'inherit',
+      );
+      updateText(
+        stickerText,
+        stickerTextValueTrimmed,
+        hasStickerText,
+        contentTextState?.sticker?.mode || 'inherit',
+      );
 
       ribbonSurface.style.backgroundColor = ribbon;
       ribbonText.text.style.fontSize = `${Math.min(20, Math.max(10, fontSize * 0.44))}px`;
       stickerText.text.style.fontSize = `${Math.min(17, Math.max(9, fontSize * 0.36))}px`;
       ribbonLogo.image.style.width = `${Math.min(92, 54 * scale)}%`;
-      stickerLogo.image.style.width = `${Math.min(92, (hasText ? 52 : 68) * scale)}%`;
+      stickerLogo.image.style.width = `${Math.min(92, (hasStickerText ? 52 : 68) * scale)}%`;
 
-      const mode = hasLogo && hasText ? 'logo-and-text' : hasLogo ? 'logo-only' : 'text-only';
+      const mode =
+        hasLogo && hasStickerText
+          ? 'logo-and-text'
+          : hasLogo
+            ? 'logo-only'
+            : 'text-only';
       stickerContent.dataset.mobileProductsMode = mode;
     };
 
@@ -152,6 +195,11 @@
       applyProductSelection(event.detail || {});
     });
 
+    document.addEventListener('studio:content-state-updated', (event) => {
+      contentTextState = event.detail?.text || contentTextState;
+      syncStudioState();
+    });
+
     document.addEventListener('input', scheduleStudioSync);
     document.addEventListener('change', scheduleStudioSync);
     document.addEventListener('click', scheduleStudioSync);
@@ -166,6 +214,7 @@
       ribbon: document.body.dataset.hasRibbon === 'true',
       sticker: document.body.dataset.hasSticker === 'true',
     });
+    contentTextState = readContentTextFallback();
     syncStudioState();
   };
 

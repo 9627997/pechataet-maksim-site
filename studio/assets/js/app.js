@@ -191,6 +191,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return override?.mode === 'override' ? override.value : state.content.text.common;
   }
 
+  function setCommonText(value) {
+    const common = typeof value === 'string' ? value : '';
+    state.content.text.common = common;
+    state.text = common;
+    render();
+  }
+
   function getResolvedLogo(product) {
     const override = state.content.logo[product];
     return override?.mode === 'override' ? override.value : state.content.logo.common;
@@ -231,6 +238,26 @@ document.addEventListener('DOMContentLoaded', () => {
         resolvedSticker: getResolvedText('sticker')
       }
     });
+  }
+
+  function publishContentState() {
+    document.dispatchEvent(
+      new CustomEvent('studio:content-state-updated', {
+        detail: {
+          text: {
+            common: state.content.text.common,
+            ribbon: {
+              mode: state.content.text.ribbon.mode,
+              resolved: getResolvedText('ribbon')
+            },
+            sticker: {
+              mode: state.content.text.sticker.mode,
+              resolved: getResolvedText('sticker')
+            }
+          }
+        }
+      })
+    );
   }
 
   function contentForStorage() {
@@ -341,11 +368,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateShowcaseContent() {
-    const textValue = (state.text || '').trim();
     const logoData = state.logo ? state.logo.data : null;
     const onUpload = state.panel === 'upload';
 
     $$('.dynamic-showcase-text').forEach((el) => {
+      const product = el.closest('[data-product-type]')?.dataset.productType;
+      const textValue = getResolvedText(product === 'sticker' ? 'sticker' : 'ribbon').trim();
       el.textContent = textValue;
       el.hidden = !textValue;
       el.style.fontFamily = state.font;
@@ -487,8 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
     parent.appendChild(image);
   }
 
-  function drawText(parent, x, y, size, anchor = 'middle') {
-    if (!state.text) return;
+  function drawText(parent, x, y, size, value, anchor = 'middle') {
+    if (!value) return;
 
     const text = svgEl('text', {
       x,
@@ -501,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fill: state.print
     });
 
-    text.textContent = state.text;
+    text.textContent = value;
     parent.appendChild(text);
   }
 
@@ -539,7 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const repeatWidth = Math.max(360, state.repeatMm * 6.2);
     const hasLogo = Boolean(state.logo);
-    const hasText = Boolean((state.text || '').trim());
+    const resolvedText = getResolvedText('ribbon');
+    const hasText = Boolean(resolvedText.trim());
 
     for (let startX = -30; startX < 1260; startX += repeatWidth) {
       const cell = svgEl('g');
@@ -578,13 +607,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const preferredSize = state.width === 20 ? 39 : 31;
         const textSize = fittedTextSize(
-          state.text,
+          resolvedText,
           textZone * 0.94,
           preferredSize,
           17
         );
 
-        drawText(content, textCenterX, 130, textSize);
+        drawText(content, textCenterX, 130, textSize, resolvedText);
       } else if (hasLogo) {
         drawLogo(
           content,
@@ -595,13 +624,13 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       } else if (hasText) {
         const textSize = fittedTextSize(
-          state.text,
+          resolvedText,
           repeatWidth * 0.84,
           state.width === 20 ? 43 : 34,
           18
         );
 
-        drawText(content, startX + repeatWidth / 2, 130, textSize);
+        drawText(content, startX + repeatWidth / 2, 130, textSize, resolvedText);
       }
 
       cell.appendChild(content);
@@ -617,28 +646,29 @@ document.addEventListener('DOMContentLoaded', () => {
     layer.innerHTML = '';
 
     const hasLogo = Boolean(state.logo);
-    const hasText = Boolean((state.text || '').trim());
+    const resolvedText = getResolvedText('sticker');
+    const hasText = Boolean(resolvedText.trim());
 
     if (hasLogo && hasText) {
       drawLogo(layer, 200, 145, 154, 84);
 
       const size = fittedTextSize(
-        state.text,
+        resolvedText,
         250,
         state.stickerSize === 30 ? 22 : state.stickerSize === 40 ? 27 : 31,
         14
       );
-      drawText(layer, 200, 270, size);
+      drawText(layer, 200, 270, size, resolvedText);
     } else if (hasLogo) {
       drawLogo(layer, 200, 200, 215, 145);
     } else if (hasText) {
       const size = fittedTextSize(
-        state.text,
+        resolvedText,
         270,
         state.stickerSize === 30 ? 28 : state.stickerSize === 40 ? 35 : 40,
         16
       );
-      drawText(layer, 200, 200, size);
+      drawText(layer, 200, 200, size, resolvedText);
     }
 
     if ($('#stickerSizeLabel')) {
@@ -752,7 +782,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (boxRibbonH) boxRibbonH.style.backgroundColor = state.ribbon;
     if (boxSticker) boxSticker.style.backgroundColor = state.stickerBg;
 
-    const displayText = state.text || 'ваш логотип';
+    const ribbonTextValue = getResolvedText('ribbon');
+    const stickerTextValue = getResolvedText('sticker');
 
     const macroImage = $('#macroLogoImage');
     const macroText = $('#macroLogoText');
@@ -775,15 +806,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    [macroText, macroStickerText, boxRibbonText, boxStickerText].forEach((text) => {
-      if (!text) return;
-
-      const hasText = Boolean(state.text && state.text.trim());
-      text.hidden = !hasText;
-      text.textContent = displayText;
-      text.style.color = state.print;
-      text.style.fontFamily = state.font;
-    });
+    const updateTextElements = (elements, value) => {
+      const hasText = Boolean(value.trim());
+      elements.forEach((text) => {
+        if (!text) return;
+        text.hidden = !hasText;
+        text.textContent = value;
+        text.style.color = state.print;
+        text.style.fontFamily = state.font;
+      });
+    };
+    updateTextElements([macroText, boxRibbonText], ribbonTextValue);
+    updateTextElements([macroStickerText, boxStickerText], stickerTextValue);
 
     if (macroImage) {
       macroImage.style.transform = `translateX(${state.logoOffsetX}px) scale(${getSceneScale('macro')})`;
@@ -793,19 +827,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const hasLogo = Boolean(state.logo);
-    const hasText = Boolean((state.text || '').trim());
-
-    [
-      $('#macroLogo'),
-      $('.macro-sticker-paper'),
-      $('.box-ribbon-content'),
-      $('.box-sticker-content')
-    ].forEach((element) => {
-      if (!element) return;
-      element.classList.toggle('has-logo-and-text', hasLogo && hasText);
-      element.classList.toggle('has-logo-only', hasLogo && !hasText);
-      element.classList.toggle('has-text-only', !hasLogo && hasText);
-    });
+    const updateCompositionState = (elements, value) => {
+      const hasText = Boolean(value.trim());
+      elements.forEach((element) => {
+        if (!element) return;
+        element.classList.toggle('has-logo-and-text', hasLogo && hasText);
+        element.classList.toggle('has-logo-only', hasLogo && !hasText);
+        element.classList.toggle('has-text-only', !hasLogo && hasText);
+      });
+    };
+    updateCompositionState(
+      [$('#macroLogo'), $('.box-ribbon-content')],
+      ribbonTextValue
+    );
+    updateCompositionState(
+      [$('.macro-sticker-paper'), $('.box-sticker-content')],
+      stickerTextValue
+    );
     if (boxRibbonImage) {
       boxRibbonImage.style.transform = `translateX(${state.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon')})`;
     }
@@ -844,7 +882,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getRecommendation() {
     const ratio = state.logo ? Number(state.logo.ratio) || 1 : 1;
-    const textLength = (state.text || '').trim().length;
+    const textLength = Math.max(
+      getResolvedText('ribbon').trim().length,
+      getResolvedText('sticker').trim().length
+    );
 
     let width = 15;
     let stickerSize = 40;
@@ -957,6 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateOrderProductControls();
 
     saveState();
+    publishContentState();
     publishProductSelection();
   }
 
@@ -1659,7 +1701,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('active', +button.dataset.value === state.stickerSize)
     );
 
-    if ($('#textInput')) $('#textInput').value = state.text;
+    if ($('#textInput')) $('#textInput').value = state.content.text.common;
     if ($('#fontSelect')) $('#fontSelect').value = state.font;
     if ($('#fontSize')) $('#fontSize').value = state.fontSize;
     if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
@@ -1776,9 +1818,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZone.addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
 
   $('#textInput').addEventListener('input', (event) => {
-    state.text = event.target.value;
-    render();
-    updateShowcaseContent();
+    setCommonText(event.target.value);
   });
 
   $('#fontSelect').addEventListener('change', (event) => {
