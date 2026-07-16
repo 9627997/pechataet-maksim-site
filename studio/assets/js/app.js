@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastMeters: 100,
     lastStickerQty: 100
   };
+  let hasUsedCommonTextEditor = false;
 
   const cropState = {
     file: null,
@@ -195,6 +196,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const common = typeof value === 'string' ? value : '';
     state.content.text.common = common;
     state.text = common;
+    render();
+  }
+
+  function setTextOverride(product, value) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.content.text[product] = {
+      mode: 'override',
+      value: typeof value === 'string' ? value : ''
+    };
+    render();
+  }
+
+  function clearTextOverride(product) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.content.text[product] = {mode: 'inherit'};
     render();
   }
 
@@ -1774,6 +1790,26 @@ document.addEventListener('DOMContentLoaded', () => {
       ribbon: Boolean(event.detail?.ribbon),
       sticker: Boolean(event.detail?.sticker)
     });
+  });
+
+  document.addEventListener('studio:content-edit-request', (event) => {
+    if (event.detail?.kind !== 'text') return;
+    const product = event.detail?.product;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+
+    const content = state.content.text[product];
+    const resolvedText = getResolvedText(product);
+    if (content.mode === 'inherit' && (!resolvedText || !hasUsedCommonTextEditor)) {
+      $('#textInput').focus();
+      if (resolvedText) hasUsedCommonTextEditor = true;
+      return;
+    }
+
+    document.dispatchEvent(
+      new CustomEvent('studio:text-edit-scope-required', {
+        detail: {product}
+      })
+    );
   });
 
   $('#toggleOrderRibbon').addEventListener('click', () => {

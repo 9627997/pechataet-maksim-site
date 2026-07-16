@@ -355,10 +355,119 @@ test('resolved product text stays independent from common editing', async ({
   await expect(mobileRibbonText).toHaveText('только лента');
   await expect(mobileStickerText).toHaveText('только стикер');
 
-  await page.locator('[data-mobile-products-safe-zone="ribbon-text"]').click();
+  for (const product of ['ribbon', 'sticker']) {
+    const scopeRequired = page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          document.addEventListener(
+            'studio:text-edit-scope-required',
+            (event) => resolve(event.detail),
+            { once: true },
+          );
+        }),
+    );
+    await page
+      .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
+      .click();
+    expect(await scopeRequired).toEqual({ product });
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile text zones request editing and require scope after shared editing starts', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const ribbonText = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-text"]',
+  );
+  const stickerText = page.locator(
+    '[data-mobile-products-safe-zone="sticker-text"]',
+  );
+
+  const editRequest = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-edit-request',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await ribbonText.click();
+  expect(await editRequest).toEqual({ kind: 'text', product: 'ribbon' });
   await expect(textInput).toBeFocused();
-  await page.locator('[data-mobile-products-safe-zone="sticker-text"]').click();
-  await expect(textInput).toBeFocused();
+
+  const scopeRequired = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:text-edit-scope-required',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await stickerText.click();
+  expect(await scopeRequired).toEqual({ product: 'sticker' });
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('empty inherited common text always focuses the shared editor', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        text: '',
+        content: {
+          logo: {
+            common: null,
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+          text: {
+            common: '',
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+        },
+      }),
+    );
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const scopeEvents = await page.evaluateHandle(() => {
+    const events = [];
+    document.addEventListener('studio:text-edit-scope-required', (event) => {
+      events.push(event.detail);
+    });
+    return events;
+  });
+
+  for (const product of ['ribbon', 'sticker', 'ribbon']) {
+    await page
+      .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
+      .click();
+    await expect(textInput).toBeFocused();
+    await textInput.blur();
+  }
+  expect(await scopeEvents.jsonValue()).toEqual([]);
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);

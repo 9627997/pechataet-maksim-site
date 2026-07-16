@@ -42,7 +42,13 @@
       zone.dataset.mobileProductsSafeZone = `${product}-text`;
       text.className = `mobile-products-${product}-text`;
       action.className = 'mobile-products-zone-action';
-      zone.addEventListener('click', () => textInput.focus());
+      zone.addEventListener('click', () => {
+        document.dispatchEvent(
+          new CustomEvent('studio:content-edit-request', {
+            detail: { kind: 'text', product },
+          }),
+        );
+      });
       zone.append(text, action);
       return { zone, text, action };
     };
