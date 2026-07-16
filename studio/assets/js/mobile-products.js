@@ -57,6 +57,14 @@
       });
     };
 
+    const applyProductSelection = ({ribbon, sticker}) => {
+      const selection = {ribbon: Boolean(ribbon), sticker: Boolean(sticker)};
+      switches.forEach((productSwitch) => {
+        productSwitch.checked = selection[productSwitch.dataset.mobileProduct];
+      });
+      syncVisibility();
+    };
+
     const syncStudioState = () => {
       const text = document.querySelector('#textInput')?.value.trim() || '';
       const font = document.querySelector('#fontSelect')?.value || 'Manrope';
@@ -109,7 +117,18 @@
         }
 
         syncVisibility();
+        document.dispatchEvent(
+          new CustomEvent('studio:product-selection-change', {
+            detail: Object.fromEntries(
+              switches.map((item) => [item.dataset.mobileProduct, item.checked]),
+            ),
+          }),
+        );
       });
+    });
+
+    document.addEventListener('studio:product-selection-updated', (event) => {
+      applyProductSelection(event.detail || {});
     });
 
     document.addEventListener('input', scheduleStudioSync);
@@ -122,7 +141,10 @@
       attributeFilter: ['src', 'hidden'],
     });
 
-    syncVisibility();
+    applyProductSelection({
+      ribbon: document.body.dataset.hasRibbon === 'true',
+      sticker: document.body.dataset.hasSticker === 'true',
+    });
     syncStudioState();
   };
 

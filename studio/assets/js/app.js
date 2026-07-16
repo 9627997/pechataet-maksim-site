@@ -24,7 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
     stickerSize: 40,
     stickerBg: '#ffffff',
     meters: 100,
-    stickerQty: 100
+    stickerQty: 100,
+    lastMeters: 100,
+    lastStickerQty: 100
   };
 
   const cropState = {
@@ -98,6 +100,28 @@ document.addEventListener('DOMContentLoaded', () => {
   function restoreState() {
     try {
       Object.assign(state, JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}'));
+
+      const validMeters = [10, 25, 50, 100, 200];
+      const validStickerQuantities = [50, 100, 250, 500];
+      state.lastMeters = validMeters.includes(state.lastMeters)
+        ? state.lastMeters
+        : validMeters.includes(state.meters) ? state.meters : 100;
+      state.lastStickerQty = validStickerQuantities.includes(state.lastStickerQty)
+        ? state.lastStickerQty
+        : validStickerQuantities.includes(state.stickerQty) ? state.stickerQty : 100;
+
+      const restoredBundle = ['bundle', 'ribbon', 'sticker'].includes(state.bundle)
+        ? state.bundle
+        : 'bundle';
+      const hasRibbon = restoredBundle !== 'sticker';
+      const hasSticker = restoredBundle !== 'ribbon';
+      state.meters = hasRibbon && validMeters.includes(state.meters)
+        ? state.meters
+        : hasRibbon ? state.lastMeters : 0;
+      state.stickerQty = hasSticker && validStickerQuantities.includes(state.stickerQty)
+        ? state.stickerQty
+        : hasSticker ? state.lastStickerQty : 0;
+      state.bundle = hasRibbon && hasSticker ? 'bundle' : hasRibbon ? 'ribbon' : 'sticker';
 
       const legacyDemoTexts = ['привет', 'печатаетмаксим', 'сделано красиво'];
       if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
@@ -445,13 +469,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function calculatePrice() {
-    const ribbonBase = {10: 390, 25: 590, 50: 790, 100: 1090, 200: 1590}[state.meters] || 1090;
-    const widthExtra = state.width === 20 ? 180 : 0;
-    const stickerBase = state.bundle === 'bundle'
-      ? ({50: 450, 100: 700, 250: 1350, 500: 2200}[state.stickerQty] || 700)
+    const ribbonBase = state.meters > 0
+      ? ({10: 390, 25: 590, 50: 790, 100: 1090, 200: 1590}[state.meters] || 0)
+      : 0;
+    const widthExtra = state.meters > 0 && state.width === 20 ? 180 : 0;
+    const stickerBase = state.stickerQty > 0
+      ? ({50: 450, 100: 700, 250: 1350, 500: 2200}[state.stickerQty] || 0)
       : 0;
 
     return ribbonBase + widthExtra + stickerBase;
+  }
+
+  function publishProductSelection() {
+    const detail = {
+      ribbon: state.meters > 0,
+      sticker: state.stickerQty > 0
+    };
+    document.body.dataset.hasRibbon = String(detail.ribbon);
+    document.body.dataset.hasSticker = String(detail.sticker);
+    document.dispatchEvent(new CustomEvent('studio:product-selection-updated', {detail}));
+  }
+
+  function setProductSelection({ribbon, sticker}) {
+    if (!ribbon && !sticker) {
+      publishProductSelection();
+      return false;
+    }
+
+    if (state.meters > 0) state.lastMeters = state.meters;
+    if (state.stickerQty > 0) state.lastStickerQty = state.stickerQty;
+
+    state.meters = ribbon ? (state.meters || state.lastMeters) : 0;
+    state.stickerQty = sticker ? (state.stickerQty || state.lastStickerQty) : 0;
+    state.bundle = ribbon && sticker ? 'bundle' : ribbon ? 'ribbon' : 'sticker';
+    syncControls();
+    render();
+    return true;
   }
 
   function setScene(scene) {
@@ -721,11 +774,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('#orderRibbon')) $('#orderRibbon').textContent = `${state.width} мм · ${state.meters} м`;
     if ($('#orderSticker')) $('#orderSticker').textContent = `Ø${state.stickerSize} мм · ${state.stickerQty} шт.`;
-    if ($('#orderStickerRow')) $('#orderStickerRow').style.display = state.bundle === 'bundle' ? 'flex' : 'none';
+    if ($('#orderStickerRow')) $('#orderStickerRow').style.display = 'flex';
     if ($('#orderRepeat')) $('#orderRepeat').textContent = state.repeatMm + ' мм';
     if ($('#totalPrice')) $('#totalPrice').textContent = calculatePrice().toLocaleString('ru-RU') + ' ₽';
 
     saveState();
+    publishProductSelection();
   }
 
   function showFileCard(file, meta, quality, warning = false) {
@@ -1406,6 +1460,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
+    if ($('#meters')) $('#meters').disabled = state.meters === 0;
+    if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
     if ($('#logoScale')) $('#logoScale').value = Math.round(state.logoScale * 100);
     if ($('#logoOffsetX')) $('#logoOffsetX').value = state.logoOffsetX;
   }
@@ -1459,11 +1515,19 @@ document.addEventListener('DOMContentLoaded', () => {
   $$('#bundleChoice button').forEach((button) =>
     button.addEventListener('click', () => {
       activate('#bundleChoice', button);
-      state.bundle = button.dataset.value;
-      render();
-      updateProductShowcase();
+      setProductSelection({
+        ribbon: button.dataset.value !== 'sticker',
+        sticker: button.dataset.value !== 'ribbon'
+      });
     })
   );
+
+  document.addEventListener('studio:product-selection-change', (event) => {
+    setProductSelection({
+      ribbon: Boolean(event.detail?.ribbon),
+      sticker: Boolean(event.detail?.sticker)
+    });
+  });
 
   $$('#stickerSizeChoice button').forEach((button) =>
     button.addEventListener('click', () => {
@@ -1516,11 +1580,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#meters').addEventListener('input', (event) => {
     state.meters = +event.target.value;
+    if (state.meters > 0) state.lastMeters = state.meters;
     render();
   });
 
   $('#stickerQty').addEventListener('input', (event) => {
     state.stickerQty = +event.target.value;
+    if (state.stickerQty > 0) state.lastStickerQty = state.stickerQty;
     render();
   });
 
@@ -1547,11 +1613,9 @@ document.addEventListener('DOMContentLoaded', () => {
     state.repeatMm = rec.repeatMm;
     state.fontSize = rec.width === 20 ? 34 : 28;
     state.stickerSize = rec.stickerSize;
-    state.bundle = 'bundle';
     state.logoScale = rec.logoScale;
     state.logoOffsetX = 0;
-    syncControls();
-    render();
+    setProductSelection({ribbon: true, sticker: true});
   });
 
   $('#resetProject').addEventListener('click', () => {

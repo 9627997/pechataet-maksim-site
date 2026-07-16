@@ -203,6 +203,96 @@ test('mobile product switches control the static previews', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('mobile product switches control order quantities and price', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
+  const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
+  const meters = page.locator('#meters');
+  const stickerQty = page.locator('#stickerQty');
+  const totalPrice = page.locator('#totalPrice');
+
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+  await expect(meters).toHaveValue('100');
+  await expect(stickerQty).toHaveValue('100');
+  await expect(totalPrice).toHaveText(/1\s790\s₽/);
+
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await meters.selectOption('25');
+  await stickerQty.selectOption('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await ribbonSwitch.uncheck();
+  await expect(meters).toHaveValue('0');
+  await expect(meters).toBeDisabled();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(page.locator('#orderRibbon')).toContainText('0 м');
+  await expect(totalPrice).toHaveText(/1\s350\s₽/);
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-ribbon',
+    'false',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(ribbonSwitch).not.toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(meters).toHaveValue('0');
+  await ribbonSwitch.check();
+  await expect(meters).toHaveValue('25');
+  await expect(meters).toBeEnabled();
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await stickerSwitch.uncheck();
+  await expect(stickerQty).toHaveValue('0');
+  await expect(stickerQty).toBeDisabled();
+  await expect(meters).toHaveValue('25');
+  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
+  await expect(totalPrice).toHaveText(/590\s₽/);
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'false',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).not.toBeChecked();
+  await stickerSwitch.check();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(stickerQty).toBeEnabled();
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await ribbonSwitch.uncheck();
+  await stickerSwitch.uncheck();
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).not.toBeChecked();
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'false',
+  );
+  await expect(meters).toHaveValue('25');
+  await expect(stickerQty).toHaveValue('0');
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile previews stay synchronized with Studio state', async ({
   page,
 }, testInfo) => {
