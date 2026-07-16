@@ -370,6 +370,8 @@ test('resolved product text stays independent from common editing', async ({
       .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
       .click();
     expect(await scopeRequired).toEqual({ product });
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.locator('#cancelMobileTextEditor').click();
   }
 
   await expectNoHorizontalOverflow(page);
@@ -468,6 +470,191 @@ test('empty inherited common text always focuses the shared editor', async ({
     await textInput.blur();
   }
   expect(await scopeEvents.jsonValue()).toEqual([]);
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile text editor creates, persists, and clears product overrides', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const dialog = page.getByRole('dialog');
+  const ribbonZone = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-text"]',
+  );
+  const stickerZone = page.locator(
+    '[data-mobile-products-safe-zone="sticker-text"]',
+  );
+  const overrideInput = page.locator('#mobileTextOverrideInput');
+  const commonText = await textInput.inputValue();
+
+  await ribbonZone.click();
+  await expect(textInput).toBeFocused();
+  await ribbonZone.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
+  await expect(dialog).toHaveAttribute(
+    'aria-labelledby',
+    'mobileTextEditorTitle',
+  );
+  await expect(page.locator('#clearProductTextOverride')).toBeHidden();
+  await page.locator('#editProductText').click();
+  await expect(overrideInput).toBeFocused();
+  await expect(overrideInput).toHaveValue(commonText);
+  await overrideInput.fill('только лента');
+  await page
+    .locator('#mobileTextOverrideForm')
+    .getByRole('button', {
+      name: 'Сохранить',
+    })
+    .click();
+  await expect(dialog).toBeHidden();
+  await expect(ribbonZone).toBeFocused();
+  await expect(textInput).toHaveValue(commonText);
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe(commonText);
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'только лента',
+  );
+
+  await stickerZone.click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#editProductText')).toHaveText(
+    'Только для стикера',
+  );
+  await page.locator('#editProductText').click();
+  await expect(overrideInput).toHaveValue(commonText);
+  await overrideInput.fill('');
+  await page
+    .locator('#mobileTextOverrideForm')
+    .getByRole('button', {
+      name: 'Сохранить',
+    })
+    .click();
+  await expect(textInput).toHaveValue(commonText);
+
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.sticker).toEqual({ mode: 'override', value: '' });
+  expect(snapshot.text.resolvedSticker).toBe('');
+  await expect(stickerZone).toHaveAttribute('aria-label', 'Добавить надпись');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(textInput).toHaveValue(commonText);
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
+  expect(snapshot.text.sticker).toEqual({ mode: 'override', value: '' });
+
+  await stickerZone.click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#clearProductTextOverride')).toBeVisible();
+  await page.locator('#editProductText').click();
+  await expect(overrideInput).toHaveValue('');
+  await page.locator('#cancelMobileTextOverride').click();
+  await stickerZone.click();
+  await page.locator('#clearProductTextOverride').click();
+  await expect(dialog).toBeHidden();
+  await expect(stickerZone).toBeFocused();
+
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.resolvedSticker).toBe(commonText);
+  await page.reload({ waitUntil: 'networkidle' });
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile text editor closes accessibly and traps focus', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        text: 'общий текст',
+        content: {
+          logo: {
+            common: null,
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+          text: {
+            common: 'общий текст',
+            ribbon: { mode: 'override', value: 'только лента' },
+            sticker: { mode: 'inherit' },
+          },
+        },
+      }),
+    );
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-text"]');
+  const editor = page.locator('#mobileTextEditor');
+  const dialog = page.getByRole('dialog');
+  const closeButton = page.locator('#closeMobileTextEditor');
+  const cancelButton = page.locator('#cancelMobileTextEditor');
+
+  await zone.click();
+  await expect(dialog).toBeVisible();
+  await closeButton.focus();
+  await closeButton.press('Shift+Tab');
+  await expect(cancelButton).toBeFocused();
+
+  await cancelButton.click();
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await closeButton.click();
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await page
+    .locator('#mobileTextEditorBackdrop')
+    .click({ position: { x: 5, y: 5 } });
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await page.keyboard.press('Escape');
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await page.locator('#editCommonText').click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator('#textInput')).toBeFocused();
+  const snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);

@@ -453,6 +453,32 @@
   </div>
 </div>
 
+<div class="mobile-text-editor" id="mobileTextEditor" hidden>
+  <button class="mobile-text-editor-backdrop" id="mobileTextEditorBackdrop" type="button" aria-label="Закрыть выбор редактирования"></button>
+  <section class="mobile-text-editor-sheet" id="mobileTextEditorDialog" role="dialog" aria-modal="true" aria-labelledby="mobileTextEditorTitle">
+    <div class="mobile-text-editor-header">
+      <h2 id="mobileTextEditorTitle">Изменить надпись</h2>
+      <button class="mobile-text-editor-close" id="closeMobileTextEditor" type="button" aria-label="Закрыть">×</button>
+    </div>
+
+    <div class="mobile-text-editor-choices" id="mobileTextEditorChoices">
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonText" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action" id="editProductText" type="button">Только для ленты</button>
+      <button class="mobile-text-editor-action" id="clearProductTextOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileTextEditor" type="button">Отмена</button>
+    </div>
+
+    <form class="mobile-text-editor-form" id="mobileTextOverrideForm" hidden>
+      <label for="mobileTextOverrideInput" id="mobileTextOverrideLabel">Надпись только для ленты</label>
+      <input id="mobileTextOverrideInput" type="text" autocomplete="off">
+      <div class="mobile-text-editor-form-actions">
+        <button class="mobile-text-editor-action mobile-text-editor-action-primary" type="submit">Сохранить</button>
+        <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileTextOverride" type="button">Отмена</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <script src="assets/js/app.js"></script>
 <script src="assets/js/mobile-products.js"></script>
 </body>

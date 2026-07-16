@@ -1812,6 +1812,108 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   });
 
+  const mobileTextEditor = $('#mobileTextEditor');
+  const mobileTextEditorDialog = $('#mobileTextEditorDialog');
+  const mobileTextEditorChoices = $('#mobileTextEditorChoices');
+  const mobileTextOverrideForm = $('#mobileTextOverrideForm');
+  const mobileTextOverrideInput = $('#mobileTextOverrideInput');
+  let mobileTextEditorProduct = null;
+  let mobileTextEditorOrigin = null;
+
+  const closeMobileTextEditor = ({restoreFocus = true} = {}) => {
+    if (mobileTextEditor.hidden) return;
+    mobileTextEditor.hidden = true;
+    mobileTextEditorChoices.hidden = false;
+    mobileTextOverrideForm.hidden = true;
+    if (restoreFocus) mobileTextEditorOrigin?.focus();
+    mobileTextEditorProduct = null;
+    mobileTextEditorOrigin = null;
+  };
+
+  const openMobileTextEditor = (product) => {
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    const override = state.content.text[product];
+    const productName = product === 'ribbon' ? 'ленты' : 'стикера';
+    mobileTextEditorProduct = product;
+    mobileTextEditorOrigin = $(`[data-mobile-products-safe-zone="${product}-text"]`);
+    $('#mobileTextEditorTitle').textContent = `Надпись для ${productName}`;
+    $('#editProductText').textContent = `Только для ${productName}`;
+    $('#mobileTextOverrideLabel').textContent = `Надпись только для ${productName}`;
+    $('#clearProductTextOverride').hidden = override.mode !== 'override';
+    mobileTextEditorChoices.hidden = false;
+    mobileTextOverrideForm.hidden = true;
+    mobileTextEditor.hidden = false;
+    $('#editCommonText').focus();
+  };
+
+  document.addEventListener('studio:text-edit-scope-required', (event) => {
+    const product = event.detail?.product;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    openMobileTextEditor(product);
+  });
+
+  $('#editCommonText').addEventListener('click', () => {
+    closeMobileTextEditor({restoreFocus: false});
+    $('#textInput').focus();
+  });
+
+  $('#editProductText').addEventListener('click', () => {
+    const product = mobileTextEditorProduct;
+    if (!product) return;
+    const override = state.content.text[product];
+    mobileTextOverrideInput.value =
+      override.mode === 'override' ? override.value : getResolvedText(product);
+    mobileTextEditorChoices.hidden = true;
+    mobileTextOverrideForm.hidden = false;
+    mobileTextOverrideInput.focus();
+  });
+
+  mobileTextOverrideForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const product = mobileTextEditorProduct;
+    if (!product) return;
+    setTextOverride(product, mobileTextOverrideInput.value);
+    closeMobileTextEditor();
+  });
+
+  $('#clearProductTextOverride').addEventListener('click', () => {
+    const product = mobileTextEditorProduct;
+    if (!product) return;
+    clearTextOverride(product);
+    closeMobileTextEditor();
+  });
+
+  [
+    $('#closeMobileTextEditor'),
+    $('#mobileTextEditorBackdrop'),
+    $('#cancelMobileTextEditor'),
+    $('#cancelMobileTextOverride')
+  ].forEach((button) => button.addEventListener('click', () => closeMobileTextEditor()));
+
+  mobileTextEditorDialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMobileTextEditor();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = $$('button:not([hidden]), input:not([hidden])').filter(
+      (element) =>
+        mobileTextEditorDialog.contains(element) &&
+        !element.disabled &&
+        !element.closest('[hidden]')
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
   $('#toggleOrderRibbon').addEventListener('click', () => {
     setProductSelection({
       ribbon: state.meters === 0,
