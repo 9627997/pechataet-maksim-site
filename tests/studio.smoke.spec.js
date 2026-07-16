@@ -1,4 +1,48 @@
 import { expect, test } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+
+const fixturePath = (name) =>
+  fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+
+const watchRuntimeErrors = (page) => {
+  const errors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error')
+      errors.push(`console.error: ${message.text()}`);
+  });
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  return errors;
+};
+
+const expectNoHorizontalOverflow = async (page) => {
+  const hasOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+        document.documentElement.clientWidth ||
+      document.body.scrollWidth > document.body.clientWidth,
+  );
+  expect(hasOverflow).toBe(false);
+};
+
+const expectMobileLogosToMatch = async (page, expectedSrc) => {
+  for (const selector of [
+    '.mobile-products-ribbon-logo',
+    '.mobile-products-sticker-logo',
+  ]) {
+    const logo = page.locator(selector);
+    await expect(logo).toBeVisible();
+    await expect.poll(() => logo.getAttribute('src')).toBe(expectedSrc);
+  }
+};
+
+const expectInterfaceResponsive = async (page) => {
+  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
+  const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
+  await ribbonSwitch.uncheck();
+  await expect(ribbonSample).toBeHidden();
+  await ribbonSwitch.check();
+  await expect(ribbonSample).toBeVisible();
+};
 
 test('Studio opens without console errors or horizontal scrolling', async ({
   page,
@@ -240,6 +284,106 @@ test('mobile previews stay synchronized with Studio state', async ({
       document.body.scrollWidth > document.body.clientWidth,
   );
   expect(hasHorizontalOverflow).toBe(false);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('SVG upload updates both mobile product logos', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const macroLogo = page.locator('#macroLogoImage');
+  const initialSrc = await macroLogo.getAttribute('src');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+
+  await expect(page.locator('#fileCard')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  await expect(page.locator('#fileCardMeta')).toContainText('SVG');
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect
+    .poll(() => macroLogo.getAttribute('src'))
+    .toMatch(/^data:image\/svg\+xml;base64,/);
+
+  const finalSrc = await macroLogo.getAttribute('src');
+  expect(finalSrc).not.toBe(initialSrc);
+  await expectMobileLogosToMatch(page, finalSrc);
+  await expectInterfaceResponsive(page);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('transparent PNG is traced and updates both mobile product logos', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const cropModal = page.locator('#cropModal');
+  const macroLogo = page.locator('#macroLogoImage');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('transparent-logo.png'));
+
+  await expect(cropModal).toHaveAttribute('aria-hidden', 'true');
+  await expect(cropModal).not.toHaveClass(/open/);
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#traceDetails')).toContainText(
+    'Прозрачность сохранена',
+  );
+  await expect(page.locator('#fileCardName')).toHaveText(
+    'transparent-logo.png',
+  );
+  await expect(page.locator('#fileCardMeta')).toContainText('PNG · выделено');
+  await expect
+    .poll(() => macroLogo.getAttribute('src'))
+    .toMatch(/^data:image\/svg\+xml;base64,/);
+
+  const finalSrc = await macroLogo.getAttribute('src');
+  await expectMobileLogosToMatch(page, finalSrc);
+  await expectInterfaceResponsive(page);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('opaque PNG crop triggers tracing and updates both mobile product logos', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const cropModal = page.locator('#cropModal');
+  const macroLogo = page.locator('#macroLogoImage');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+
+  await expect(cropModal).toHaveClass(/open/);
+  await expect(cropModal).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#cropCanvas')).toBeVisible();
+  await expect(page.locator('#cropFrame')).toBeVisible();
+  await page.locator('#cropApply').click();
+
+  await expect(cropModal).not.toHaveClass(/open/);
+  await expect(cropModal).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText('opaque-logo.png');
+  await expect(page.locator('#fileCardMeta')).toContainText('PNG · выделено');
+  await expect(page.locator('#fileCardQuality')).toContainText('SVG');
+  await expect
+    .poll(() => macroLogo.getAttribute('src'))
+    .toMatch(/^data:image\/svg\+xml;base64,/);
+
+  const finalSrc = await macroLogo.getAttribute('src');
+  await expectMobileLogosToMatch(page, finalSrc);
+  await expectInterfaceResponsive(page);
+  await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
 
