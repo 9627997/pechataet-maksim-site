@@ -736,6 +736,34 @@ test('mobile text zones request editing and require scope after shared editing s
   expect(runtimeErrors).toEqual([]);
 });
 
+test('common text input enables product scope on the next safe-zone tap', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const textInput = page.locator('#textInput');
+  const ribbonText = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-text"]',
+  );
+
+  await textInput.fill('изменённый общий текст');
+  await expect(page.locator('#macroLogoText')).toHaveText(
+    'изменённый общий текст',
+  );
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'изменённый общий текст',
+  );
+
+  await ribbonText.click();
+  await expect(page.locator('#mobileTextEditor')).toBeVisible();
+  await expect(page.locator('#editCommonText')).toHaveText('Изменить везде');
+  await expect(page.locator('#editProductText')).toHaveText('Только для ленты');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('empty inherited common text always focuses the shared editor', async ({
   page,
 }, testInfo) => {

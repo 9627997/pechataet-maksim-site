@@ -2175,6 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZone.addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
 
   $('#textInput').addEventListener('input', (event) => {
+    hasUsedCommonTextEditor = true;
     setCommonText(event.target.value);
   });
 
