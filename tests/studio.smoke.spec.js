@@ -293,6 +293,111 @@ test('mobile product switches control order quantities and price', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('order product controls remove, restore, and persist products', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('.nav-item[data-panel="order"]').click();
+
+  const body = page.locator('body');
+  const meters = page.locator('#meters');
+  const stickerQty = page.locator('#stickerQty');
+  const totalPrice = page.locator('#totalPrice');
+  const ribbonButton = page.locator('#toggleOrderRibbon');
+  const stickerButton = page.locator('#toggleOrderSticker');
+  const notice = page.locator('#orderProductNotice');
+
+  await expect(ribbonButton).toBeVisible();
+  await expect(stickerButton).toBeVisible();
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeEnabled();
+  await expect(stickerButton).toBeEnabled();
+  await expect(notice).toHaveText(
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(notice).toBeHidden();
+
+  await meters.selectOption('25');
+  await stickerQty.selectOption('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await ribbonButton.click();
+  await expect(meters).toHaveValue('0');
+  await expect(page.locator('#orderRibbon')).toContainText('0 м');
+  await expect(totalPrice).toHaveText(/1\s350\s₽/);
+  await expect(ribbonButton).toHaveText('Добавить');
+  await expect(ribbonButton).toBeEnabled();
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(stickerButton).toBeDisabled();
+  await expect(stickerButton).toHaveAttribute(
+    'title',
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(stickerButton).toHaveAttribute(
+    'aria-describedby',
+    'orderProductNotice',
+  );
+  await expect(notice).toBeVisible();
+  await expect(body).toHaveAttribute('data-has-ribbon', 'false');
+  await expect(body).toHaveAttribute('data-has-sticker', 'true');
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.getByRole('switch', { name: 'Лента' })).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Стикер' })).toBeChecked();
+  }
+
+  await ribbonButton.click();
+  await expect(meters).toHaveValue('25');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(stickerButton).toBeEnabled();
+  await expect(notice).toBeHidden();
+
+  await stickerButton.click();
+  await expect(stickerQty).toHaveValue('0');
+  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
+  await expect(totalPrice).toHaveText(/590\s₽/);
+  await expect(stickerButton).toHaveText('Добавить');
+  await expect(stickerButton).toBeEnabled();
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeDisabled();
+  await expect(ribbonButton).toHaveAttribute(
+    'title',
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(ribbonButton).toHaveAttribute(
+    'aria-describedby',
+    'orderProductNotice',
+  );
+  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(body).toHaveAttribute('data-has-sticker', 'false');
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.getByRole('switch', { name: 'Лента' })).toBeChecked();
+    await expect(
+      page.getByRole('switch', { name: 'Стикер' }),
+    ).not.toBeChecked();
+  }
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(meters).toHaveValue('25');
+  await expect(stickerQty).toHaveValue('0');
+  await expect(ribbonButton).toBeDisabled();
+  await expect(stickerButton).toHaveText('Добавить');
+  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(body).toHaveAttribute('data-has-sticker', 'false');
+
+  await stickerButton.click();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeEnabled();
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile previews stay synchronized with Studio state', async ({
   page,
 }, testInfo) => {

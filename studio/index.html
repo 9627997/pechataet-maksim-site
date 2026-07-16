@@ -196,10 +196,19 @@
       <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
 
       <div class="order-card">
-        <div><span>Лента</span><strong id="orderRibbon">15 мм · 100 м</strong></div>
-        <div id="orderStickerRow"><span>Стикер</span><strong id="orderSticker">Ø40 мм</strong></div>
+        <div class="order-product-row" id="orderRibbonRow">
+          <span>Лента</span>
+          <strong id="orderRibbon">15 мм · 100 м</strong>
+          <button class="order-product-toggle" id="toggleOrderRibbon" type="button">Убрать</button>
+        </div>
+        <div class="order-product-row" id="orderStickerRow">
+          <span>Стикер</span>
+          <strong id="orderSticker">Ø40 мм · 100 шт.</strong>
+          <button class="order-product-toggle" id="toggleOrderSticker" type="button">Убрать</button>
+        </div>
         <div><span>Шаг повтора</span><strong id="orderRepeat">100 мм</strong></div>
       </div>
+      <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>В заказе должен остаться хотя бы один продукт.</p>
 
       <label>Метраж ленты</label>
       <select class="input" id="meters">

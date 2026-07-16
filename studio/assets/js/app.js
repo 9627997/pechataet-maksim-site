@@ -774,12 +774,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('#orderRibbon')) $('#orderRibbon').textContent = `${state.width} мм · ${state.meters} м`;
     if ($('#orderSticker')) $('#orderSticker').textContent = `Ø${state.stickerSize} мм · ${state.stickerQty} шт.`;
-    if ($('#orderStickerRow')) $('#orderStickerRow').style.display = 'flex';
     if ($('#orderRepeat')) $('#orderRepeat').textContent = state.repeatMm + ' мм';
     if ($('#totalPrice')) $('#totalPrice').textContent = calculatePrice().toLocaleString('ru-RU') + ' ₽';
+    updateOrderProductControls();
 
     saveState();
     publishProductSelection();
+  }
+
+  function updateOrderProductControls() {
+    const hasRibbon = state.meters > 0;
+    const hasSticker = state.stickerQty > 0;
+    const noticeId = 'orderProductNotice';
+    const explanation = 'В заказе должен остаться хотя бы один продукт.';
+
+    const updateButton = (button, active, onlyActive) => {
+      if (!button) return;
+      button.textContent = active ? 'Убрать' : 'Добавить';
+      button.disabled = onlyActive;
+      if (onlyActive) {
+        button.title = explanation;
+        button.setAttribute('aria-describedby', noticeId);
+      } else {
+        button.removeAttribute('title');
+        button.removeAttribute('aria-describedby');
+      }
+    };
+
+    updateButton($('#toggleOrderRibbon'), hasRibbon, hasRibbon && !hasSticker);
+    updateButton($('#toggleOrderSticker'), hasSticker, hasSticker && !hasRibbon);
+
+    if ($('#orderProductNotice')) {
+      $('#orderProductNotice').hidden = hasRibbon && hasSticker;
+    }
   }
 
   function showFileCard(file, meta, quality, warning = false) {
@@ -1526,6 +1553,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setProductSelection({
       ribbon: Boolean(event.detail?.ribbon),
       sticker: Boolean(event.detail?.sticker)
+    });
+  });
+
+  $('#toggleOrderRibbon').addEventListener('click', () => {
+    setProductSelection({
+      ribbon: state.meters === 0,
+      sticker: state.stickerQty > 0
+    });
+  });
+
+  $('#toggleOrderSticker').addEventListener('click', () => {
+    setProductSelection({
+      ribbon: state.meters > 0,
+      sticker: state.stickerQty === 0
     });
   });
 
