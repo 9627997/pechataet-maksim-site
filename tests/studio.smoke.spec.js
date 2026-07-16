@@ -549,6 +549,11 @@ test('mobile text editor creates, persists, and clears product overrides', async
   expect(snapshot.text.sticker).toEqual({ mode: 'override', value: '' });
   expect(snapshot.text.resolvedSticker).toBe('');
   await expect(stickerZone).toHaveAttribute('aria-label', 'Добавить надпись');
+  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+  await expect(stickerZone.locator('.mobile-products-zone-action')).toHaveCSS(
+    'opacity',
+    '0',
+  );
 
   await page.reload({ waitUntil: 'networkidle' });
   await expect(textInput).toHaveValue(commonText);
@@ -1048,7 +1053,18 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
       'Добавить надпись',
     );
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveCSS(
+      'opacity',
+      '0',
+    );
   }
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+
+  await zones.ribbonText.focus();
+  await expect(
+    zones.ribbonText.locator('.mobile-products-zone-action'),
+  ).toHaveCSS('opacity', '1');
 
   await zones.ribbonText.click();
   await expect(textInput).toBeFocused();

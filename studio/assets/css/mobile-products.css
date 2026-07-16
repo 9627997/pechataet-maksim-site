@@ -340,13 +340,12 @@
     pointer-events: none;
   }
 
-  [data-mobile-products-safe-zone][data-empty='true'] .mobile-products-zone-action,
   [data-mobile-products-safe-zone]:focus-visible .mobile-products-zone-action {
     opacity: 1;
   }
 
   @media (hover: hover) {
-    [data-mobile-products-safe-zone][data-empty='false']:hover .mobile-products-zone-action {
+    [data-mobile-products-safe-zone]:hover .mobile-products-zone-action {
       opacity: 1;
     }
   }
