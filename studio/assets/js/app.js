@@ -168,6 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncLegacyContentAliasesFromContent() {
     state.text = state.content.text.common;
     const commonLogo = state.content.logo.common;
+    hydrateLogoAsset(commonLogo);
+    ['ribbon', 'sticker'].forEach((product) => {
+      const override = state.content.logo[product];
+      if (override.mode === 'override') hydrateLogoAsset(override.value);
+    });
     state.logoType = commonLogo?.logoType || null;
     state.logoSvgSource = commonLogo?.logoSvgSource || null;
     state.originalRaster = commonLogo?.originalRaster || null;
@@ -219,6 +224,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return override?.mode === 'override' ? override.value : state.content.logo.common;
   }
 
+  function hydrateLogoAsset(asset, color = state.print) {
+    if (!asset?.logo || asset.logo.data || !asset.logoSvgSource) return asset;
+    const data = recolorSvgSource(asset.logoSvgSource, color);
+    if (data) asset.logo = {...asset.logo, data};
+    return asset;
+  }
+
   function summarizeLogoContent(value) {
     if (value === null) return null;
     return {
@@ -257,9 +269,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function publishContentState() {
+    const summarizeResolvedLogo = (product) => {
+      const asset = getResolvedLogo(product);
+      return {
+        mode: state.content.logo[product].mode,
+        hasLogo: Boolean(asset?.logo),
+        logoType: asset?.logoType || null,
+        ratio: asset?.logo?.ratio ?? null
+      };
+    };
     document.dispatchEvent(
       new CustomEvent('studio:content-state-updated', {
         detail: {
+          logo: {
+            common: {
+              hasLogo: Boolean(state.content.logo.common?.logo),
+              logoType: state.content.logo.common?.logoType || null,
+              ratio: state.content.logo.common?.logo?.ratio ?? null
+            },
+            ribbon: summarizeResolvedLogo('ribbon'),
+            sticker: summarizeResolvedLogo('sticker')
+          },
           text: {
             common: state.content.text.common,
             ribbon: {
@@ -366,25 +396,21 @@ document.addEventListener('DOMContentLoaded', () => {
       ratio
     };
     state.logoType = 'svg';
+    syncCommonContentFromLegacyAliases();
   }
 
 
-  function recolorLogoForShowcase(color) {
-    if (!state.logo) return null;
+  function recolorLogoForShowcase(asset, color) {
+    if (!asset?.logo) return null;
 
-    if (['svg', 'svg-auto'].includes(state.logoType) && state.logoSvgSource) {
-      const previousPrint = state.print;
-      state.print = color;
-      const recolored = recolorSvgSource(state.logoSvgSource);
-      state.print = previousPrint;
-      return recolored;
+    if (['svg', 'svg-auto'].includes(asset.logoType) && asset.logoSvgSource) {
+      return recolorSvgSource(asset.logoSvgSource, color);
     }
 
-    return state.logo.data;
+    return asset.logo.data;
   }
 
   function updateShowcaseContent() {
-    const logoData = state.logo ? state.logo.data : null;
     const onUpload = state.panel === 'upload';
 
     $$('.dynamic-showcase-text').forEach((el) => {
@@ -434,7 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
           el.style.color = item.print;
         });
 
-        const fixedLogo = recolorLogoForShowcase(item.print);
+        const product = root.dataset.productType === 'sticker' ? 'sticker' : 'ribbon';
+        const fixedLogo = recolorLogoForShowcase(getResolvedLogo(product), item.print);
 
         root.querySelectorAll('.dynamic-showcase-logo').forEach((img) => {
           if (fixedLogo) {
@@ -456,24 +483,22 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.setProperty('--showcase-ribbon-color', state.ribbon);
       });
 
-      if (logoData) {
-        if (['svg', 'svg-auto'].includes(state.logoType) && state.logoSvgSource) {
-          refreshSvgColor();
-        }
-
-        const liveLogo = state.logo ? state.logo.data : logoData;
-
-        $$('.dynamic-showcase-logo').forEach((img) => {
-          img.src = liveLogo;
+      refreshSvgColor();
+      $$('.dynamic-showcase-logo').forEach((img) => {
+        const product =
+          img.closest('[data-product-type]')?.dataset.productType === 'sticker'
+            ? 'sticker'
+            : 'ribbon';
+        const asset = getResolvedLogo(product);
+        if (asset?.logo?.data) {
+          img.src = asset.logo.data;
           img.hidden = false;
           img.style.filter = 'none';
-        });
-      } else {
-        $$('.dynamic-showcase-logo').forEach((img) => {
+        } else {
           img.hidden = true;
           img.removeAttribute('src');
-        });
-      }
+        }
+      });
     }
   }
 
@@ -508,15 +533,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProductShowcase();
   }
 
-  function drawLogo(parent, cx, cy, maxW, maxH) {
-    if (!state.logo) return;
+  function drawLogo(parent, asset, cx, cy, maxW, maxH) {
+    if (!asset?.logo) return;
 
     let width = maxW * state.logoScale;
-    let height = width / state.logo.ratio;
+    let height = width / asset.logo.ratio;
 
     if (height > maxH * state.logoScale) {
       height = maxH * state.logoScale;
-      width = height * state.logo.ratio;
+      width = height * asset.logo.ratio;
     }
 
     const image = svgEl('image', {
@@ -527,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
       preserveAspectRatio: 'xMidYMid meet'
     });
 
-    image.setAttribute('href', state.logo.data);
+    image.setAttribute('href', asset.logo.data);
     parent.appendChild(image);
   }
 
@@ -582,7 +607,8 @@ document.addEventListener('DOMContentLoaded', () => {
     layer.innerHTML = '';
 
     const repeatWidth = Math.max(360, state.repeatMm * 6.2);
-    const hasLogo = Boolean(state.logo);
+    const resolvedLogo = getResolvedLogo('ribbon');
+    const hasLogo = Boolean(resolvedLogo?.logo);
     const resolvedText = getResolvedText('ribbon');
     const hasText = Boolean(resolvedText.trim());
 
@@ -615,6 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         drawLogo(
           content,
+          resolvedLogo,
           logoCenterX,
           130,
           logoZone * 0.92,
@@ -633,6 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (hasLogo) {
         drawLogo(
           content,
+          resolvedLogo,
           startX + repeatWidth / 2,
           130,
           repeatWidth * 0.72,
@@ -661,12 +689,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!layer) return;
     layer.innerHTML = '';
 
-    const hasLogo = Boolean(state.logo);
+    const resolvedLogo = getResolvedLogo('sticker');
+    const hasLogo = Boolean(resolvedLogo?.logo);
     const resolvedText = getResolvedText('sticker');
     const hasText = Boolean(resolvedText.trim());
 
     if (hasLogo && hasText) {
-      drawLogo(layer, 200, 145, 154, 84);
+      drawLogo(layer, resolvedLogo, 200, 145, 154, 84);
 
       const size = fittedTextSize(
         resolvedText,
@@ -676,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       drawText(layer, 200, 270, size, resolvedText);
     } else if (hasLogo) {
-      drawLogo(layer, 200, 200, 215, 145);
+      drawLogo(layer, resolvedLogo, 200, 200, 215, 145);
     } else if (hasText) {
       const size = fittedTextSize(
         resolvedText,
@@ -756,10 +785,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return Math.min(max, Math.max(min, value));
   }
 
-  function getSceneScale(sceneName) {
-    if (!state.logo) return 1;
+  function getSceneScale(sceneName, asset) {
+    if (!asset?.logo) return 1;
 
-    const ratio = Number(state.logo.ratio) || 1;
+    const ratio = Number(asset.logo.ratio) || 1;
     let fit = 1;
 
     if (sceneName === 'macro') {
@@ -800,6 +829,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ribbonTextValue = getResolvedText('ribbon');
     const stickerTextValue = getResolvedText('sticker');
+    const ribbonLogo = getResolvedLogo('ribbon');
+    const stickerLogo = getResolvedLogo('sticker');
 
     const macroImage = $('#macroLogoImage');
     const macroText = $('#macroLogoText');
@@ -810,17 +841,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const boxStickerImage = $('#boxStickerImage');
     const boxStickerText = $('#boxStickerText');
 
-    [macroImage, macroStickerImage, boxRibbonImage, boxStickerImage].forEach((image) => {
-      if (!image) return;
-
-      if (state.logo) {
-        if (image.src !== state.logo.data) image.src = state.logo.data;
-        image.hidden = false;
-      } else {
-        image.hidden = true;
-        image.removeAttribute('src');
-      }
-    });
+    const updateLogoElements = (elements, asset) => {
+      elements.forEach((image) => {
+        if (!image) return;
+        if (asset?.logo?.data) {
+          if (image.getAttribute('src') !== asset.logo.data) image.src = asset.logo.data;
+          image.hidden = false;
+        } else {
+          image.hidden = true;
+          image.removeAttribute('src');
+        }
+      });
+    };
+    updateLogoElements([macroImage, boxRibbonImage], ribbonLogo);
+    updateLogoElements([macroStickerImage, boxStickerImage], stickerLogo);
 
     const updateTextElements = (elements, value) => {
       const hasText = Boolean(value.trim());
@@ -836,14 +870,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTextElements([macroStickerText, boxStickerText], stickerTextValue);
 
     if (macroImage) {
-      macroImage.style.transform = `translateX(${state.logoOffsetX}px) scale(${getSceneScale('macro')})`;
+      macroImage.style.transform = `translateX(${state.logoOffsetX}px) scale(${getSceneScale('macro', ribbonLogo)})`;
     }
     if (macroStickerImage) {
-      macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker'), 1)})`;
+      macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo), 1)})`;
     }
 
-    const hasLogo = Boolean(state.logo);
-    const updateCompositionState = (elements, value) => {
+    const updateCompositionState = (elements, value, asset) => {
+      const hasLogo = Boolean(asset?.logo);
       const hasText = Boolean(value.trim());
       elements.forEach((element) => {
         if (!element) return;
@@ -854,17 +888,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     updateCompositionState(
       [$('#macroLogo'), $('.box-ribbon-content')],
-      ribbonTextValue
+      ribbonTextValue,
+      ribbonLogo
     );
     updateCompositionState(
       [$('.macro-sticker-paper'), $('.box-sticker-content')],
-      stickerTextValue
+      stickerTextValue,
+      stickerLogo
     );
     if (boxRibbonImage) {
-      boxRibbonImage.style.transform = `translateX(${state.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon')})`;
+      boxRibbonImage.style.transform = `translateX(${state.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon', ribbonLogo)})`;
     }
     if (boxStickerImage) {
-      boxStickerImage.style.transform = `scale(${getSceneScale('sticker')})`;
+      boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo)})`;
     }
   }
 
@@ -897,7 +933,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getRecommendation() {
-    const ratio = state.logo ? Number(state.logo.ratio) || 1 : 1;
+    const resolvedLogos = [getResolvedLogo('ribbon'), getResolvedLogo('sticker')].filter(
+      (asset) => asset?.logo
+    );
+    const ratios = resolvedLogos.map((asset) => Number(asset.logo.ratio) || 1);
+    const widestRatio = ratios.length ? Math.max(...ratios) : 1;
+    const tallestRatio = ratios.length ? Math.min(...ratios) : 1;
+    const ratio = widestRatio > 2.8 ? widestRatio : tallestRatio;
     const textLength = Math.max(
       getResolvedText('ribbon').trim().length,
       getResolvedText('sticker').trim().length
@@ -920,7 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
       repeatMm = 90;
       logoScale = 0.82;
       reason = 'Высокий знак требует больше высоты и свободного пространства.';
-    } else if (!state.logo && textLength <= 10) {
+    } else if (!resolvedLogos.length && textLength <= 10) {
       width = 15;
       stickerSize = 30;
       repeatMm = 70;
@@ -940,6 +982,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function render() {
+    // The existing upload pipeline writes the legacy common aliases.
+    syncCommonContentFromLegacyAliases();
     updateShowcaseContent();
     const printMode =
       state.print === '#b69249' ? 'gold' :
@@ -1064,7 +1108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return normalized === 'none' || normalized === 'transparent';
   }
 
-  function recolorSvgSource(svgSource) {
+  function recolorSvgSource(svgSource, color = state.print) {
     const doc = new DOMParser().parseFromString(svgSource, 'image/svg+xml');
     const svg = doc.documentElement;
 
@@ -1111,8 +1155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         node.setAttribute('fill', 'none');
         forcedParts.push('fill:none!important');
       } else {
-        node.setAttribute('fill', state.print);
-        forcedParts.push(`fill:${state.print}!important`);
+        node.setAttribute('fill', color);
+        forcedParts.push(`fill:${color}!important`);
       }
 
       // Do not invent an outline where the source had no stroke.
@@ -1121,8 +1165,8 @@ document.addEventListener('DOMContentLoaded', () => {
           node.setAttribute('stroke', 'none');
           forcedParts.push('stroke:none!important');
         } else {
-          node.setAttribute('stroke', state.print);
-          forcedParts.push(`stroke:${state.print}!important`);
+          node.setAttribute('stroke', color);
+          forcedParts.push(`stroke:${color}!important`);
         }
       }
 
@@ -1131,31 +1175,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Replace gradient/pattern paints that may still be referenced by <use>.
     svg.querySelectorAll('linearGradient stop, radialGradient stop').forEach((stop) => {
-      stop.setAttribute('stop-color', state.print);
+      stop.setAttribute('stop-color', color);
       const style = stop.getAttribute('style') || '';
       const cleaned = style.replace(/stop-color\s*:\s*[^;]+/gi, '');
-      stop.setAttribute('style', `${cleaned};stop-color:${state.print}!important`);
+      stop.setAttribute('style', `${cleaned};stop-color:${color}!important`);
     });
 
-    svg.setAttribute('color', state.print);
+    svg.setAttribute('color', color);
 
     const serialized = new XMLSerializer().serializeToString(svg);
     return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(serialized)));
   }
 
   function refreshSvgColor() {
-    if (!['svg','svg-auto'].includes(state.logoType) || !state.logoSvgSource || !state.logo) return;
+    // Upload pipeline still writes the legacy common aliases until its dedicated refactor.
+    syncCommonContentFromLegacyAliases();
+    const recolorAsset = (asset) => {
+      if (
+        !asset?.logo ||
+        !['svg', 'svg-auto'].includes(asset.logoType) ||
+        !asset.logoSvgSource
+      ) return;
+      const data = recolorSvgSource(asset.logoSvgSource);
+      if (data) asset.logo = {...asset.logo, data};
+    };
 
-    const recolored = recolorSvgSource(state.logoSvgSource);
-    if (recolored) {
-      state.logo.data = recolored;
+    recolorAsset(state.content.logo.common);
+    ['ribbon', 'sticker'].forEach((product) => {
+      const override = state.content.logo[product];
+      if (override.mode === 'override') recolorAsset(override.value);
+    });
+    syncLegacyContentAliasesFromContent();
 
-      // Clear cached sources so every scene receives the new monochrome SVG.
-      ['#macroLogoImage', '#boxRibbonImage', '#boxStickerImage'].forEach((selector) => {
+    // Clear cached sources so every scene receives its resolved monochrome SVG.
+    ['#macroLogoImage', '#macroStickerImage', '#boxRibbonImage', '#boxStickerImage'].forEach(
+      (selector) => {
         const image = $(selector);
         if (image) image.removeAttribute('src');
-      });
-    }
+      }
+    );
   }
 
   function hasTransparency(imageData) {

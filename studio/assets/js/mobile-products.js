@@ -1,17 +1,20 @@
 (() => {
   const setup = () => {
     const panel = document.querySelector('.mobile-products-panel');
-    const logoSource = document.querySelector('#macroLogoImage');
+    const ribbonLogoSource = document.querySelector('#macroLogoImage');
+    const stickerLogoSource = document.querySelector('#macroStickerImage');
     const logoInput = document.querySelector('#logoInput');
     const textInput = document.querySelector('#textInput');
 
-    if (!panel || !logoSource || !logoInput || !textInput) return;
+    if (!panel || !ribbonLogoSource || !stickerLogoSource || !logoInput || !textInput)
+      return;
 
     const switches = [...panel.querySelectorAll('[data-mobile-product]')];
     const samples = [...panel.querySelectorAll('[data-mobile-product-sample]')];
     const ribbonSurface = panel.querySelector('.mobile-products-ribbon-sample');
     const stickerSurface = panel.querySelector('.mobile-products-sticker-sample');
     let contentTextState = null;
+    let contentLogoState = null;
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -84,20 +87,35 @@
       syncVisibility();
     };
 
-    const readContentTextFallback = () => {
+    const readContentFallback = () => {
       try {
         const snapshot = JSON.parse(document.body.dataset.studioContent || '{}');
-        if (!snapshot.text) return null;
         return {
-          common: snapshot.text.common || '',
-          ribbon: {
-            mode: snapshot.text.ribbon?.mode || 'inherit',
-            resolved: snapshot.text.resolvedRibbon || '',
-          },
-          sticker: {
-            mode: snapshot.text.sticker?.mode || 'inherit',
-            resolved: snapshot.text.resolvedSticker || '',
-          },
+          text: snapshot.text
+            ? {
+                common: snapshot.text.common || '',
+                ribbon: {
+                  mode: snapshot.text.ribbon?.mode || 'inherit',
+                  resolved: snapshot.text.resolvedRibbon || '',
+                },
+                sticker: {
+                  mode: snapshot.text.sticker?.mode || 'inherit',
+                  resolved: snapshot.text.resolvedSticker || '',
+                },
+              }
+            : null,
+          logo: snapshot.logo
+            ? {
+                ribbon: {
+                  mode: snapshot.logo.ribbon?.mode || 'inherit',
+                  hasLogo: Boolean(snapshot.logo.resolvedRibbon?.hasLogo),
+                },
+                sticker: {
+                  mode: snapshot.logo.sticker?.mode || 'inherit',
+                  hasLogo: Boolean(snapshot.logo.resolvedSticker?.hasLogo),
+                },
+              }
+            : null,
         };
       } catch {
         return null;
@@ -119,24 +137,36 @@
         document.querySelector('#printChoice button.active')?.dataset.value || '#171717';
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
-      const logoSrc = logoSource.getAttribute('src') || '';
-      const hasLogo = Boolean(logoSrc && !logoSource.hidden);
+      const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
+      const stickerLogoSrc = stickerLogoSource.getAttribute('src') || '';
+      const hasRibbonLogo = Boolean(ribbonLogoSrc && !ribbonLogoSource.hidden);
+      const hasStickerLogo = Boolean(stickerLogoSrc && !stickerLogoSource.hidden);
       const hasRibbonText = Boolean(ribbonTextValueTrimmed);
       const hasStickerText = Boolean(stickerTextValueTrimmed);
       const scale = Math.min(1.8, Math.max(0.5, logoScale / 100));
 
-      [ribbonLogo.image, stickerLogo.image].forEach((image) => {
-        if (hasLogo) image.src = logoSrc;
+      const updateLogo = ({zone, image, action}, src, hasLogo, mode) => {
+        if (hasLogo && src) image.src = src;
         else image.removeAttribute('src');
         image.hidden = !hasLogo;
-      });
-
-      [ribbonLogo, stickerLogo].forEach(({ zone, action }) => {
         const label = hasLogo ? 'Изменить логотип' : 'Добавить логотип';
         zone.dataset.empty = String(!hasLogo);
+        zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
         action.textContent = label;
-      });
+      };
+      updateLogo(
+        ribbonLogo,
+        ribbonLogoSrc,
+        hasRibbonLogo,
+        contentLogoState?.ribbon?.mode || 'inherit',
+      );
+      updateLogo(
+        stickerLogo,
+        stickerLogoSrc,
+        hasStickerLogo,
+        contentLogoState?.sticker?.mode || 'inherit',
+      );
 
       const updateText = ({ zone, text, action }, value, hasText, mode) => {
         text.textContent = value;
@@ -169,9 +199,9 @@
       stickerLogo.image.style.width = `${Math.min(92, (hasStickerText ? 52 : 68) * scale)}%`;
 
       const mode =
-        hasLogo && hasStickerText
+        hasStickerLogo && hasStickerText
           ? 'logo-and-text'
-          : hasLogo
+          : hasStickerLogo
             ? 'logo-only'
             : 'text-only';
       stickerContent.dataset.mobileProductsMode = mode;
@@ -203,6 +233,7 @@
 
     document.addEventListener('studio:content-state-updated', (event) => {
       contentTextState = event.detail?.text || contentTextState;
+      contentLogoState = event.detail?.logo || contentLogoState;
       syncStudioState();
     });
 
@@ -211,7 +242,7 @@
     document.addEventListener('click', scheduleStudioSync);
 
     const logoObserver = new MutationObserver(syncStudioState);
-    logoObserver.observe(logoSource, {
+    logoObserver.observe(ribbonLogoSource, {
       attributes: true,
       attributeFilter: ['src', 'hidden'],
     });
@@ -220,7 +251,9 @@
       ribbon: document.body.dataset.hasRibbon === 'true',
       sticker: document.body.dataset.hasSticker === 'true',
     });
-    contentTextState = readContentTextFallback();
+    const contentFallback = readContentFallback();
+    contentTextState = contentFallback?.text || null;
+    contentLogoState = contentFallback?.logo || null;
     syncStudioState();
   };
 
