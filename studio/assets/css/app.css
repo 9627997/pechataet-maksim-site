@@ -503,17 +503,6 @@ body[data-print="silver"] .box-sticker{
 .crop-handle.ne{right:-12px;top:-12px;cursor:nesw-resize}
 .crop-handle.sw{left:-12px;bottom:-12px;cursor:nesw-resize}
 .crop-handle.se{right:-12px;bottom:-12px;cursor:nwse-resize}
-.crop-controls{
-  display:flex;
-  align-items:end;
-  gap:12px;
-  margin-top:14px;
-}
-.crop-controls label{
-  flex:1;
-  margin:0;
-}
-.crop-controls input{width:100%}
 .crop-actions{
   display:flex;
   justify-content:flex-end;
@@ -523,8 +512,8 @@ body[data-print="silver"] .box-sticker{
 @media(max-width:700px){
   .crop-dialog{padding:14px;border-radius:18px}
   .crop-stage{height:55vh;min-height:300px}
-  .crop-controls,.crop-actions{flex-direction:column;align-items:stretch}
-  .crop-actions .button,.crop-controls .button{width:100%}
+  .crop-actions{flex-direction:column;align-items:stretch}
+  .crop-actions .button{width:100%}
 }
 
 .studio-brand-logo{

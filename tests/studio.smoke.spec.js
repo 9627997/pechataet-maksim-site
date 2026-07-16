@@ -2077,6 +2077,14 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   await expect(cropModal).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('#cropCanvas')).toBeVisible();
   await expect(page.locator('#cropFrame')).toBeVisible();
+  await expect(cropModal.locator('input[type="range"]')).toHaveCount(0);
+  await expect(cropModal.getByText('Масштаб', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.crop-actions .button')).toHaveText([
+    'Использовать выделенную область',
+    'Использовать всё изображение',
+    'Повернуть 90°',
+  ]);
+  await expect(page.locator('#cropApply')).toHaveClass(/primary/);
   await page.locator('#cropApply').click();
 
   await expect(cropModal).not.toHaveClass(/open/);

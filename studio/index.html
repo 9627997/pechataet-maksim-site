@@ -423,17 +423,12 @@
       </div>
     </div>
 
-    <div class="crop-controls">
-      <label>
-        Масштаб
-        <input id="cropZoom" type="range" min="100" max="300" value="100">
-      </label>
-      <button class="button ghost" id="cropRotate" type="button">Повернуть 90°</button>
-    </div>
+    <input id="cropZoom" type="hidden" value="100">
 
     <div class="crop-actions">
-      <button class="button ghost" id="cropUseAll" type="button">Использовать всё изображение</button>
       <button class="button primary" id="cropApply" type="button">Использовать выделенную область</button>
+      <button class="button ghost" id="cropUseAll" type="button">Использовать всё изображение</button>
+      <button class="button ghost" id="cropRotate" type="button">Повернуть 90°</button>
     </div>
   </div>
 </div>
