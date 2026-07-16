@@ -17,6 +17,18 @@ document.addEventListener('DOMContentLoaded', () => {
     logoScale: 1,
     logoOffsetX: 0,
     text: 'ленты по любви',
+    content: {
+      logo: {
+        common: null,
+        ribbon: {mode: 'inherit'},
+        sticker: {mode: 'inherit'}
+      },
+      text: {
+        common: '',
+        ribbon: {mode: 'inherit'},
+        sticker: {mode: 'inherit'}
+      }
+    },
     font: 'Manrope',
     fontSize: 32,
     repeatMm: 100,
@@ -92,14 +104,184 @@ document.addEventListener('DOMContentLoaded', () => {
     button.classList.add('active');
   }
 
+  function normalizeContentOverride(value, kind) {
+    if (!value || value.mode !== 'override') return {mode: 'inherit'};
+    if (kind === 'text' && typeof value.value === 'string') {
+      return {mode: 'override', value: value.value};
+    }
+    if (
+      kind === 'logo' &&
+      (value.value === null ||
+        (typeof value.value === 'object' && !Array.isArray(value.value)))
+    ) {
+      return {mode: 'override', value: value.value};
+    }
+    return {mode: 'inherit'};
+  }
+
+  function legacyLogoContent(source = state) {
+    const hasLogoContent = Boolean(
+      source.logo ||
+      source.logoType ||
+      source.logoSvgSource ||
+      source.originalRaster ||
+      source.traceInfo
+    );
+    if (!hasLogoContent) return null;
+
+    return {
+      logo: source.logo || null,
+      logoType: source.logoType || null,
+      logoSvgSource: source.logoSvgSource || null,
+      originalRaster: source.originalRaster || null,
+      traceInfo: source.traceInfo || null
+    };
+  }
+
+  function normalizeContentModel(content, legacySource = state) {
+    const textContent = content?.text;
+    const logoContent = content?.logo;
+    return {
+      logo: {
+        common:
+          logoContent &&
+          Object.prototype.hasOwnProperty.call(logoContent, 'common') &&
+          (logoContent.common === null ||
+            (typeof logoContent.common === 'object' && !Array.isArray(logoContent.common)))
+            ? logoContent.common
+            : legacyLogoContent(legacySource),
+        ribbon: normalizeContentOverride(logoContent?.ribbon, 'logo'),
+        sticker: normalizeContentOverride(logoContent?.sticker, 'logo')
+      },
+      text: {
+        common:
+          typeof textContent?.common === 'string'
+            ? textContent.common
+            : typeof legacySource.text === 'string' ? legacySource.text : '',
+        ribbon: normalizeContentOverride(textContent?.ribbon, 'text'),
+        sticker: normalizeContentOverride(textContent?.sticker, 'text')
+      }
+    };
+  }
+
+  function syncLegacyContentAliasesFromContent() {
+    state.text = state.content.text.common;
+    const commonLogo = state.content.logo.common;
+    state.logoType = commonLogo?.logoType || null;
+    state.logoSvgSource = commonLogo?.logoSvgSource || null;
+    state.originalRaster = commonLogo?.originalRaster || null;
+    state.traceInfo = commonLogo?.traceInfo || null;
+    state.logo = commonLogo?.logo || null;
+    if (state.logo && !state.logo.data && state.logoSvgSource) {
+      state.logo = {
+        ...state.logo,
+        data: recolorSvgSource(state.logoSvgSource)
+      };
+      commonLogo.logo = state.logo;
+    }
+  }
+
+  function syncCommonContentFromLegacyAliases() {
+    state.content.text.common = typeof state.text === 'string' ? state.text : '';
+    state.content.logo.common = legacyLogoContent();
+  }
+
+  function getResolvedText(product) {
+    const override = state.content.text[product];
+    return override?.mode === 'override' ? override.value : state.content.text.common;
+  }
+
+  function getResolvedLogo(product) {
+    const override = state.content.logo[product];
+    return override?.mode === 'override' ? override.value : state.content.logo.common;
+  }
+
+  function summarizeLogoContent(value) {
+    if (value === null) return null;
+    return {
+      hasLogo: Boolean(value?.logo),
+      ratio: value?.logo?.ratio ?? null,
+      logoType: value?.logoType || null,
+      hasSvgSource: Boolean(value?.logoSvgSource),
+      hasOriginalRaster: Boolean(value?.originalRaster),
+      hasTraceInfo: Boolean(value?.traceInfo)
+    };
+  }
+
+  function publishContentSnapshot() {
+    const summarizeOverride = (override, kind) => ({
+      mode: override.mode,
+      ...(override.mode === 'override'
+        ? {value: kind === 'logo' ? summarizeLogoContent(override.value) : override.value}
+        : {})
+    });
+    document.body.dataset.studioContent = JSON.stringify({
+      logo: {
+        common: summarizeLogoContent(state.content.logo.common),
+        ribbon: summarizeOverride(state.content.logo.ribbon, 'logo'),
+        sticker: summarizeOverride(state.content.logo.sticker, 'logo'),
+        resolvedRibbon: summarizeLogoContent(getResolvedLogo('ribbon')),
+        resolvedSticker: summarizeLogoContent(getResolvedLogo('sticker'))
+      },
+      text: {
+        common: state.content.text.common,
+        ribbon: summarizeOverride(state.content.text.ribbon, 'text'),
+        sticker: summarizeOverride(state.content.text.sticker, 'text'),
+        resolvedRibbon: getResolvedText('ribbon'),
+        resolvedSticker: getResolvedText('sticker')
+      }
+    });
+  }
+
+  function contentForStorage() {
+    const stripDerivedData = (value) => {
+      if (!value?.logo) return value;
+      return {...value, logo: {...value.logo, data: null}};
+    };
+    const storeOverride = (override) =>
+      override.mode === 'override'
+        ? {mode: 'override', value: stripDerivedData(override.value)}
+        : {mode: 'inherit'};
+    return {
+      logo: {
+        common: stripDerivedData(state.content.logo.common),
+        ribbon: storeOverride(state.content.logo.ribbon),
+        sticker: storeOverride(state.content.logo.sticker)
+      },
+      text: {
+        common: state.content.text.common,
+        ribbon: {...state.content.text.ribbon},
+        sticker: {...state.content.text.sticker}
+      }
+    };
+  }
+
   function saveState() {
-    const copy = {...state, logo: null};
+    syncCommonContentFromLegacyAliases();
+    publishContentSnapshot();
+    const copy = {
+      ...state,
+      logo: null,
+      logoType: null,
+      logoSvgSource: null,
+      originalRaster: null,
+      traceInfo: null,
+      content: contentForStorage()
+    };
     localStorage.setItem('ribbon-studio-v042', JSON.stringify(copy));
   }
 
   function restoreState() {
     try {
-      Object.assign(state, JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}'));
+      const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
+      Object.assign(state, restored);
+
+      const legacyDemoTexts = ['привет', 'печатаетмаксим', 'сделано красиво'];
+      if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
+        state.text = 'ленты по любви';
+      }
+      state.content = normalizeContentModel(restored.content, state);
+      syncLegacyContentAliasesFromContent();
 
       const validMeters = [10, 25, 50, 100, 200];
       const validStickerQuantities = [50, 100, 250, 500];
@@ -123,10 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
         : hasSticker ? state.lastStickerQty : 0;
       state.bundle = hasRibbon && hasSticker ? 'bundle' : hasRibbon ? 'ribbon' : 'sticker';
 
-      const legacyDemoTexts = ['привет', 'печатаетмаксим', 'сделано красиво'];
-      if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
-        state.text = 'ленты по любви';
-      }
     } catch {}
   }
 

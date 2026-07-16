@@ -44,6 +44,9 @@ const expectInterfaceResponsive = async (page) => {
   await expect(ribbonSample).toBeVisible();
 };
 
+const readContentSnapshot = async (page) =>
+  JSON.parse(await page.locator('body').getAttribute('data-studio-content'));
+
 test('Studio opens without console errors or horizontal scrolling', async ({
   page,
 }, testInfo) => {
@@ -85,6 +88,164 @@ test('Studio opens without console errors or horizontal scrolling', async ({
     path: `playwright-screenshots/studio-${testInfo.project.name}.png`,
     fullPage: true,
   });
+});
+
+test('legacy Studio content migrates to common content', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const svgSource =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path fill="#000" d="M0 0h20v10H0z"/></svg>';
+  const logoData = `data:image/svg+xml;base64,${Buffer.from(svgSource).toString('base64')}`;
+  await page.addInitScript(
+    ({ source, data }) => {
+      if (sessionStorage.getItem('legacy-content-seeded')) return;
+      sessionStorage.setItem('legacy-content-seeded', 'true');
+      localStorage.setItem(
+        'ribbon-studio-v042',
+        JSON.stringify({
+          text: 'старый общий текст',
+          logo: { data, ratio: 2 },
+          logoType: 'svg',
+          logoSvgSource: source,
+          originalRaster: null,
+          traceInfo: null,
+        }),
+      );
+    },
+    { source: svgSource, data: logoData },
+  );
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text).toEqual({
+    common: 'старый общий текст',
+    ribbon: { mode: 'inherit' },
+    sticker: { mode: 'inherit' },
+    resolvedRibbon: 'старый общий текст',
+    resolvedSticker: 'старый общий текст',
+  });
+  expect(snapshot.logo.common).toMatchObject({
+    hasLogo: true,
+    ratio: 2,
+    logoType: 'svg',
+    hasSvgSource: true,
+  });
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
+  expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
+
+  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'старый общий текст',
+  );
+  await expect
+    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
+    .toBe(await page.locator('#macroStickerImage').getAttribute('src'));
+
+  await page.reload({ waitUntil: 'networkidle' });
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('старый общий текст');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.common).toMatchObject({
+    hasLogo: true,
+    ratio: 2,
+    logoType: 'svg',
+    hasSvgSource: true,
+  });
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('content overrides normalize, resolve, persist, and reset', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const svgSource =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 10"><path fill="#000" d="M0 0h30v10H0z"/></svg>';
+  const logoData = `data:image/svg+xml;base64,${Buffer.from(svgSource).toString('base64')}`;
+  await page.addInitScript(
+    ({ source, data }) => {
+      if (sessionStorage.getItem('content-overrides-seeded')) return;
+      sessionStorage.setItem('content-overrides-seeded', 'true');
+      localStorage.setItem(
+        'ribbon-studio-v042',
+        JSON.stringify({
+          text: 'legacy alias must follow common',
+          content: {
+            logo: {
+              common: {
+                logo: { data, ratio: 3 },
+                logoType: 'svg',
+                logoSvgSource: source,
+                originalRaster: null,
+                traceInfo: null,
+              },
+              ribbon: { mode: 'override', value: null },
+              sticker: { mode: 'unknown', value: null },
+            },
+            text: {
+              common: 'новый общий текст',
+              ribbon: { mode: 'override', value: '' },
+              sticker: { mode: 'unknown', value: 'не использовать' },
+            },
+          },
+        }),
+      );
+    },
+    { source: svgSource, data: logoData },
+  );
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('новый общий текст');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'override', value: '' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.resolvedRibbon).toBe('');
+  expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.resolvedRibbon).toBeNull();
+  expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
+
+  await expect(page.locator('#textInput')).toHaveValue('новый общий текст');
+  await expect(page.locator('#macroLogoText')).toHaveText('новый общий текст');
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'новый общий текст',
+  );
+  await expect
+    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
+    .toBe(await page.locator('#macroStickerImage').getAttribute('src'));
+
+  await page.reload({ waitUntil: 'networkidle' });
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({ mode: 'override', value: '' });
+  expect(snapshot.text.resolvedRibbon).toBe('');
+  expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
+  expect(snapshot.logo.resolvedRibbon).toBeNull();
+
+  await page.locator('#resetProject').click();
+  await page.waitForLoadState('networkidle');
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.resolvedRibbon).toBe(snapshot.text.common);
+  expect(snapshot.text.resolvedSticker).toBe(snapshot.text.common);
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
 });
 
 test('Studio navigation follows the three-step flow', async ({ page }) => {
