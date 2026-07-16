@@ -235,18 +235,29 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingLogoTarget = normalizeLogoTarget(target);
   }
 
+  function openLogoPicker(target) {
+    setPendingLogoTarget(target);
+    const input = $('#logoInput');
+    input.value = '';
+    input.click();
+  }
+
   function returnToMobilePreview() {
     if (!window.matchMedia('(max-width: 700px)').matches) return;
     const previewContainer = $('.mobile-products-preview');
     if (!previewContainer) return;
 
     document.activeElement?.blur();
-    const rect = previewContainer.getBoundingClientRect();
-    const approximatelyVisible =
-      rect.top >= -120 && rect.bottom <= window.innerHeight + 120;
-    if (approximatelyVisible) return;
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const rect = previewContainer.getBoundingClientRect();
+        const approximatelyVisible =
+          rect.top >= -120 && rect.bottom <= window.innerHeight + 120;
+        if (approximatelyVisible) return;
 
-    previewContainer.scrollIntoView({behavior: 'smooth', block: 'center'});
+        previewContainer.scrollIntoView({behavior: 'smooth', block: 'center'});
+      }, 150);
+    });
   }
 
   function clearLogoOverride(product) {
@@ -1925,9 +1936,8 @@ document.addEventListener('DOMContentLoaded', () => {
         content.mode === 'inherit' &&
         (!resolvedLogo || !hasUsedCommonLogoEditor)
       ) {
-        setPendingLogoTarget('common');
         if (resolvedLogo) hasUsedCommonLogoEditor = true;
-        $('#logoInput').click();
+        openLogoPicker('common');
         return;
       }
       document.dispatchEvent(
@@ -2093,16 +2103,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#editCommonLogo').addEventListener('click', () => {
     closeMobileLogoEditor({restoreFocus: false});
-    setPendingLogoTarget('common');
-    $('#logoInput').click();
+    openLogoPicker('common');
   });
 
   $('#editProductLogo').addEventListener('click', () => {
     const product = mobileLogoEditorProduct;
     if (!product) return;
     closeMobileLogoEditor({restoreFocus: false});
-    setPendingLogoTarget(product);
-    $('#logoInput').click();
+    openLogoPicker(product);
   });
 
   $('#clearProductLogoOverride').addEventListener('click', () => {
@@ -2169,9 +2177,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#logoInput').addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
     const target = pendingLogoTarget;
+    event.target.value = '';
     setPendingLogoTarget('common');
-    loadFile(event.target.files[0], target);
+    if (file && target === 'common') hasUsedCommonLogoEditor = true;
+    loadFile(file, target);
   });
 
   const dropZone = $('#dropZone');

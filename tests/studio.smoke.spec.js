@@ -578,6 +578,183 @@ test('raster upload target survives tracing and crop cancellation', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('mobile text and logo editing survives twenty alternating cycles', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const logoInput = page.locator('#logoInput');
+  const textEditor = page.locator('#mobileTextEditor');
+  const logoEditor = page.locator('#mobileLogoEditor');
+  const cropModal = page.locator('#cropModal');
+  const textZone = (product) =>
+    page.locator(`[data-mobile-products-safe-zone="${product}-text"]`);
+  const logoZone = (product) =>
+    page.locator(`[data-mobile-products-safe-zone="${product}-logo"]`);
+  const macroLogo = (product) =>
+    page.locator(
+      product === 'ribbon' ? '#macroLogoImage' : '#macroStickerImage',
+    );
+
+  const openTextEditor = async (product) => {
+    await textZone(product).click();
+    await expect(textEditor).toBeVisible();
+  };
+  const saveTextOverride = async (product, value) => {
+    await openTextEditor(product);
+    await page.locator('#editProductText').click();
+    await page.locator('#mobileTextOverrideInput').fill(value);
+    await page
+      .locator('#mobileTextOverrideForm')
+      .getByRole('button', { name: 'Сохранить' })
+      .click();
+    await expect(textEditor).toBeHidden();
+    await expect(page.locator(`.mobile-products-${product}-text`)).toHaveText(
+      value,
+    );
+  };
+  const clearTextOverride = async (product) => {
+    await openTextEditor(product);
+    await page.locator('#clearProductTextOverride').click();
+    await expect(textEditor).toBeHidden();
+  };
+  const openLogoEditor = async (product) => {
+    await logoZone(product).click();
+    await expect(logoEditor).toBeVisible();
+  };
+  const uploadProductLogo = async (product, file, marker) => {
+    await openLogoEditor(product);
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.locator('#editProductLogo').click(),
+    ]);
+    await chooser.setFiles(file);
+    await expect(logoEditor).toBeHidden();
+    await expect(logoInput).toHaveValue('');
+    await expectSvgDataToContain(macroLogo(product), marker);
+  };
+  const clearLogoOverride = async (product) => {
+    await openLogoEditor(product);
+    await page.locator('#clearProductLogoOverride').click();
+    await expect(logoEditor).toBeHidden();
+  };
+
+  for (let cycle = 1; cycle <= 20; cycle += 1) {
+    if (cycle % 2 === 1) {
+      const commonText = `stress-common-${cycle}`;
+      await page.locator('#textInput').fill(commonText);
+      for (const product of ['ribbon', 'sticker']) {
+        const other = product === 'ribbon' ? 'sticker' : 'ribbon';
+        const otherText = await page
+          .locator(`.mobile-products-${other}-text`)
+          .textContent();
+        await saveTextOverride(product, `${product}-${cycle}-first`);
+        await expect(page.locator(`.mobile-products-${other}-text`)).toHaveText(
+          otherText,
+        );
+        await saveTextOverride(product, `${product}-${cycle}-second`);
+        await clearTextOverride(product);
+        await expect(
+          page.locator(`.mobile-products-${product}-text`),
+        ).toHaveText(commonText);
+      }
+    } else {
+      const commonMarker = `common-${cycle}`;
+      await logoInput.setInputFiles(
+        svgUpload(`common-${cycle}.svg`, commonMarker),
+      );
+      await expect(logoInput).toHaveValue('');
+      await expectSvgDataToContain(macroLogo('ribbon'), commonMarker);
+      await expectSvgDataToContain(macroLogo('sticker'), commonMarker);
+
+      if (cycle === 2) {
+        await openLogoEditor('ribbon');
+        const [cancelledChooser] = await Promise.all([
+          page.waitForEvent('filechooser'),
+          page.locator('#editProductLogo').click(),
+        ]);
+        await cancelledChooser.setFiles([]);
+        await expect(logoEditor).toBeHidden();
+      }
+
+      for (const product of ['ribbon', 'sticker']) {
+        const other = product === 'ribbon' ? 'sticker' : 'ribbon';
+        const otherSrc = await macroLogo(other).getAttribute('src');
+        const repeatedFile = svgUpload(
+          `same-${product}.svg`,
+          `${product}-${cycle}-same`,
+        );
+        await uploadProductLogo(
+          product,
+          repeatedFile,
+          `${product}-${cycle}-same`,
+        );
+        await uploadProductLogo(
+          product,
+          repeatedFile,
+          `${product}-${cycle}-same`,
+        );
+        await expect(macroLogo(other)).toHaveAttribute('src', otherSrc);
+        await clearLogoOverride(product);
+      }
+
+      if (cycle === 2) {
+        await openLogoEditor('ribbon');
+        let chooser = await Promise.all([
+          page.waitForEvent('filechooser'),
+          page.locator('#editProductLogo').click(),
+        ]).then(([fileChooser]) => fileChooser);
+        await chooser.setFiles(fixturePath('transparent-logo.png'));
+        await expect(page.locator('#traceStatus')).toBeVisible();
+        await expect(logoInput).toHaveValue('');
+        await clearLogoOverride('ribbon');
+
+        await openLogoEditor('sticker');
+        chooser = await Promise.all([
+          page.waitForEvent('filechooser'),
+          page.locator('#editProductLogo').click(),
+        ]).then(([fileChooser]) => fileChooser);
+        await chooser.setFiles(fixturePath('opaque-logo.png'));
+        await expect(cropModal).toHaveClass(/open/);
+        await expect(logoInput).toHaveValue('');
+        await page.locator('#cropApply').click();
+        await expect(cropModal).not.toHaveClass(/open/);
+        await clearLogoOverride('sticker');
+
+        await openLogoEditor('ribbon');
+        chooser = await Promise.all([
+          page.waitForEvent('filechooser'),
+          page.locator('#editProductLogo').click(),
+        ]).then(([fileChooser]) => fileChooser);
+        await chooser.setFiles(fixturePath('opaque-logo.png'));
+        await expect(cropModal).toHaveClass(/open/);
+        await page.locator('#cropCancel').click();
+        await expect(cropModal).not.toHaveClass(/open/);
+
+        await openLogoEditor('ribbon');
+        chooser = await Promise.all([
+          page.waitForEvent('filechooser'),
+          page.locator('#editProductLogo').click(),
+        ]).then(([fileChooser]) => fileChooser);
+        await chooser.setFiles(fixturePath('opaque-logo.png'));
+        await expect(cropModal).toHaveClass(/open/);
+        await page.locator('#cropApply').click();
+        await expect(cropModal).not.toHaveClass(/open/);
+        await clearLogoOverride('ribbon');
+      }
+    }
+
+    await expect(textEditor).toBeHidden();
+    await expect(logoEditor).toBeHidden();
+    await expect(cropModal).not.toHaveClass(/open/);
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('resolved product text stays independent from common editing', async ({
   page,
 }, testInfo) => {
