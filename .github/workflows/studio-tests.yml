@@ -1,0 +1,61 @@
+name: Studio checks
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - develop
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  studio-tests:
+    name: Lint and Playwright smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run mobile Studio smoke test
+        run: npm run test:mobile
+
+      - name: Run desktop Studio smoke test
+        run: npm run test:desktop
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-playwright-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            playwright-screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
