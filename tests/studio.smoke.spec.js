@@ -1287,6 +1287,244 @@ test('order product controls remove, restore, and persist products', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('mobile logo zones request scope and upload common and product SVG assets', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const ribbonZone = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-logo"]',
+  );
+  const stickerZone = page.locator(
+    '[data-mobile-products-safe-zone="sticker-logo"]',
+  );
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+  const editor = page.locator('#mobileLogoEditor');
+  const dialog = page.locator('#mobileLogoEditorDialog');
+
+  const ribbonRequest = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-edit-request',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  const [commonChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    ribbonZone.click(),
+  ]);
+  expect(await ribbonRequest).toEqual({ kind: 'logo', product: 'ribbon' });
+  expect(await commonChooser.element().getAttribute('id')).toBe('logoInput');
+  await commonChooser.setFiles(
+    svgUpload('scope-common.svg', 'scope-common-marker'),
+  );
+  await expectSvgDataToContain(ribbon, 'scope-common-marker');
+  await expectSvgDataToContain(sticker, 'scope-common-marker');
+  await expect(editor).toBeHidden();
+
+  await ribbonZone.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute('role', 'dialog');
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
+  await expect(dialog).toHaveAttribute(
+    'aria-labelledby',
+    'mobileLogoEditorTitle',
+  );
+  await expect(page.locator('#mobileLogoEditorTitle')).toHaveText(
+    'Логотип для ленты',
+  );
+  await expect(page.locator('#editProductLogo')).toHaveText('Только для ленты');
+  await expect(page.locator('#clearProductLogoOverride')).toBeHidden();
+
+  const [ribbonChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.locator('#editProductLogo').click(),
+  ]);
+  await ribbonChooser.setFiles(
+    svgUpload('scope-ribbon.svg', 'scope-ribbon-marker'),
+  );
+  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
+  await expectSvgDataToContain(sticker, 'scope-common-marker');
+
+  const stickerRequest = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-edit-request',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await stickerZone.click();
+  expect(await stickerRequest).toEqual({ kind: 'logo', product: 'sticker' });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#mobileLogoEditorTitle')).toHaveText(
+    'Логотип для стикера',
+  );
+  await expect(page.locator('#editProductLogo')).toHaveText(
+    'Только для стикера',
+  );
+  const [stickerChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.locator('#editProductLogo').click(),
+  ]);
+  await stickerChooser.setFiles(
+    svgUpload('scope-sticker.svg', 'scope-sticker-marker'),
+  );
+  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
+  await expectSvgDataToContain(sticker, 'scope-sticker-marker');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
+  await expectSvgDataToContain(sticker, 'scope-sticker-marker');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile logo override can return to the current common logo', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('logo-override-editor-seeded')) return;
+    sessionStorage.setItem('logo-override-editor-seeded', 'true');
+    const asset = (marker) => ({
+      logo: { data: null, ratio: 2 },
+      logoType: 'svg',
+      logoSvgSource: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path id="${marker}" d="M0 0h20v10H0z"/></svg>`,
+      originalRaster: null,
+      traceInfo: null,
+    });
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        content: {
+          logo: {
+            common: asset('return-common-marker'),
+            ribbon: {
+              mode: 'override',
+              value: asset('return-override-marker'),
+            },
+            sticker: {
+              mode: 'override',
+              value: asset('other-override-marker'),
+            },
+          },
+          text: {
+            common: 'текст',
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+        },
+      }),
+    );
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-logo"]');
+  const editor = page.locator('#mobileLogoEditor');
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+  await zone.click();
+  await expect(editor).toBeVisible();
+  await expect(page.locator('#clearProductLogoOverride')).toBeVisible();
+  const [commonChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.locator('#editCommonLogo').click(),
+  ]);
+  await commonChooser.setFiles(
+    svgUpload('updated-common.svg', 'updated-return-common-marker'),
+  );
+  await expectSvgDataToContain(ribbon, 'return-override-marker');
+  await expectSvgDataToContain(sticker, 'other-override-marker');
+
+  await zone.click();
+  await expect(editor).toBeVisible();
+  await page.locator('#clearProductLogoOverride').click();
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+  await expectSvgDataToContain(ribbon, 'updated-return-common-marker');
+  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expectSvgDataToContain(ribbon, 'updated-return-common-marker');
+  await expectSvgDataToContain(sticker, 'other-override-marker');
+  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('null logo override opens an accessible cancellable scope dialog', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    const saved = JSON.parse(
+      localStorage.getItem('ribbon-studio-v042') || '{}',
+    );
+    saved.content = saved.content || {
+      logo: {},
+      text: {
+        common: 'текст',
+        ribbon: { mode: 'inherit' },
+        sticker: { mode: 'inherit' },
+      },
+    };
+    saved.content.logo.ribbon = { mode: 'override', value: null };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-logo"]');
+  const editor = page.locator('#mobileLogoEditor');
+  const close = page.locator('#closeMobileLogoEditor');
+  const cancel = page.locator('#cancelMobileLogoEditor');
+  await expect(zone).toBeVisible();
+  await expect(zone).toHaveAttribute('aria-label', 'Добавить логотип');
+
+  await zone.click();
+  await expect(editor).toBeVisible();
+  await expect(page.locator('#clearProductLogoOverride')).toBeVisible();
+  await close.focus();
+  await close.press('Shift+Tab');
+  await expect(cancel).toBeFocused();
+  await cancel.click();
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await close.click();
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+  await zone.click();
+  await page
+    .locator('#mobileLogoEditorBackdrop')
+    .click({ position: { x: 5, y: 5 } });
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+  await zone.click();
+  await page.keyboard.press('Escape');
+  await expect(editor).toBeHidden();
+  await expect(zone).toBeFocused();
+
+  await zone.click();
+  await page.locator('#clearProductLogoOverride').click();
+  await expectSvgDataToContain(page.locator('#macroLogoImage'), '_Слой_1');
+  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile preview safe zones activate the shared logo and text inputs', async ({
   page,
 }, testInfo) => {
@@ -1419,14 +1657,15 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     );
   }
 
-  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      zone.click(),
-    ]);
-    expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
-    await fileChooser.setFiles([]);
-  }
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    zones.ribbonLogo.click(),
+  ]);
+  expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
+  await fileChooser.setFiles([]);
+  await zones.stickerLogo.click();
+  await expect(page.locator('#mobileLogoEditorDialog')).toBeVisible();
+  await page.locator('#cancelMobileLogoEditor').click();
   await expect(logoInput).toHaveAttribute('id', 'logoInput');
 
   await page.locator('#macroLogoImage').evaluate((element) => {
@@ -1741,5 +1980,7 @@ test('mobile product block is absent from the desktop layout', async ({
   const panel = page.locator('.mobile-products-panel');
   await expect(panel).toBeHidden();
   await expect(panel).toHaveCSS('display', 'none');
+  await expect(page.locator('#mobileLogoEditor')).toBeHidden();
+  await expect(page.locator('#mobileLogoEditor')).toHaveCSS('display', 'none');
   await expect(page.locator('main.studio')).toBeVisible();
 });

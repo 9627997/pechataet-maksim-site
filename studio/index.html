@@ -479,6 +479,23 @@
   </section>
 </div>
 
+<div class="mobile-text-editor mobile-logo-editor" id="mobileLogoEditor" hidden>
+  <button class="mobile-text-editor-backdrop" id="mobileLogoEditorBackdrop" type="button" aria-label="Закрыть выбор редактирования логотипа"></button>
+  <section class="mobile-text-editor-sheet" id="mobileLogoEditorDialog" role="dialog" aria-modal="true" aria-labelledby="mobileLogoEditorTitle">
+    <div class="mobile-text-editor-header">
+      <h2 id="mobileLogoEditorTitle">Логотип для ленты</h2>
+      <button class="mobile-text-editor-close" id="closeMobileLogoEditor" type="button" aria-label="Закрыть">×</button>
+    </div>
+
+    <div class="mobile-text-editor-choices">
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonLogo" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action" id="editProductLogo" type="button">Только для ленты</button>
+      <button class="mobile-text-editor-action" id="clearProductLogoOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileLogoEditor" type="button">Отмена</button>
+    </div>
+  </section>
+</div>
+
 <script src="assets/js/app.js"></script>
 <script src="assets/js/mobile-products.js"></script>
 </body>

@@ -31,7 +31,13 @@
       image.className = `mobile-products-${product}-logo`;
       image.alt = '';
       action.className = 'mobile-products-zone-action';
-      zone.addEventListener('click', () => logoInput.click());
+      zone.addEventListener('click', () => {
+        document.dispatchEvent(
+          new CustomEvent('studio:content-edit-request', {
+            detail: { kind: 'logo', product },
+          }),
+        );
+      });
       zone.append(image, action);
       return { zone, image, action };
     };

@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastStickerQty: 100
   };
   let hasUsedCommonTextEditor = false;
+  let hasUsedCommonLogoEditor = false;
   let pendingLogoTarget = 'common';
 
   const cropState = {
@@ -228,6 +229,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function normalizeLogoTarget(target) {
     return ['common', 'ribbon', 'sticker'].includes(target) ? target : 'common';
+  }
+
+  function setPendingLogoTarget(target) {
+    pendingLogoTarget = normalizeLogoTarget(target);
+  }
+
+  function clearLogoOverride(product) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.content.logo[product] = {mode: 'inherit'};
+    render();
   }
 
   function commitLogoAsset(asset, target) {
@@ -1888,9 +1899,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.addEventListener('studio:content-edit-request', (event) => {
-    if (event.detail?.kind !== 'text') return;
+    const kind = event.detail?.kind;
     const product = event.detail?.product;
     if (!['ribbon', 'sticker'].includes(product)) return;
+
+    if (kind === 'logo') {
+      const content = state.content.logo[product];
+      const resolvedLogo = getResolvedLogo(product);
+      if (
+        content.mode === 'inherit' &&
+        (!resolvedLogo || !hasUsedCommonLogoEditor)
+      ) {
+        setPendingLogoTarget('common');
+        if (resolvedLogo) hasUsedCommonLogoEditor = true;
+        $('#logoInput').click();
+        return;
+      }
+      document.dispatchEvent(
+        new CustomEvent('studio:logo-edit-scope-required', {
+          detail: {product}
+        })
+      );
+      return;
+    }
+
+    if (kind !== 'text') return;
 
     const content = state.content.text[product];
     const resolvedText = getResolvedText(product);
@@ -2009,6 +2042,89 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const mobileLogoEditor = $('#mobileLogoEditor');
+  const mobileLogoEditorDialog = $('#mobileLogoEditorDialog');
+  let mobileLogoEditorProduct = null;
+  let mobileLogoEditorOrigin = null;
+
+  const closeMobileLogoEditor = ({restoreFocus = true} = {}) => {
+    if (mobileLogoEditor.hidden) return;
+    mobileLogoEditor.hidden = true;
+    if (restoreFocus) mobileLogoEditorOrigin?.focus();
+    mobileLogoEditorProduct = null;
+    mobileLogoEditorOrigin = null;
+  };
+
+  const openMobileLogoEditor = (product) => {
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    const productName = product === 'ribbon' ? 'ленты' : 'стикера';
+    mobileLogoEditorProduct = product;
+    mobileLogoEditorOrigin = $(`[data-mobile-products-safe-zone="${product}-logo"]`);
+    $('#mobileLogoEditorTitle').textContent = `Логотип для ${productName}`;
+    $('#editProductLogo').textContent = `Только для ${productName}`;
+    $('#clearProductLogoOverride').hidden =
+      state.content.logo[product].mode !== 'override';
+    mobileLogoEditor.hidden = false;
+    $('#editCommonLogo').focus();
+  };
+
+  document.addEventListener('studio:logo-edit-scope-required', (event) => {
+    const product = event.detail?.product;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    openMobileLogoEditor(product);
+  });
+
+  $('#editCommonLogo').addEventListener('click', () => {
+    closeMobileLogoEditor({restoreFocus: false});
+    setPendingLogoTarget('common');
+    $('#logoInput').click();
+  });
+
+  $('#editProductLogo').addEventListener('click', () => {
+    const product = mobileLogoEditorProduct;
+    if (!product) return;
+    closeMobileLogoEditor({restoreFocus: false});
+    setPendingLogoTarget(product);
+    $('#logoInput').click();
+  });
+
+  $('#clearProductLogoOverride').addEventListener('click', () => {
+    const product = mobileLogoEditorProduct;
+    if (!product) return;
+    clearLogoOverride(product);
+    closeMobileLogoEditor();
+  });
+
+  [
+    $('#closeMobileLogoEditor'),
+    $('#mobileLogoEditorBackdrop'),
+    $('#cancelMobileLogoEditor')
+  ].forEach((button) => button.addEventListener('click', () => closeMobileLogoEditor()));
+
+  mobileLogoEditorDialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMobileLogoEditor();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = $$('button:not([hidden]), input:not([hidden])').filter(
+      (element) =>
+        mobileLogoEditorDialog.contains(element) &&
+        !element.disabled &&
+        !element.closest('[hidden]')
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
   $('#toggleOrderRibbon').addEventListener('click', () => {
     setProductSelection({
       ribbon: state.meters === 0,
@@ -2032,12 +2148,12 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   document.addEventListener('studio:logo-upload-target-set', (event) => {
-    pendingLogoTarget = normalizeLogoTarget(event.detail?.target);
+    setPendingLogoTarget(event.detail?.target);
   });
 
   $('#logoInput').addEventListener('change', (event) => {
     const target = pendingLogoTarget;
-    pendingLogoTarget = 'common';
+    setPendingLogoTarget('common');
     loadFile(event.target.files[0], target);
   });
 
