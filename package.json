@@ -1,0 +1,22 @@
+{
+  "name": "pechataet-maksim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write package.json eslint.config.js prettier.config.js playwright.config.js tests/**/*.js",
+    "format:check": "prettier --check package.json eslint.config.js prettier.config.js playwright.config.js tests/**/*.js",
+    "test:mobile": "playwright test --project=mobile",
+    "test:desktop": "playwright test --project=desktop"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@playwright/test": "latest",
+    "eslint": "latest",
+    "globals": "latest",
+    "http-server": "latest",
+    "prettier": "latest"
+  }
+}
