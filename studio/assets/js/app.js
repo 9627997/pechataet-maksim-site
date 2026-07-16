@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastStickerQty: 100
   };
   let hasUsedCommonTextEditor = false;
+  let pendingLogoTarget = 'common';
 
   const cropState = {
     file: null,
@@ -56,7 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
     startOffsetX: 0,
     startOffsetY: 0,
     startFrame: null,
-    activeHandle: null
+    activeHandle: null,
+    target: 'common'
   };
 
   const DEFAULT_LOGO_SVG = `<?xml version="1.0" encoding="UTF-8"?>
@@ -222,6 +224,21 @@ document.addEventListener('DOMContentLoaded', () => {
   function getResolvedLogo(product) {
     const override = state.content.logo[product];
     return override?.mode === 'override' ? override.value : state.content.logo.common;
+  }
+
+  function normalizeLogoTarget(target) {
+    return ['common', 'ribbon', 'sticker'].includes(target) ? target : 'common';
+  }
+
+  function commitLogoAsset(asset, target) {
+    const normalizedTarget = normalizeLogoTarget(target);
+    if (normalizedTarget === 'common') {
+      state.content.logo.common = asset;
+      syncLegacyContentAliasesFromContent();
+    } else {
+      state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
+    }
+    render();
   }
 
   function hydrateLogoAsset(asset, color = state.print) {
@@ -1359,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `${result.width} × ${result.height} · ${result.quality}`;
   }
 
-  function openCropModal(file, image, dataUrl) {
+  function openCropModal(file, image, dataUrl, target) {
     cropState.file = file;
     cropState.image = image;
     cropState.originalDataUrl = dataUrl;
@@ -1367,6 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cropState.zoom = 1;
     cropState.offsetX = 0;
     cropState.offsetY = 0;
+    cropState.target = normalizeLogoTarget(target);
 
     $('#cropZoom').value = 100;
     resetCropFrame();
@@ -1380,6 +1398,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeCropModal() {
     $('#cropModal').classList.remove('open');
     $('#cropModal').setAttribute('aria-hidden', 'true');
+    cropState.target = 'common';
   }
 
   function resetCropFrame() {
@@ -1490,22 +1509,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const croppedDataUrl = out.toDataURL('image/png');
     const croppedImage = new Image();
+    const target = cropState.target;
+    const file = cropState.file;
+    const originalDataUrl = cropState.originalDataUrl;
+    const originalWidth = cropState.image?.width || 0;
+    const originalHeight = cropState.image?.height || 0;
+    const cropMeta = {
+      x:selection.x/stageRect.width,
+      y:selection.y/stageRect.height,
+      width:selection.width/stageRect.width,
+      height:selection.height/stageRect.height,
+      rotation:cropState.rotation,
+      zoom:cropState.zoom,
+      usedWhole:useWhole
+    };
 
     croppedImage.onload = () => {
       processRasterAfterCrop(
-        cropState.file,
+        file,
         croppedImage,
         croppedDataUrl,
-        cropState.originalDataUrl,
-        {
-          x:selection.x/stageRect.width,
-          y:selection.y/stageRect.height,
-          width:selection.width/stageRect.width,
-          height:selection.height/stageRect.height,
-          rotation:cropState.rotation,
-          zoom:cropState.zoom,
-          usedWhole:useWhole
-        }
+        originalDataUrl,
+        cropMeta,
+        target,
+        {width: originalWidth, height: originalHeight}
       );
     };
 
@@ -1513,7 +1540,15 @@ document.addEventListener('DOMContentLoaded', () => {
     closeCropModal();
   }
 
-  function processRasterAfterCrop(file, image, croppedDataUrl, originalDataUrl, cropMeta) {
+  function processRasterAfterCrop(
+    file,
+    image,
+    croppedDataUrl,
+    originalDataUrl,
+    cropMeta,
+    target,
+    originalSize = {width: image.width, height: image.height}
+  ) {
     const ext = file.name.split('.').pop().toLowerCase();
     const result = rasterToSvg(image, ext);
 
@@ -1527,21 +1562,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    state.originalRaster = {
-      name: file.name,
-      type: file.type,
-      width: cropState.image ? cropState.image.width : image.width,
-      height: cropState.image ? cropState.image.height : image.height,
-      data: originalDataUrl,
-      crop: cropMeta
-    };
-
-    state.traceInfo = result;
-    state.logoSvgSource = result.svgSource;
-    state.logoType = 'svg-auto';
-    state.logo = {
-      data: recolorSvgSource(result.svgSource),
-      ratio: result.ratio
+    const asset = {
+      originalRaster: {
+        name: file.name,
+        type: file.type,
+        width: originalSize.width || image.width,
+        height: originalSize.height || image.height,
+        data: originalDataUrl,
+        crop: cropMeta
+      },
+      traceInfo: result,
+      logoSvgSource: result.svgSource,
+      logoType: 'svg-auto',
+      logo: {
+        data: recolorSvgSource(result.svgSource),
+        ratio: result.ratio
+      }
     };
 
     const minSide = Math.min(image.width, image.height);
@@ -1557,8 +1593,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     showTraceStatus(result);
-    refreshSvgColor();
-    render();
+    commitLogoAsset(asset, target);
     updateShowcaseContent();
     updateProductShowcase();
   }
@@ -1679,8 +1714,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function loadFile(file) {
+  function loadFile(file, target = 'common') {
     if (!file) return;
+    const logoTarget = normalizeLogoTarget(target);
 
     const ext = file.name.split('.').pop().toLowerCase();
     const reader = new FileReader();
@@ -1701,18 +1737,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const ratio = viewBox.length === 4 && viewBox[3] ? viewBox[2] / viewBox[3] : 1;
         const serialized = new XMLSerializer().serializeToString(svg);
 
-        state.originalRaster = null;
-        state.traceInfo = null;
         if ($('#traceStatus')) $('#traceStatus').hidden = true;
-        state.logoSvgSource = serialized;
-        state.logo = {
-          data: recolorSvgSource(serialized),
-          ratio
+        const asset = {
+          originalRaster: null,
+          traceInfo: null,
+          logoSvgSource: serialized,
+          logoType: 'svg',
+          logo: {data: recolorSvgSource(serialized), ratio}
         };
-        state.logoType = 'svg';
 
         showFileCard(file, 'SVG · векторный файл', 'Отлично: файл готов к печати');
-        render();
+        commitLogoAsset(asset, logoTarget);
       };
 
       reader.readAsText(file);
@@ -1732,10 +1767,12 @@ document.addEventListener('DOMContentLoaded', () => {
               image,
               reader.result,
               reader.result,
-              {x:0, y:0, width:1, height:1, rotation:0, zoom:1, usedWhole:true}
+              {x:0, y:0, width:1, height:1, rotation:0, zoom:1, usedWhole:true},
+              logoTarget,
+              {width: image.width, height: image.height}
             );
           } else {
-            openCropModal(file, image, reader.result);
+            openCropModal(file, image, reader.result, logoTarget);
           }
         };
 
@@ -1994,7 +2031,15 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   );
 
-  $('#logoInput').addEventListener('change', (event) => loadFile(event.target.files[0]));
+  document.addEventListener('studio:logo-upload-target-set', (event) => {
+    pendingLogoTarget = normalizeLogoTarget(event.detail?.target);
+  });
+
+  $('#logoInput').addEventListener('change', (event) => {
+    const target = pendingLogoTarget;
+    pendingLogoTarget = 'common';
+    loadFile(event.target.files[0], target);
+  });
 
   const dropZone = $('#dropZone');
   ['dragenter', 'dragover'].forEach((type) =>

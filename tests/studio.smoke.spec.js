@@ -59,6 +59,23 @@ const expectSvgDataToContain = async (locator, marker, attribute = 'src') => {
     .toBe(true);
 };
 
+const setLogoUploadTarget = (page, target) =>
+  page.evaluate((nextTarget) => {
+    document.dispatchEvent(
+      new CustomEvent('studio:logo-upload-target-set', {
+        detail: { target: nextTarget },
+      }),
+    );
+  }, target);
+
+const svgUpload = (name, marker, width = 30, height = 10) => ({
+  name,
+  mimeType: 'image/svg+xml',
+  buffer: Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><path id="${marker}" d="M0 0h${width}v${height}H0z"/></svg>`,
+  ),
+});
+
 test('Studio opens without console errors or horizontal scrolling', async ({
   page,
 }, testInfo) => {
@@ -430,6 +447,122 @@ test('resolved logo assets render independently across product scenes', async ({
     value: null,
   });
 
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('logo upload target persists through SVG callbacks and sequential uploads', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('target-upload-state-seeded')) return;
+    sessionStorage.setItem('target-upload-state-seeded', 'true');
+    const overrideSource =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 10"><path id="preserved-ribbon-override" d="M0 0h40v10H0z"/></svg>';
+    const saved = JSON.parse(
+      localStorage.getItem('ribbon-studio-v042') || '{}',
+    );
+    saved.content = saved.content || {
+      text: {
+        common: 'текст',
+        ribbon: { mode: 'inherit' },
+        sticker: { mode: 'inherit' },
+      },
+      logo: { common: null },
+    };
+    saved.content.logo.ribbon = {
+      mode: 'override',
+      value: {
+        logo: { data: null, ratio: 4 },
+        logoType: 'svg',
+        logoSvgSource: overrideSource,
+        originalRaster: null,
+        traceInfo: null,
+      },
+    };
+    saved.content.logo.sticker = { mode: 'inherit' };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('new-common.svg', 'new-common-marker'));
+  await expectSvgDataToContain(ribbon, 'preserved-ribbon-override');
+  await expectSvgDataToContain(sticker, 'new-common-marker');
+
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('ribbon-target.svg', 'ribbon-target-marker'));
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'new-common-marker');
+
+  await setLogoUploadTarget(page, 'sticker');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('sticker-target.svg', 'sticker-target-marker'));
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'sticker-target-marker');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'sticker-target-marker');
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('raster upload target survives tracing and crop cancellation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+  const initialRibbon = await ribbon.getAttribute('src');
+  const initialSticker = await sticker.getAttribute('src');
+
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('transparent-logo.png'));
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect.poll(() => ribbon.getAttribute('src')).not.toBe(initialRibbon);
+  await expect(sticker).toHaveAttribute('src', initialSticker);
+  const tracedRibbon = await ribbon.getAttribute('src');
+
+  await setLogoUploadTarget(page, 'sticker');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  await page.locator('#cropApply').click();
+  await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
+  await expect.poll(() => sticker.getAttribute('src')).not.toBe(initialSticker);
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  const tracedSticker = await sticker.getAttribute('src');
+
+  await page.locator('#logoInput').setInputFiles([]);
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  await page.locator('#cropCancel').click();
+  await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  await expect(sticker).toHaveAttribute('src', tracedSticker);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  await expect(sticker).toHaveAttribute('src', tracedSticker);
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
