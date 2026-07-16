@@ -11,7 +11,7 @@ button,input,select,textarea{font:inherit}
 .top-actions{display:flex;align-items:center;gap:10px}.version{background:#171717;color:#fff;border-radius:999px;padding:6px 9px;font-size:11px}
 .app-shell{display:grid;grid-template-columns:370px 1fr;min-height:calc(100vh - 72px)}
 .sidebar{background:#fff;border-right:1px solid var(--line);padding:16px;overflow:auto;max-height:calc(100vh - 72px)}
-.main-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:#f0ece6;padding:4px;border-radius:14px;margin-bottom:18px}
+.main-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;background:#f0ece6;padding:4px;border-radius:14px;margin-bottom:18px}
 .nav-item{border:0;background:transparent;padding:9px 4px;border-radius:10px;font-size:11px;font-weight:700;color:#777;cursor:pointer}
 .nav-item span{display:block;font-size:9px}.nav-item.active{background:#fff;color:#111;box-shadow:0 3px 10px rgba(0,0,0,.07)}
 .panel{display:none}.panel.active{display:block}.panel-head p{font-size:11px;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.14em;margin:0}

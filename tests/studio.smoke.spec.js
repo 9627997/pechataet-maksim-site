@@ -87,6 +87,70 @@ test('Studio opens without console errors or horizontal scrolling', async ({
   });
 });
 
+test('Studio navigation follows the three-step flow', async ({ page }) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const navigation = page.locator('.main-nav');
+  const items = navigation.locator('.nav-item');
+  const expectedItems = [
+    { number: '01', label: 'Создать', panel: 'upload' },
+    { number: '02', label: 'Настроить', panel: 'settings' },
+    { number: '03', label: 'Получить', panel: 'order' },
+  ];
+
+  await expect(items).toHaveCount(3);
+  await expect(navigation.locator('[data-panel="bundle"]')).toHaveCount(0);
+
+  for (const [index, expected] of expectedItems.entries()) {
+    const item = items.nth(index);
+    await expect(item).toHaveAttribute('data-panel', expected.panel);
+    await expect(item.locator('span')).toHaveText(expected.number);
+    await expect(item).toContainText(expected.label);
+  }
+
+  const widths = await items.evaluateAll((elements) =>
+    elements.map((element) => element.getBoundingClientRect().width),
+  );
+  expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+
+  await expect(page.locator('#panel-bundle')).toHaveCount(1);
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+  await expect(page.locator('#bundleChoice')).toHaveCount(1);
+
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  const continueUpload = page.locator('#continueUpload');
+  await expect(continueUpload).toBeEnabled();
+  await expect(continueUpload).toHaveAttribute('data-next', 'settings');
+  await continueUpload.click();
+
+  await expect(page.locator('#panel-settings')).toBeVisible();
+  await expect(navigation.locator('[data-panel="settings"]')).toHaveClass(
+    /active/,
+  );
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+
+  const continueSettings = page.locator('#panel-settings .next-panel');
+  await expect(continueSettings).toHaveAttribute('data-next', 'order');
+  await continueSettings.click();
+  await expect(page.locator('#panel-order')).toBeVisible();
+  await expect(navigation.locator('[data-panel="order"]')).toHaveClass(
+    /active/,
+  );
+
+  for (const panel of ['upload', 'settings', 'order']) {
+    await navigation.locator(`[data-panel="${panel}"]`).click();
+    await expect(page.locator(`#panel-${panel}`)).toBeVisible();
+    await expect(navigation.locator(`[data-panel="${panel}"]`)).toHaveClass(
+      /active/,
+    );
+    await expect(page.locator('#panel-bundle')).toBeHidden();
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile product switches control the static previews', async ({
   page,
 }, testInfo) => {

@@ -28,10 +28,9 @@
 <div class="app-shell">
   <aside class="sidebar">
     <nav class="main-nav" aria-label="Разделы конструктора">
-      <button class="nav-item active" data-panel="upload"><span>01</span>Загрузить</button>
-      <button class="nav-item" data-panel="bundle"><span>02</span>Комплект</button>
-      <button class="nav-item" data-panel="settings"><span>03</span>Настройка</button>
-      <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
+      <button class="nav-item active" data-panel="upload"><span>01</span>Создать</button>
+      <button class="nav-item" data-panel="settings"><span>02</span>Настроить</button>
+      <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
 
     <section class="mobile-products-panel" aria-label="Предпросмотр продуктов">
@@ -62,7 +61,7 @@
 
     
     <section class="panel active" id="panel-upload">
-      <div class="panel-head"><p>Шаг 1</p><h2>Ваш бренд</h2></div>
+      <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
       <label class="upload upload-large" id="dropZone">
@@ -116,7 +115,7 @@
         <p>JPEG и PNG автоматически переводятся в одноцветный макет. Перед производством Максим вручную проверит контуры.</p>
       </div>
 
-      <button class="button primary wide next-panel" id="continueUpload" data-next="bundle" disabled>Далее: комплект</button>
+      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" disabled>Далее: настроить</button>
     </section>
 
     <section class="panel" id="panel-bundle">
@@ -131,7 +130,7 @@
     </section>
 
     <section class="panel" id="panel-settings">
-      <div class="panel-head"><p>Шаг 3</p><h2>Настройте комплект</h2></div>
+      <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
 
       <label>Ширина ленты</label>
       <div class="segmented" id="widthChoice">
@@ -190,11 +189,11 @@
         <p id="recommendReason">Подходит для большинства логотипов и надписей.</p>
       </div>
 
-      <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
+      <button class="button primary wide next-panel" data-next="order">Далее: получить</button>
     </section>
 
 <section class="panel" id="panel-order">
-      <div class="panel-head"><p>Заказ</p><h2>Ваш комплект</h2></div>
+      <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
 
       <div class="order-card">
         <div><span>Лента</span><strong id="orderRibbon">15 мм · 100 м</strong></div>
