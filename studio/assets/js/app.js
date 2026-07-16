@@ -235,6 +235,20 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingLogoTarget = normalizeLogoTarget(target);
   }
 
+  function returnToMobilePreview() {
+    if (!window.matchMedia('(max-width: 700px)').matches) return;
+    const previewContainer = $('.mobile-products-preview');
+    if (!previewContainer) return;
+
+    document.activeElement?.blur();
+    const rect = previewContainer.getBoundingClientRect();
+    const approximatelyVisible =
+      rect.top >= -120 && rect.bottom <= window.innerHeight + 120;
+    if (approximatelyVisible) return;
+
+    previewContainer.scrollIntoView({behavior: 'smooth', block: 'center'});
+  }
+
   function clearLogoOverride(product) {
     if (!['ribbon', 'sticker'].includes(product)) return;
     state.content.logo[product] = {mode: 'inherit'};
@@ -250,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
     }
     render();
+    returnToMobilePreview();
   }
 
   function hydrateLogoAsset(asset, color = state.print) {
@@ -2002,6 +2017,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!product) return;
     setTextOverride(product, mobileTextOverrideInput.value);
     closeMobileTextEditor();
+    returnToMobilePreview();
   });
 
   $('#clearProductTextOverride').addEventListener('click', () => {
@@ -2009,6 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!product) return;
     clearTextOverride(product);
     closeMobileTextEditor();
+    returnToMobilePreview();
   });
 
   [
@@ -2178,6 +2195,8 @@ document.addEventListener('DOMContentLoaded', () => {
     hasUsedCommonTextEditor = true;
     setCommonText(event.target.value);
   });
+
+  $('#textInput').addEventListener('change', returnToMobilePreview);
 
   $('#fontSelect').addEventListener('change', (event) => {
     state.font = event.target.value;

@@ -24,6 +24,17 @@ const expectNoHorizontalOverflow = async (page) => {
   expect(hasOverflow).toBe(false);
 };
 
+const expectMobilePreviewVisible = async (page) => {
+  await expect
+    .poll(() =>
+      page.locator('.mobile-products-preview').evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= -120 && rect.bottom <= window.innerHeight + 120;
+      }),
+    )
+    .toBe(true);
+};
+
 const expectMobileLogosToMatch = async (page, expectedSrc) => {
   for (const selector of [
     '.mobile-products-ribbon-logo',
@@ -764,6 +775,56 @@ test('common text input enables product scope on the next safe-zone tap', async 
   expect(runtimeErrors).toEqual([]);
 });
 
+test('successful mobile text editing returns to the combined preview', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const textInput = page.locator('#textInput');
+  const ribbonZone = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-text"]',
+  );
+  const editor = page.locator('#mobileTextEditor');
+
+  await textInput.scrollIntoViewIfNeeded();
+  await textInput.fill('общий текст после подтверждения');
+  await textInput.blur();
+  await expectMobilePreviewVisible(page);
+
+  await ribbonZone.click();
+  await expect(editor).toBeVisible();
+  await page.locator('#editProductText').click();
+  await page.locator('#mobileTextOverrideInput').fill('только лента');
+  await page
+    .locator('#mobileTextOverrideForm')
+    .getByRole('button', { name: 'Сохранить' })
+    .click();
+  await expectMobilePreviewVisible(page);
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'только лента',
+  );
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
+    'общий текст после подтверждения',
+  );
+
+  await ribbonZone.click();
+  await page.locator('#clearProductTextOverride').click();
+  await expectMobilePreviewVisible(page);
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'общий текст после подтверждения',
+  );
+
+  await ribbonZone.click();
+  const scrollBeforeCancel = await page.evaluate(() => window.scrollY);
+  await page.locator('#cancelMobileTextEditor').click();
+  await expect(editor).toBeHidden();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeCancel);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('empty inherited common text always focuses the shared editor', async ({
   page,
 }, testInfo) => {
@@ -854,7 +915,8 @@ test('mobile text editor creates, persists, and clears product overrides', async
     })
     .click();
   await expect(dialog).toBeHidden();
-  await expect(ribbonZone).toBeFocused();
+  await expect(ribbonZone).not.toBeFocused();
+  await expectMobilePreviewVisible(page);
   await expect(textInput).toHaveValue(commonText);
 
   let snapshot = await readContentSnapshot(page);
@@ -882,6 +944,8 @@ test('mobile text editor creates, persists, and clears product overrides', async
       name: 'Сохранить',
     })
     .click();
+  await expect(stickerZone).not.toBeFocused();
+  await expectMobilePreviewVisible(page);
   await expect(textInput).toHaveValue(commonText);
 
   snapshot = await readContentSnapshot(page);
@@ -912,7 +976,8 @@ test('mobile text editor creates, persists, and clears product overrides', async
   await stickerZone.click();
   await page.locator('#clearProductTextOverride').click();
   await expect(dialog).toBeHidden();
-  await expect(stickerZone).toBeFocused();
+  await expect(stickerZone).not.toBeFocused();
+  await expectMobilePreviewVisible(page);
 
   snapshot = await readContentSnapshot(page);
   expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
@@ -1926,6 +1991,39 @@ test('SVG upload updates both mobile product logos', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('successful mobile SVG and PNG uploads return to the combined preview', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const logoInput = page.locator('#logoInput');
+  const dropZone = page.locator('#dropZone');
+
+  await dropZone.scrollIntoViewIfNeeded();
+  await logoInput.setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  await expectMobilePreviewVisible(page);
+
+  await dropZone.scrollIntoViewIfNeeded();
+  await logoInput.setInputFiles(fixturePath('transparent-logo.png'));
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText(
+    'transparent-logo.png',
+  );
+  await expectMobilePreviewVisible(page);
+
+  await dropZone.scrollIntoViewIfNeeded();
+  await logoInput.setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  const scrollBeforeCancel = await page.evaluate(() => window.scrollY);
+  await page.locator('#cropCancel').click();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeCancel);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('transparent PNG is traced and updates both mobile product logos', async ({
   page,
 }, testInfo) => {
@@ -2011,4 +2109,9 @@ test('mobile product block is absent from the desktop layout', async ({
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
   await expect(page.locator('#mobileLogoEditor')).toHaveCSS('display', 'none');
   await expect(page.locator('main.studio')).toBeVisible();
+
+  const scrollBeforeUpload = await page.evaluate(() => window.scrollY);
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeUpload);
 });
