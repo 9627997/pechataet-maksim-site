@@ -2,36 +2,48 @@
   const setup = () => {
     const panel = document.querySelector('.mobile-products-panel');
     const logoSource = document.querySelector('#macroLogoImage');
+    const logoInput = document.querySelector('#logoInput');
+    const textInput = document.querySelector('#textInput');
 
-    if (!panel || !logoSource) return;
+    if (!panel || !logoSource || !logoInput || !textInput) return;
 
     const switches = [...panel.querySelectorAll('[data-mobile-product]')];
     const samples = [...panel.querySelectorAll('[data-mobile-product-sample]')];
     const ribbonSurface = panel.querySelector('.mobile-products-ribbon-sample');
     const stickerSurface = panel.querySelector('.mobile-products-sticker-sample');
 
+    ribbonSurface.removeAttribute('aria-hidden');
+    stickerSurface.removeAttribute('aria-hidden');
     ribbonSurface.replaceChildren();
     stickerSurface.replaceChildren();
 
     const createLogoZone = (product) => {
-      const zone = document.createElement('div');
+      const zone = document.createElement('button');
       const image = document.createElement('img');
+      const action = document.createElement('span');
+      zone.type = 'button';
       zone.className = `mobile-products-${product}-logo-zone`;
       zone.dataset.mobileProductsSafeZone = `${product}-logo`;
       image.className = `mobile-products-${product}-logo`;
       image.alt = '';
-      zone.appendChild(image);
-      return { zone, image };
+      action.className = 'mobile-products-zone-action';
+      zone.addEventListener('click', () => logoInput.click());
+      zone.append(image, action);
+      return { zone, image, action };
     };
 
     const createTextZone = (product) => {
-      const zone = document.createElement('div');
+      const zone = document.createElement('button');
       const text = document.createElement('span');
+      const action = document.createElement('span');
+      zone.type = 'button';
       zone.className = `mobile-products-${product}-text-zone`;
       zone.dataset.mobileProductsSafeZone = `${product}-text`;
       text.className = `mobile-products-${product}-text`;
-      zone.appendChild(text);
-      return { zone, text };
+      action.className = 'mobile-products-zone-action';
+      zone.addEventListener('click', () => textInput.focus());
+      zone.append(text, action);
+      return { zone, text, action };
     };
 
     const ribbonLogo = createLogoZone('ribbon');
@@ -85,6 +97,13 @@
         image.hidden = !hasLogo;
       });
 
+      [ribbonLogo, stickerLogo].forEach(({ zone, action }) => {
+        const label = hasLogo ? 'Изменить логотип' : 'Добавить логотип';
+        zone.dataset.empty = String(!hasLogo);
+        zone.setAttribute('aria-label', label);
+        action.textContent = label;
+      });
+
       [ribbonText.text, stickerText.text].forEach((element) => {
         element.textContent = text;
         element.hidden = !hasText;
@@ -92,16 +111,18 @@
         element.style.fontFamily = font;
       });
 
+      [ribbonText, stickerText].forEach(({ zone, action }) => {
+        const label = hasText ? 'Изменить надпись' : 'Добавить надпись';
+        zone.dataset.empty = String(!hasText);
+        zone.setAttribute('aria-label', label);
+        action.textContent = label;
+      });
+
       ribbonSurface.style.backgroundColor = ribbon;
       ribbonText.text.style.fontSize = `${Math.min(20, Math.max(10, fontSize * 0.44))}px`;
       stickerText.text.style.fontSize = `${Math.min(17, Math.max(9, fontSize * 0.36))}px`;
       ribbonLogo.image.style.width = `${Math.min(92, 54 * scale)}%`;
       stickerLogo.image.style.width = `${Math.min(92, (hasText ? 52 : 68) * scale)}%`;
-
-      ribbonLogo.zone.hidden = !hasLogo;
-      ribbonText.zone.hidden = !hasText;
-      stickerLogo.zone.hidden = !hasLogo;
-      stickerText.zone.hidden = !hasText;
 
       const mode = hasLogo && hasText ? 'logo-and-text' : hasLogo ? 'logo-only' : 'text-only';
       stickerContent.dataset.mobileProductsMode = mode;

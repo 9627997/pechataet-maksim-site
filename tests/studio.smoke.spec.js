@@ -398,6 +398,181 @@ test('order product controls remove, restore, and persist products', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('mobile preview safe zones activate the shared logo and text inputs', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const zones = {
+    ribbonLogo: page.locator('[data-mobile-products-safe-zone="ribbon-logo"]'),
+    ribbonText: page.locator('[data-mobile-products-safe-zone="ribbon-text"]'),
+    stickerLogo: page.locator(
+      '[data-mobile-products-safe-zone="sticker-logo"]',
+    ),
+    stickerText: page.locator(
+      '[data-mobile-products-safe-zone="sticker-text"]',
+    ),
+  };
+  const textInput = page.locator('#textInput');
+  const logoInput = page.locator('#logoInput');
+
+  for (const [name, zone] of Object.entries(zones)) {
+    await expect(zone, `${name} must stay visible`).toBeVisible();
+    await expect(zone).toHaveJSProperty('tagName', 'BUTTON');
+    await expect(zone).toHaveAttribute('type', 'button');
+  }
+  await expect(zones.ribbonLogo).toHaveAttribute(
+    'data-mobile-products-safe-zone',
+    'ribbon-logo',
+  );
+  await expect(zones.ribbonText).toHaveAttribute(
+    'data-mobile-products-safe-zone',
+    'ribbon-text',
+  );
+  await expect(zones.stickerLogo).toHaveAttribute(
+    'data-mobile-products-safe-zone',
+    'sticker-logo',
+  );
+  await expect(zones.stickerText).toHaveAttribute(
+    'data-mobile-products-safe-zone',
+    'sticker-text',
+  );
+  await expect(
+    page.locator('.mobile-products-ribbon-sample'),
+  ).not.toHaveAttribute('aria-hidden', 'true');
+  await expect(
+    page.locator('.mobile-products-sticker-sample'),
+  ).not.toHaveAttribute('aria-hidden', 'true');
+
+  await expect(zones.ribbonLogo).toHaveAttribute(
+    'aria-label',
+    'Изменить логотип',
+  );
+  await expect(zones.stickerLogo).toHaveAttribute(
+    'aria-label',
+    'Изменить логотип',
+  );
+  await expect(zones.ribbonText).toHaveAttribute(
+    'aria-label',
+    'Изменить надпись',
+  );
+  await expect(zones.stickerText).toHaveAttribute(
+    'aria-label',
+    'Изменить надпись',
+  );
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
+
+  await textInput.fill('');
+  for (const zone of [zones.ribbonText, zones.stickerText]) {
+    await expect(zone).toBeVisible();
+    await expect(zone).toHaveAttribute('aria-label', 'Добавить надпись');
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
+      'Добавить надпись',
+    );
+  }
+
+  await zones.ribbonText.click();
+  await expect(textInput).toBeFocused();
+  await zones.stickerText.click();
+  await expect(textInput).toBeFocused();
+  await zones.ribbonText.focus();
+  await zones.ribbonText.press('Enter');
+  await expect(textInput).toBeFocused();
+  await zones.stickerText.focus();
+  await zones.stickerText.press('Space');
+  await expect(textInput).toBeFocused();
+
+  await textInput.fill('общая надпись');
+  await expect(zones.ribbonText).toHaveAttribute(
+    'aria-label',
+    'Изменить надпись',
+  );
+  await expect(zones.stickerText).toHaveAttribute(
+    'aria-label',
+    'Изменить надпись',
+  );
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'общая надпись',
+  );
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
+    'общая надпись',
+  );
+
+  await page.locator('#macroLogoImage').evaluate((element) => {
+    element.hidden = true;
+  });
+  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
+    await expect(zone).toBeVisible();
+    await expect(zone).toHaveAttribute('aria-label', 'Добавить логотип');
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
+      'Добавить логотип',
+    );
+  }
+
+  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      zone.click(),
+    ]);
+    expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
+    await fileChooser.setFiles([]);
+  }
+  await expect(logoInput).toHaveAttribute('id', 'logoInput');
+
+  await page.locator('#macroLogoImage').evaluate((element) => {
+    element.hidden = false;
+  });
+  await expect(zones.ribbonLogo).toHaveAttribute(
+    'aria-label',
+    'Изменить логотип',
+  );
+  await expect(zones.stickerLogo).toHaveAttribute(
+    'aria-label',
+    'Изменить логотип',
+  );
+
+  for (const [zone, surface] of [
+    [zones.ribbonLogo, page.locator('.mobile-products-ribbon-sample')],
+    [zones.ribbonText, page.locator('.mobile-products-ribbon-sample')],
+    [zones.stickerLogo, page.locator('.mobile-products-sticker-sample')],
+    [zones.stickerText, page.locator('.mobile-products-sticker-sample')],
+  ]) {
+    const inside = await zone.evaluate(
+      (element, surfaceSelector) => {
+        const bounds = element.getBoundingClientRect();
+        const surfaceBounds = document
+          .querySelector(surfaceSelector)
+          .getBoundingClientRect();
+        return (
+          bounds.left >= surfaceBounds.left - 1 &&
+          bounds.right <= surfaceBounds.right + 1 &&
+          bounds.top >= surfaceBounds.top - 1 &&
+          bounds.bottom <= surfaceBounds.bottom + 1
+        );
+      },
+      await surface.evaluate((element) => `.${element.classList[0]}`),
+    );
+    expect(inside).toBe(true);
+  }
+
+  for (const zone of [zones.ribbonLogo, zones.ribbonText]) {
+    await expect
+      .poll(() =>
+        zone.evaluate((element) => element.getBoundingClientRect().height),
+      )
+      .toBeGreaterThanOrEqual(44);
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile previews stay synchronized with Studio state', async ({
   page,
 }, testInfo) => {

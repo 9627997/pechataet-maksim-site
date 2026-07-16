@@ -142,6 +142,20 @@
   }
 
   .mobile-products-ribbon-logo-zone,
+  .mobile-products-ribbon-text-zone,
+  .mobile-products-sticker-logo-zone,
+  .mobile-products-sticker-text-zone {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-products-ribbon-logo-zone,
   .mobile-products-ribbon-text-zone {
     display: grid;
     place-items: center;
@@ -153,8 +167,52 @@
   }
 
   .mobile-products-ribbon-logo-zone,
-  .mobile-products-sticker-logo-zone {
+  .mobile-products-ribbon-text-zone,
+  .mobile-products-sticker-logo-zone,
+  .mobile-products-sticker-text-zone {
     position: relative;
+  }
+
+  .mobile-products-ribbon-logo-zone:focus-visible,
+  .mobile-products-ribbon-text-zone:focus-visible,
+  .mobile-products-sticker-logo-zone:focus-visible,
+  .mobile-products-sticker-text-zone:focus-visible {
+    z-index: 2;
+    outline: 3px solid rgba(46, 109, 246, 0.65);
+    outline-offset: -3px;
+  }
+
+  .mobile-products-zone-action {
+    position: absolute;
+    inset: 3px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    max-width: calc(100% - 6px);
+    max-height: calc(100% - 6px);
+    overflow: hidden;
+    padding: 2px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #171717;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  [data-mobile-products-safe-zone][data-empty='true'] .mobile-products-zone-action,
+  [data-mobile-products-safe-zone]:focus-visible .mobile-products-zone-action {
+    opacity: 1;
+  }
+
+  @media (hover: hover) {
+    [data-mobile-products-safe-zone][data-empty='false']:hover .mobile-products-zone-action {
+      opacity: 1;
+    }
   }
 
   .mobile-products-ribbon-logo,
