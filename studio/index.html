@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/mobile-products.css">
 </head>
 <body>
 <header class="topbar">
@@ -32,6 +33,32 @@
       <button class="nav-item" data-panel="settings"><span>03</span>Настройка</button>
       <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
     </nav>
+
+    <section class="mobile-products-panel" aria-label="Предпросмотр продуктов">
+      <div class="mobile-products-switches">
+        <label class="mobile-products-switch">
+          <span>Лента</span>
+          <input type="checkbox" role="switch" data-mobile-product="ribbon" checked>
+          <span class="mobile-products-switch-control" aria-hidden="true"></span>
+        </label>
+        <label class="mobile-products-switch">
+          <span>Стикер</span>
+          <input type="checkbox" role="switch" data-mobile-product="sticker" checked>
+          <span class="mobile-products-switch-control" aria-hidden="true"></span>
+        </label>
+      </div>
+
+      <div class="mobile-products-preview">
+        <div class="mobile-products-sample mobile-products-ribbon" data-mobile-product-sample="ribbon">
+          <span class="mobile-products-sample-label">Лента 15 мм</span>
+          <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
+        </div>
+        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker">
+          <span class="mobile-products-sample-label">Стикер 25 мм</span>
+          <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
+        </div>
+      </div>
+    </section>
 
     
     <section class="panel active" id="panel-upload">
@@ -417,5 +444,6 @@
 </div>
 
 <script src="assets/js/app.js"></script>
+<script src="assets/js/mobile-products.js"></script>
 </body>
 </html>

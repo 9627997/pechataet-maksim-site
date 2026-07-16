@@ -1,0 +1,149 @@
+.mobile-products-panel {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .mobile-products-panel {
+    display: block;
+    width: 100%;
+    margin: 0 0 18px;
+    padding: 16px;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid #e4ded5;
+    border-radius: 18px;
+    background: #f8f5f0;
+  }
+
+  .mobile-products-switches {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .mobile-products-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .mobile-products-switch input {
+    position: absolute;
+    right: 0;
+    z-index: 1;
+    width: 46px;
+    height: 28px;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .mobile-products-switch-control {
+    position: relative;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    background: #c8c8cc;
+    transition: background-color 160ms ease;
+  }
+
+  .mobile-products-switch-control::after {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.24);
+    content: '';
+    transition: transform 160ms ease;
+  }
+
+  .mobile-products-switch input:checked + .mobile-products-switch-control {
+    background: #34c759;
+  }
+
+  .mobile-products-switch input:checked + .mobile-products-switch-control::after {
+    transform: translateX(18px);
+  }
+
+  .mobile-products-switch input:focus-visible + .mobile-products-switch-control {
+    outline: 3px solid rgba(46, 109, 246, 0.35);
+    outline-offset: 2px;
+  }
+
+  .mobile-products-preview {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .mobile-products-sample[hidden] {
+    display: none;
+  }
+
+  .mobile-products-sample-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #756b60;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .mobile-products-ribbon-sample {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-width: 0;
+    height: 46px;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: #171717;
+    font-size: clamp(12px, 4vw, 16px);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    border-radius: 4px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.65), transparent 45%, rgba(0, 0, 0, 0.08)),
+      #e9d2b1;
+    box-shadow: 0 8px 18px rgba(64, 48, 33, 0.16);
+  }
+
+  .mobile-products-sticker-sample {
+    display: grid;
+    place-items: center;
+    width: 100px;
+    max-width: 100%;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: #171717;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 10px 22px rgba(64, 48, 33, 0.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-products-switch-control,
+  .mobile-products-switch-control::after {
+    transition: none;
+  }
+}
