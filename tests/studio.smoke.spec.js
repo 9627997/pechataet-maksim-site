@@ -2035,6 +2035,10 @@ test('mobile previews stay synchronized with Studio state', async ({
   await page.locator('#ribbonSwatches button[title="Красный"]').click();
   await expect(ribbonSurface).toHaveCSS('background-color', 'rgb(183, 32, 45)');
 
+  await page.locator('#textInput').evaluate((element) => {
+    element.value = 'коротко';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   const initialFontSize = await stickerText.evaluate(
     (element) => getComputedStyle(element).fontSize,
   );
@@ -2048,6 +2052,10 @@ test('mobile previews stay synchronized with Studio state', async ({
     )
     .not.toBe(initialFontSize);
 
+  await page.locator('#logoScale').evaluate((element) => {
+    element.value = '50';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   const initialLogoWidth = await stickerLogo.evaluate(
     (element) => element.getBoundingClientRect().width,
   );
@@ -2435,4 +2443,125 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
   await expect(page.locator('body')).toHaveAttribute('data-sticker-size', '25');
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
+});
+
+test('long production text is invalid and is not rendered outside printable areas', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
+  await page
+    .locator('#stickerSizeChoice button[data-value="25"]')
+    .evaluate((button) => button.click());
+
+  const layouts = await page
+    .locator('body')
+    .evaluate((body) => JSON.parse(body.dataset.studioLayout));
+  expect(layouts.ribbon.valid).toBe(false);
+  expect(layouts.sticker.valid).toBe(false);
+  expect(layouts.ribbon.reason).toBe('text-too-long');
+  expect(layouts.sticker.reason).toBe('text-too-long');
+  await expect(page.locator('#ribbonContent text')).toHaveCount(0);
+  await expect(page.locator('#stickerContent text')).toHaveCount(0);
+  await expect(page.locator('#artworkValidation')).toContainText(
+    'Сократите надпись',
+  );
+  await expect(page.locator('#downloadOrder')).toBeDisabled();
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+
+  await page.locator('#textInput').fill('коротко');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-artwork-valid',
+    'true',
+  );
+  await expect(page.locator('#ribbonContent text').first()).toBeAttached();
+  await expect(page.locator('#stickerContent text')).toBeAttached();
+  await expect(page.locator('#downloadOrder')).toBeEnabled();
+});
+
+test('effective layout is shared with macro and mobile and sticker boxes pass corner validation', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('коротко');
+  await page
+    .locator('#stickerSizeChoice button[data-value="25"]')
+    .evaluate((button) => button.click());
+
+  const result = await page.evaluate(() => {
+    const layouts = JSON.parse(document.body.dataset.studioLayout);
+    const macroRibbon = JSON.parse(
+      document.querySelector('#macroLogo').dataset.layout,
+    );
+    const macroSticker = JSON.parse(
+      document.querySelector('.macro-sticker-paper').dataset.layout,
+    );
+    const mobileRibbon = JSON.parse(
+      document.querySelector('.mobile-products-ribbon-sample').dataset.layout,
+    );
+    const mobileSticker = JSON.parse(
+      document.querySelector('.mobile-products-sticker-sample').dataset.layout,
+    );
+    const denormalize = (box) => ({
+      x: 22 + box.x * 356,
+      y: 22 + box.y * 356,
+      width: box.width * 356,
+      height: box.height * 356,
+    });
+    const printable = window.RibbonStudioGeometry.getStickerPrintableGeometry({
+      diameterMm: 25,
+      cx: 200,
+      cy: 200,
+      radius: 178,
+    });
+    return {
+      layouts,
+      macroRibbon,
+      macroSticker,
+      mobileRibbon,
+      mobileSticker,
+      logoInside: window.RibbonStudioGeometry.areRectCornersInsideCircle(
+        denormalize(layouts.sticker.logoBox),
+        printable.circle,
+        0,
+      ),
+      textInside: window.RibbonStudioGeometry.areRectCornersInsideCircle(
+        denormalize(layouts.sticker.textBox),
+        printable.circle,
+        0,
+      ),
+    };
+  });
+  expect(result.macroRibbon).toEqual(result.layouts.ribbon);
+  expect(result.mobileRibbon).toEqual(result.layouts.ribbon);
+  expect(result.macroSticker).toEqual(result.layouts.sticker);
+  expect(result.mobileSticker).toEqual(result.layouts.sticker);
+  expect(result.logoInside).toBe(true);
+  expect(result.textInside).toBe(true);
+});
+
+test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  for (const repeatMm of [40, 100, 250]) {
+    await page.locator('#repeatMm').evaluate((element, repeat) => {
+      element.value = String(repeat);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, repeatMm);
+    const result = await page.evaluate((repeat) => {
+      const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+      return {
+        leftMm: layout.printable.x * repeat,
+        rightMm: (1 - layout.printable.x - layout.printable.width) * repeat,
+        guideLeft: document.querySelector(
+          '.mobile-products-printable-guide.ribbon-guide',
+        ).style.left,
+      };
+    }, repeatMm);
+    expect(result.leftMm).toBeCloseTo(2.5, 7);
+    expect(result.rightMm).toBeCloseTo(2.5, 7);
+    expect(parseFloat(result.guideLeft)).toBeCloseTo((2.5 / repeatMm) * 100, 5);
+  }
 });

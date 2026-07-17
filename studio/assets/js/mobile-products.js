@@ -15,6 +15,7 @@
     const stickerSurface = panel.querySelector('.mobile-products-sticker-sample');
     let contentTextState = null;
     let contentLogoState = null;
+    let effectiveLayouts = null;
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -145,8 +146,6 @@
       const ribbonTextValueTrimmed = ribbonTextValue.trim();
       const stickerTextValueTrimmed = stickerTextValue.trim();
       const font = document.querySelector('#fontSelect')?.value || 'Manrope';
-      const fontSize = Number(document.querySelector('#fontSize')?.value) || 32;
-      const logoScale = Number(document.querySelector('#logoScale')?.value) || 100;
       const ribbonWidth =
         Number(document.querySelector('#widthChoice button.active')?.dataset.value) ||
         15;
@@ -154,6 +153,7 @@
         Number(
           document.querySelector('#stickerSizeChoice button.active')?.dataset.value,
         ) || 40;
+      const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
       const print =
         document.querySelector('#printChoice button.active')?.dataset.value || '#171717';
       const ribbon =
@@ -164,7 +164,13 @@
       const hasStickerLogo = Boolean(stickerLogoSrc && !stickerLogoSource.hidden);
       const hasRibbonText = Boolean(ribbonTextValueTrimmed);
       const hasStickerText = Boolean(stickerTextValueTrimmed);
-      const scale = Math.min(1.8, Math.max(0.5, logoScale / 100));
+      if (!effectiveLayouts) {
+        try {
+          effectiveLayouts = JSON.parse(document.body.dataset.studioLayout || '{}');
+        } catch {
+          effectiveLayouts = {};
+        }
+      }
 
       const updateLogo = ({zone, image, action}, src, hasLogo, mode) => {
         if (hasLogo && src) image.src = src;
@@ -215,27 +221,89 @@
 
       ribbonSurface.style.backgroundColor = ribbon;
       ribbonSurface.style.height = `${(ribbonWidth / 15) * 46}px`;
-      ribbonSurface.style.setProperty(
-        '--mobile-ribbon-margin',
-        `${(window.RibbonStudioGeometry.PRINT_MARGIN_MM / ribbonWidth) * 100}%`,
-      );
+      const ribbonGeometry =
+        window.RibbonStudioGeometry.getRibbonPrintableGeometry({
+          widthMm: ribbonWidth,
+          repeatMm,
+          width: repeatMm,
+          height: ribbonWidth,
+        });
+      ribbonGuide.style.left = `${(ribbonGeometry.bounds.x / repeatMm) * 100}%`;
+      ribbonGuide.style.right =
+        `${(ribbonGeometry.bounds.x / repeatMm) * 100}%`;
+      ribbonGuide.style.top =
+        `${(ribbonGeometry.bounds.y / ribbonWidth) * 100}%`;
+      ribbonGuide.style.bottom =
+        `${(ribbonGeometry.bounds.y / ribbonWidth) * 100}%`;
       stickerSurface.style.width = `${stickerSize * 2.5}px`;
-      stickerSurface.style.setProperty(
-        '--mobile-sticker-margin',
-        `${(window.RibbonStudioGeometry.PRINT_MARGIN_MM / stickerSize) * 100}%`,
-      );
-      stickerContent.style.width = `${(((stickerSize - 5) / stickerSize) * 100) / Math.SQRT2}%`;
-      stickerContent.style.height = stickerContent.style.width;
+      const stickerGeometry =
+        window.RibbonStudioGeometry.getStickerPrintableGeometry({
+          diameterMm: stickerSize,
+          cx: stickerSize / 2,
+          cy: stickerSize / 2,
+          radius: stickerSize / 2,
+        });
+      const stickerInset =
+        ((stickerSize / 2 - stickerGeometry.circle.radius) / stickerSize) * 100;
+      stickerGuide.style.inset = `${stickerInset}%`;
       panel.querySelector(
         '[data-mobile-product-sample="ribbon"] .mobile-products-sample-label',
       ).textContent = `Лента ${ribbonWidth} мм`;
       panel.querySelector(
         '[data-mobile-product-sample="sticker"] .mobile-products-sample-label',
       ).textContent = `Стикер ${stickerSize} мм`;
-      ribbonText.text.style.fontSize = `${Math.min(20, Math.max(10, fontSize * 0.44))}px`;
-      stickerText.text.style.fontSize = `${Math.min(17, Math.max(9, fontSize * 0.36))}px`;
-      ribbonLogo.image.style.width = `${Math.min(92, 54 * scale)}%`;
-      stickerLogo.image.style.width = `${Math.min(92, (hasStickerText ? 52 : 68) * scale)}%`;
+      const applyLayout = (surface, logoPart, textPart, layout) => {
+        if (!layout) return;
+        surface.dataset.layout = JSON.stringify(layout);
+        surface.dataset.layoutValid = String(layout.valid);
+        logoPart.zone.dataset.layoutBox = JSON.stringify(layout.logoBox);
+        textPart.zone.dataset.layoutBox = JSON.stringify(layout.textBox);
+        if (surface === stickerSurface) {
+          const place = (zone, box, minHeight = 0) => {
+            for (const property of ['left', 'top', 'width', 'height']) {
+              zone.style.removeProperty(property);
+            }
+            if (!box) return;
+            const surfaceHeight = surface.getBoundingClientRect().height;
+            const height = Math.max(box.height * surfaceHeight, minHeight);
+            zone.style.left = `${box.x * 100}%`;
+            zone.style.top =
+              `${(box.y + box.height / 2) * surfaceHeight - height / 2}px`;
+            zone.style.width = `${box.width * 100}%`;
+            zone.style.height = `${height}px`;
+          };
+          place(logoPart.zone, layout.logoBox);
+          place(textPart.zone, layout.textBox, 10);
+        }
+        if (layout.logoBox) {
+          logoPart.image.style.width =
+            surface === stickerSurface
+              ? '100%'
+              : `${layout.logoBox.width * 100}%`;
+          logoPart.image.style.height =
+            surface === stickerSurface
+              ? '100%'
+              : `${layout.logoBox.height * 100}%`;
+        }
+        const validText = Boolean(layout.valid && layout.textBox);
+        textPart.text.hidden = !validText;
+        if (validText) {
+          textPart.text.style.fontSize =
+            `${layout.fontSizeRatio * surface.getBoundingClientRect().height}px`;
+        }
+      };
+      applyLayout(
+        ribbonSurface,
+        ribbonLogo,
+        ribbonText,
+        effectiveLayouts?.ribbon,
+      );
+      applyLayout(
+        stickerSurface,
+        stickerLogo,
+        stickerText,
+        effectiveLayouts?.sticker,
+      );
 
       const mode =
         hasStickerLogo && hasStickerText
@@ -273,6 +341,10 @@
     document.addEventListener('studio:content-state-updated', (event) => {
       contentTextState = event.detail?.text || contentTextState;
       contentLogoState = event.detail?.logo || contentLogoState;
+      syncStudioState();
+    });
+    document.addEventListener('studio:layout-updated', (event) => {
+      effectiveLayouts = event.detail || {};
       syncStudioState();
     });
 

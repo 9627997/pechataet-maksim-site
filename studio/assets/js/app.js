@@ -4,14 +4,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const NS = 'http://www.w3.org/2000/svg';
   const {
-    PRINT_MARGIN_MM,
     getRibbonPrintableGeometry,
     getStickerPrintableGeometry,
-    fitRectToBounds,
-    fitRectToCircle,
-    clampRectOffsetToBounds,
   } = window.RibbonStudioGeometry;
+  const {
+    getRibbonContentLayout,
+    getStickerContentLayout,
+  } = window.RibbonStudioLayout;
   const textMeasureContext = document.createElement('canvas').getContext('2d');
+  let currentLayouts = {ribbon: null, sticker: null};
+  let textMeasurementSvg = null;
 
   const state = {
     panel: 'upload',
@@ -599,46 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProductShowcase();
   }
 
-  function drawLogo(parent, asset, cx, cy, maxW, maxH, options = {}) {
-    if (!asset?.logo) return;
-
-    const ratio = Number(asset.logo.ratio) || 1;
-    const source = ratio >= 1
-      ? {x: 0, y: 0, width: ratio, height: 1}
-      : {x: 0, y: 0, width: 1, height: 1 / ratio};
-    const bounds = options.bounds || {
-      x: cx - maxW / 2,
-      y: cy - maxH / 2,
-      width: maxW,
-      height: maxH,
-    };
-    let fitted = options.circle
-      ? fitRectToCircle(source, options.circle, state.logoScale)
-      : fitRectToBounds(source, bounds, state.logoScale);
-    if (!options.circle) {
-      const offset = clampRectOffsetToBounds(
-        fitted,
-        bounds,
-        state.logoOffsetX,
-        0,
-      );
-      fitted = {...fitted, x: offset.x, y: offset.y};
-    }
-
-    const image = svgEl('image', {
-      x: fitted.x,
-      y: fitted.y,
-      width: fitted.width,
-      height: fitted.height,
-      preserveAspectRatio: 'xMidYMid meet'
-    });
-    image.dataset.effectiveScale = String(fitted.scale);
-
-    image.setAttribute('href', asset.logo.data);
-    parent.appendChild(image);
-    return fitted;
-  }
-
   function drawText(parent, x, y, size, value, anchor = 'middle') {
     if (!value) return;
 
@@ -655,9 +617,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     text.textContent = value;
     parent.appendChild(text);
+    return text;
   }
 
-  function measureTextBox(text, size) {
+  function measureTextBox(text, size = 100) {
     textMeasureContext.font = `700 ${size}px ${state.font}`;
     const metrics = textMeasureContext.measureText(text || '');
     const ascent = metrics.actualBoundingBoxAscent || size * 0.8;
@@ -665,22 +628,54 @@ document.addEventListener('DOMContentLoaded', () => {
     return {width: metrics.width, height: ascent + descent};
   }
 
-  function fittedTextSize(
-    text,
-    maxWidth,
-    preferredSize,
-    minSize = 10,
-    maxHeight = Infinity,
-  ) {
-    const value = (text || '').trim();
-    if (!value) return preferredSize;
-    const measured = measureTextBox(value, preferredSize);
-    const scale = Math.min(
-      1,
-      maxWidth / Math.max(measured.width, 1),
-      maxHeight / Math.max(measured.height, 1),
-    );
-    return Math.max(minSize, preferredSize * scale);
+  function getTextMetrics(text) {
+    if (!textMeasurementSvg) {
+      textMeasurementSvg = svgEl('svg', {
+        width: 1,
+        height: 1,
+        'aria-hidden': 'true',
+      });
+      Object.assign(textMeasurementSvg.style, {
+        position: 'fixed',
+        left: '-10000px',
+        top: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+      });
+      document.body.appendChild(textMeasurementSvg);
+    }
+    const sample = svgEl('text', {
+      x: 0,
+      y: 100,
+      'font-family': state.font,
+      'font-size': 100,
+      'font-weight': '700',
+    });
+    sample.textContent = text || '';
+    textMeasurementSvg.replaceChildren(sample);
+    const bbox = sample.getBBox();
+    const measured = bbox.width && bbox.height
+      ? {width: bbox.width, height: bbox.height}
+      : measureTextBox(text, 100);
+    return {
+      widthPerSize: measured.width / 100,
+      heightPerSize: measured.height / 100,
+    };
+  }
+
+  function drawLogoBox(parent, asset, box) {
+    if (!asset?.logo || !box) return null;
+    const image = svgEl('image', {
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      preserveAspectRatio: 'xMidYMid meet',
+    });
+    image.dataset.effectiveScale = String(box.scale);
+    image.setAttribute('href', asset.logo.data);
+    parent.appendChild(image);
+    return image;
   }
 
   function renderRibbon() {
@@ -711,11 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const guideRect = $('#ribbonPrintableGuide rect');
     if (guideRect) {
-      guideRect.setAttribute('x', 28 + PRINT_MARGIN_MM * printable.unitsPerMmX);
+      guideRect.setAttribute('x', 28 + printable.bounds.x);
       guideRect.setAttribute('y', printable.bounds.y);
       guideRect.setAttribute(
         'width',
-        1144 - 2 * PRINT_MARGIN_MM * printable.unitsPerMmX,
+        1144 - 2 * printable.bounds.x,
       );
       guideRect.setAttribute('height', printable.bounds.height);
     }
@@ -723,6 +718,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasLogo = Boolean(resolvedLogo?.logo);
     const resolvedText = getResolvedText('ribbon');
     const hasText = Boolean(resolvedText.trim());
+    const ribbonLayout = getRibbonContentLayout({
+      bounds: printable.bounds,
+      centerY: 130,
+      logo: hasLogo ? {ratio: Number(resolvedLogo.logo.ratio) || 1} : null,
+      text: hasText ? resolvedText : '',
+      textMetrics: getTextMetrics(resolvedText),
+      logoScale: state.logoScale,
+      logoOffsetX: state.logoOffsetX,
+      preferredFontSize:
+        (state.width === 20 ? 39 : 31) * (state.fontSize / 32),
+    });
+    currentLayouts.ribbon = {
+      ...ribbonLayout,
+      outer: {x: 0, y, width: repeatWidth, height},
+      printable,
+    };
 
     for (let startX = -30; startX < 1260; startX += repeatWidth) {
       const cell = svgEl('g');
@@ -743,65 +754,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const content = svgEl('g', {'clip-path': `url(#${clipId})`});
 
-      if (hasLogo && hasText) {
-        const gap = printable.bounds.width * 0.04;
-        const logoZone = printable.bounds.width * 0.42;
-        const textZone = printable.bounds.width - logoZone - gap;
-        const zoneX = startX + printable.bounds.x;
-        const logoBounds = {
-          x: zoneX,
-          y: printable.bounds.y,
-          width: logoZone,
-          height: printable.bounds.height,
-        };
-        const textCenterX = zoneX + logoZone + gap + textZone / 2;
-
-        drawLogo(
+      if (ribbonLayout.logoBox) {
+        drawLogoBox(content, resolvedLogo, {
+          ...ribbonLayout.logoBox,
+          x: startX + ribbonLayout.logoBox.x,
+        });
+      }
+      if (ribbonLayout.valid && ribbonLayout.textBox) {
+        const text = drawText(
           content,
-          resolvedLogo,
-          logoBounds.x + logoBounds.width / 2,
-          130,
-          logoBounds.width,
-          logoBounds.height,
-          {bounds: logoBounds}
-        );
-
-        const preferredSize = state.width === 20 ? 39 : 31;
-        const textSize = fittedTextSize(
+          startX + ribbonLayout.textBox.x + ribbonLayout.textBox.width / 2,
+          ribbonLayout.textBox.y + ribbonLayout.textBox.height / 2,
+          ribbonLayout.fontSize,
           resolvedText,
-          textZone * 0.94,
-          preferredSize,
-          10,
-          printable.bounds.height
         );
-
-        drawText(content, textCenterX, 130, textSize, resolvedText);
-      } else if (hasLogo) {
-        const bounds = {
-          x: startX + printable.bounds.x,
-          y: printable.bounds.y,
-          width: printable.bounds.width,
-          height: printable.bounds.height,
-        };
-        drawLogo(
-          content,
-          resolvedLogo,
-          startX + repeatWidth / 2,
-          130,
-          bounds.width,
-          bounds.height,
-          {bounds}
-        );
-      } else if (hasText) {
-        const textSize = fittedTextSize(
-          resolvedText,
-          printable.bounds.width,
-          state.width === 20 ? 43 : 34,
-          10,
-          printable.bounds.height
-        );
-
-        drawText(content, startX + repeatWidth / 2, 130, textSize, resolvedText);
+        text.dataset.effectiveFontSize = String(ribbonLayout.fontSize);
       }
 
       cell.appendChild(content);
@@ -835,44 +802,33 @@ document.addEventListener('DOMContentLoaded', () => {
       50: {combined: 31, textOnly: 40},
     }[state.stickerSize];
 
-    if (hasLogo && hasText) {
-      const logoCircle = {
-        cx: 200,
-        cy: 158,
-        radius: Math.min(
-          printable.circle.radius * 0.58,
-          printable.circle.radius - 42,
-        ),
-      };
-      drawLogo(layer, resolvedLogo, 200, 158, 1, 1, {circle: logoCircle});
-
-      const size = fittedTextSize(
+    const stickerLayout = getStickerContentLayout({
+      circle: printable.circle,
+      logo: hasLogo ? {ratio: Number(resolvedLogo.logo.ratio) || 1} : null,
+      text: hasText ? resolvedText : '',
+      textMetrics: getTextMetrics(resolvedText),
+      logoScale: state.logoScale,
+      preferredFontSize: hasLogo && hasText
+        ? stickerPreferred.combined * (state.fontSize / 32)
+        : stickerPreferred.textOnly * (state.fontSize / 32),
+    });
+    currentLayouts.sticker = {
+      ...stickerLayout,
+      outer: {x: 22, y: 22, width: 356, height: 356},
+      printable,
+    };
+    if (stickerLayout.logoBox) {
+      drawLogoBox(layer, resolvedLogo, stickerLayout.logoBox);
+    }
+    if (stickerLayout.valid && stickerLayout.textBox) {
+      const text = drawText(
+        layer,
+        stickerLayout.textBox.x + stickerLayout.textBox.width / 2,
+        stickerLayout.textBox.y + stickerLayout.textBox.height / 2,
+        stickerLayout.fontSize,
         resolvedText,
-        Math.sqrt(
-          Math.max(
-            0,
-            printable.circle.radius ** 2 -
-              (70 + printable.circle.radius * 0.125) ** 2,
-          ),
-        ) * 2,
-        stickerPreferred.combined,
-        10,
-        printable.circle.radius * 0.25,
       );
-      drawText(layer, 200, 270, size, resolvedText);
-    } else if (hasLogo) {
-      drawLogo(layer, resolvedLogo, 200, 200, 1, 1, {
-        circle: printable.circle,
-      });
-    } else if (hasText) {
-      const size = fittedTextSize(
-        resolvedText,
-        printable.circle.radius * Math.SQRT2,
-        stickerPreferred.textOnly,
-        10,
-        printable.circle.radius * Math.SQRT2,
-      );
-      drawText(layer, 200, 200, size, resolvedText);
+      text.dataset.effectiveFontSize = String(stickerLayout.fontSize);
     }
 
     if ($('#stickerSizeLabel')) {
@@ -895,6 +851,146 @@ document.addEventListener('DOMContentLoaded', () => {
       amount: ribbonBase + widthExtra + stickerBase,
       unavailable: stickerPriceUnavailable,
     };
+  }
+
+  function normalizeLayout(layout) {
+    if (!layout) return null;
+    const {outer} = layout;
+    const normalizeBox = (box) =>
+      box
+        ? {
+            x: (box.x - outer.x) / outer.width,
+            y: (box.y - outer.y) / outer.height,
+            width: box.width / outer.width,
+            height: box.height / outer.height,
+          }
+        : null;
+    return {
+      valid: layout.valid,
+      reason: layout.reason || null,
+      logoBox: normalizeBox(layout.logoBox),
+      textBox: normalizeBox(layout.textBox),
+      fontSizeRatio: layout.fontSize / outer.height,
+      printable: layout.bounds
+        ? normalizeBox(layout.bounds)
+        : {
+            cx: (layout.circle.cx - outer.x) / outer.width,
+            cy: (layout.circle.cy - outer.y) / outer.height,
+            radius: layout.circle.radius / outer.width,
+          },
+    };
+  }
+
+  function positionPreviewContent(root, image, text, layout, textValue) {
+    if (!root || !layout) return;
+    root.dataset.layoutValid = String(layout.valid);
+    root.dataset.layout = JSON.stringify(layout);
+    if (image && layout.logoBox) {
+      image.style.left = `${(layout.logoBox.x + layout.logoBox.width / 2) * 100}%`;
+      image.style.top = `${(layout.logoBox.y + layout.logoBox.height / 2) * 100}%`;
+      image.style.width = `${layout.logoBox.width * 100}%`;
+      image.style.height = `${layout.logoBox.height * 100}%`;
+      image.style.transform = 'translate(-50%, -50%)';
+    }
+    if (text) {
+      const showText = Boolean(layout.valid && layout.textBox && textValue.trim());
+      text.hidden = !showText;
+      if (showText) {
+        text.style.left = `${(layout.textBox.x + layout.textBox.width / 2) * 100}%`;
+        text.style.top = `${(layout.textBox.y + layout.textBox.height / 2) * 100}%`;
+        text.style.width = `${layout.textBox.width * 100}%`;
+        text.style.height = `${layout.textBox.height * 100}%`;
+        text.style.setProperty(
+          'font-size',
+          `${layout.fontSizeRatio * root.getBoundingClientRect().height}px`,
+          'important',
+        );
+      }
+    }
+  }
+
+  function publishEffectiveLayouts() {
+    const layouts = {
+      ribbon: normalizeLayout(currentLayouts.ribbon),
+      sticker: normalizeLayout(currentLayouts.sticker),
+    };
+    document.body.dataset.studioLayout = JSON.stringify(layouts);
+    document.body.style.setProperty(
+      '--ribbon-repeat-margin-percent',
+      `${layouts.ribbon.printable.x * 100}%`,
+    );
+    document.body.style.setProperty(
+      '--ribbon-print-margin-percent',
+      `${layouts.ribbon.printable.y * 100}%`,
+    );
+    document.body.style.setProperty(
+      '--sticker-print-margin-percent',
+      `${(0.5 - layouts.sticker.printable.radius) * 100}%`,
+    );
+    const ribbon15 = getRibbonPrintableGeometry({
+      widthMm: 15,
+      repeatMm: state.repeatMm,
+      width: state.repeatMm,
+      height: 15,
+    });
+    const ribbon20 = getRibbonPrintableGeometry({
+      widthMm: 20,
+      repeatMm: state.repeatMm,
+      width: state.repeatMm,
+      height: 20,
+    });
+    document.body.style.setProperty(
+      '--ribbon-15-margin-percent',
+      `${(ribbon15.bounds.y / 15) * 100}%`,
+    );
+    document.body.style.setProperty(
+      '--ribbon-20-margin-percent',
+      `${(ribbon20.bounds.y / 20) * 100}%`,
+    );
+    positionPreviewContent(
+      $('#macroLogo'),
+      $('#macroLogoImage'),
+      $('#macroLogoText'),
+      layouts.ribbon,
+      getResolvedText('ribbon'),
+    );
+    positionPreviewContent(
+      $('.macro-sticker-paper'),
+      $('#macroStickerImage'),
+      $('#macroStickerText'),
+      layouts.sticker,
+      getResolvedText('sticker'),
+    );
+    positionPreviewContent(
+      $('.box-ribbon-content'),
+      $('#boxRibbonImage'),
+      $('#boxRibbonText'),
+      layouts.ribbon,
+      getResolvedText('ribbon'),
+    );
+    positionPreviewContent(
+      $('.box-sticker-content'),
+      $('#boxStickerImage'),
+      $('#boxStickerText'),
+      layouts.sticker,
+      getResolvedText('sticker'),
+    );
+    const invalid = [
+      state.bundle !== 'sticker' && !layouts.ribbon.valid ? 'ribbon' : null,
+      state.bundle !== 'ribbon' && !layouts.sticker.valid ? 'sticker' : null,
+    ].filter(Boolean);
+    const validation = $('#artworkValidation');
+    if (validation) {
+      validation.hidden = invalid.length === 0;
+      validation.textContent = invalid.length
+        ? 'Текст не помещается в печатную область. Сократите надпись.'
+        : '';
+    }
+    document.body.dataset.artworkValid = String(invalid.length === 0);
+    $('#downloadOrder').disabled = invalid.length > 0;
+    document.dispatchEvent(
+      new CustomEvent('studio:layout-updated', {detail: layouts}),
+    );
   }
 
   function publishProductSelection() {
@@ -933,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateMockupScenes();
     requestAnimationFrame(() => {
       updateMockupScenes();
+      publishEffectiveLayouts();
       forceSceneRepaint(scene);
     });
   }
@@ -1168,15 +1265,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.stickerSize = String(state.stickerSize);
     document.body.style.setProperty('--ribbon-mm', String(state.width));
     document.body.style.setProperty('--sticker-mm', String(state.stickerSize));
-    document.body.style.setProperty(
-      '--ribbon-print-margin-percent',
-      `${(PRINT_MARGIN_MM / state.width) * 100}%`,
-    );
-    document.body.style.setProperty(
-      '--sticker-print-margin-percent',
-      `${(PRINT_MARGIN_MM / state.stickerSize) * 100}%`,
-    );
-
     if (ribbonMockup) {
       ribbonMockup.style.display = state.bundle === 'sticker' ? 'none' : 'block';
     }
@@ -1217,6 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateProductShowcase();
     updateStickerScale();
+    publishEffectiveLayouts();
 
     if ($('#status')) {
       $('#status').textContent =
@@ -2399,12 +2488,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#openOrder').addEventListener('click', () => {
     const price = calculatePrice();
+    const artworkValid = document.body.dataset.artworkValid === 'true';
     $('#orderSummary').textContent = [
       state.meters > 0 ? `Лента ${state.width} мм · ${state.meters} м` : '',
       state.stickerQty > 0
         ? `Стикер Ø${state.stickerSize} мм · ${state.stickerQty} шт.`
         : '',
-      price.unavailable
+      !artworkValid
+        ? 'Макет не готов: текст не помещается в печатную область'
+        : price.unavailable
         ? 'Цена стикера Ø25 мм требует индивидуального расчёта'
         : `Итого: ${price.amount.toLocaleString('ru-RU')} ₽`,
     ]
