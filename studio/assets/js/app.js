@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   let hasUsedCommonTextEditor = false;
   let hasUsedCommonLogoEditor = false;
+  let hasCompletedCommonLogoUpload = false;
   let pendingLogoTarget = 'common';
 
   const cropState = {
@@ -281,7 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
       state.content.logo.common = asset;
+      hasCompletedCommonLogoUpload = true;
       syncLegacyContentAliasesFromContent();
+      updateFirstStepAvailability();
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
     }
@@ -595,10 +598,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showPanel(id) {
+    if (id !== 'upload' && !isFirstStepReady()) return;
+
     state.panel = id;
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
     updateProductShowcase();
+  }
+
+  function isFirstStepReady() {
+    return (
+      hasCompletedCommonLogoUpload ||
+      (hasUsedCommonTextEditor && Boolean(state.content.text.common.trim()))
+    );
+  }
+
+  function updateFirstStepAvailability() {
+    const ready = isFirstStepReady();
+    const continueButton = $('#continueUpload');
+    if (continueButton) continueButton.disabled = !ready;
+
+    $$('.nav-item').forEach((button) => {
+      if (button.dataset.panel === 'upload') return;
+      button.disabled = !ready;
+    });
   }
 
   function drawText(parent, x, y, size, value, anchor = 'middle') {
@@ -1374,7 +1397,6 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#fileCardName').textContent = file.name;
     $('#fileCardMeta').textContent = meta;
     $('#fileCardQuality').textContent = quality;
-    $('#continueUpload').disabled = false;
   }
 
   function isNonePaint(value) {
@@ -2426,6 +2448,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#textInput').addEventListener('input', (event) => {
     hasUsedCommonTextEditor = true;
     setCommonText(event.target.value);
+    updateFirstStepAvailability();
   });
 
   $('#textInput').addEventListener('change', returnToMobilePreview);
@@ -2518,8 +2541,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initCropInteractions();
   restoreState();
+  hasUsedCommonTextEditor =
+    Boolean(state.content.text.common.trim()) &&
+    state.content.text.common.trim().toLowerCase() !== 'ленты по любви';
   loadDefaultLogo();
   syncControls();
+  updateFirstStepAvailability();
   render();
   updateShowcaseContent();
   updateProductShowcase();

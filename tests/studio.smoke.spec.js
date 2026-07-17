@@ -55,6 +55,11 @@ const expectInterfaceResponsive = async (page) => {
   await expect(ribbonSample).toBeVisible();
 };
 
+const completeFirstStepWithText = async (page) => {
+  await page.locator('#textInput').fill('Мой бренд');
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+};
+
 const readContentSnapshot = async (page) =>
   JSON.parse(await page.locator('body').getAttribute('data-studio-content'));
 
@@ -1276,10 +1281,41 @@ test('Studio navigation follows the three-step flow', async ({ page }) => {
   await expect(page.locator('#panel-bundle')).toHaveCount(1);
   await expect(page.locator('#panel-bundle')).toBeHidden();
   await expect(page.locator('#bundleChoice')).toHaveCount(1);
+  await expect(page.locator('#fileCard')).toBeHidden();
+
+  const continueUpload = page.locator('#continueUpload');
+  await expect(continueUpload).toBeDisabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeDisabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeDisabled();
+
+  await page.evaluate(() => {
+    document.querySelector('[data-panel="order"]').disabled = false;
+  });
+  await navigation.locator('[data-panel="order"]').click();
+  await expect(page.locator('#panel-upload')).toBeVisible();
+
+  await page.locator('#textInput').fill('Мой бренд');
+  await expect(continueUpload).toBeEnabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeEnabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeEnabled();
+  await continueUpload.click();
+
+  await expect(page.locator('#panel-settings')).toBeVisible();
+  await expect(navigation.locator('[data-panel="settings"]')).toHaveClass(
+    /active/,
+  );
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+
+  await navigation.locator('[data-panel="upload"]').click();
+  await page.locator('#textInput').fill('');
+  await expect(continueUpload).toBeDisabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeDisabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeDisabled();
 
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
-  const continueUpload = page.locator('#continueUpload');
   await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#fileCard')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   await expect(continueUpload).toHaveAttribute('data-next', 'settings');
   await continueUpload.click();
 
@@ -1387,6 +1423,7 @@ test('mobile product switches control order quantities and price', async ({
   await expect(stickerQty).toHaveValue('100');
   await expect(totalPrice).toHaveText(/1\s790\s₽/);
 
+  await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="order"]').click();
   await meters.selectOption('25');
   await stickerQty.selectOption('250');
@@ -1457,6 +1494,7 @@ test('order product controls remove, restore, and persist products', async ({
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="order"]').click();
 
   const body = page.locator('body');
@@ -2388,6 +2426,7 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="settings"]').click();
 
   const option = page.locator('#stickerSizeChoice button[data-value="25"]');
