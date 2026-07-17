@@ -9,13 +9,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/mobile-products.css">
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="#" aria-label="Печатает Максим">
-    <span class="brand-mark">🎀</span>
-    <span><strong>Печатает Максим</strong><small>Студия лент и стикеров</small></span>
-  </a>
+  <a class="brand studio-brand-lockup" href="./" aria-label="Печатает Максим — Студия лент и стикеров">
+      <img class="studio-ribbon-m" src="assets/images/pechataet-maksim-ribbon-m.png" alt="">
+      <img class="studio-wordmark" src="assets/images/печатаетмаксим.svg" alt="Печатает Максим">
+      <span class="studio-brand-divider" aria-hidden="true"></span>
+      <span class="studio-brand-caption">Студия лент и стикеров</span>
+    </a>
   <div class="top-actions">
     <button class="button ghost" id="resetProject">Новый проект</button>
     
@@ -25,15 +28,40 @@
 <div class="app-shell">
   <aside class="sidebar">
     <nav class="main-nav" aria-label="Разделы конструктора">
-      <button class="nav-item active" data-panel="upload"><span>01</span>Загрузить</button>
-      <button class="nav-item" data-panel="bundle"><span>02</span>Комплект</button>
-      <button class="nav-item" data-panel="settings"><span>03</span>Настройка</button>
-      <button class="nav-item" data-panel="order"><span>04</span>Заказ</button>
+      <button class="nav-item active" data-panel="upload"><span>01</span>Создать</button>
+      <button class="nav-item" data-panel="settings"><span>02</span>Настроить</button>
+      <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
+
+    <section class="mobile-products-panel" aria-label="Предпросмотр продуктов">
+      <div class="mobile-products-switches">
+        <label class="mobile-products-switch">
+          <span>Лента</span>
+          <input type="checkbox" role="switch" data-mobile-product="ribbon" checked>
+          <span class="mobile-products-switch-control" aria-hidden="true"></span>
+        </label>
+        <label class="mobile-products-switch">
+          <span>Стикер</span>
+          <input type="checkbox" role="switch" data-mobile-product="sticker" checked>
+          <span class="mobile-products-switch-control" aria-hidden="true"></span>
+        </label>
+      </div>
+
+      <div class="mobile-products-preview">
+        <div class="mobile-products-sample mobile-products-ribbon" data-mobile-product-sample="ribbon">
+          <span class="mobile-products-sample-label">Лента 15 мм</span>
+          <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
+        </div>
+        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker">
+          <span class="mobile-products-sample-label">Стикер 25 мм</span>
+          <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
+        </div>
+      </div>
+    </section>
 
     
     <section class="panel active" id="panel-upload">
-      <div class="panel-head"><p>Шаг 1</p><h2>Ваш бренд</h2></div>
+      <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
       <label class="upload upload-large" id="dropZone">
@@ -54,6 +82,15 @@
         </div>
       </div>
 
+      <div class="trace-status" id="traceStatus" hidden>
+        <div class="trace-status-icon">✓</div>
+        <div>
+          <strong>Макет автоматически подготовлен</strong>
+          <p>Для предпросмотра изображение переведено в одноцветный вектор. Перед производством мы вручную проверим контуры и качество печати.</p>
+          <small id="traceDetails"></small>
+        </div>
+      </div>
+
       <div class="upload-text-card">
         <div class="upload-text-head">
           <strong>Или введите название</strong>
@@ -61,7 +98,7 @@
         </div>
 
         <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" value="печатаетмаксим" placeholder="Введите текст">
+        <input class="input" id="textInput" type="text" value="ленты по любви" placeholder="Введите текст">
 
         <label for="fontSelect">Шрифт</label>
         <select class="input" id="fontSelect">
@@ -75,10 +112,10 @@
 
       <div class="help-note">
         <strong>Нет векторного файла? Не проблема.</strong>
-        <p>Загрузите JPEG или PNG — мы бесплатно проверим качество и при необходимости подготовим изображение к печати.</p>
+        <p>JPEG и PNG автоматически переводятся в одноцветный макет. Перед производством Максим вручную проверит контуры.</p>
       </div>
 
-      <button class="button primary wide next-panel" id="continueUpload" data-next="bundle" disabled>Далее: комплект</button>
+      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" disabled>Далее: настроить</button>
     </section>
 
     <section class="panel" id="panel-bundle">
@@ -93,7 +130,7 @@
     </section>
 
     <section class="panel" id="panel-settings">
-      <div class="panel-head"><p>Шаг 3</p><h2>Настройте комплект</h2></div>
+      <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
 
       <label>Ширина ленты</label>
       <div class="segmented" id="widthChoice">
@@ -113,6 +150,7 @@
       </div>
 <label>Размер круглого стикера</label>
       <div class="segmented" id="stickerSizeChoice">
+        <button data-value="25">25 мм</button>
         <button data-value="30">30 мм</button>
         <button class="active" data-value="40">40 мм</button>
         <button data-value="50">50 мм</button>
@@ -122,6 +160,7 @@
         <div><label>Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
         <div><label>Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
       </div>
+      <p class="artwork-validation" id="artworkValidation" role="status" hidden></p>
 <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
       
@@ -152,20 +191,30 @@
         <p id="recommendReason">Подходит для большинства логотипов и надписей.</p>
       </div>
 
-      <button class="button primary wide next-panel" data-next="order">Перейти к заказу</button>
+      <button class="button primary wide next-panel" data-next="order">Далее: получить</button>
     </section>
 
 <section class="panel" id="panel-order">
-      <div class="panel-head"><p>Заказ</p><h2>Ваш комплект</h2></div>
+      <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
 
       <div class="order-card">
-        <div><span>Лента</span><strong id="orderRibbon">15 мм · 100 м</strong></div>
-        <div id="orderStickerRow"><span>Стикер</span><strong id="orderSticker">Ø40 мм</strong></div>
+        <div class="order-product-row" id="orderRibbonRow">
+          <span>Лента</span>
+          <strong id="orderRibbon">15 мм · 100 м</strong>
+          <button class="order-product-toggle" id="toggleOrderRibbon" type="button">Убрать</button>
+        </div>
+        <div class="order-product-row" id="orderStickerRow">
+          <span>Стикер</span>
+          <strong id="orderSticker">Ø40 мм · 100 шт.</strong>
+          <button class="order-product-toggle" id="toggleOrderSticker" type="button">Убрать</button>
+        </div>
         <div><span>Шаг повтора</span><strong id="orderRepeat">100 мм</strong></div>
       </div>
+      <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>В заказе должен остаться хотя бы один продукт.</p>
 
       <label>Метраж ленты</label>
       <select class="input" id="meters">
+        <option value="0" disabled>0 м</option>
         <option value="10">10 м</option>
         <option value="25">25 м</option>
         <option value="50">50 м</option>
@@ -175,6 +224,7 @@
 
       <label>Количество стикеров</label>
       <select class="input" id="stickerQty">
+        <option value="0" disabled>0 шт.</option>
         <option value="50">50 шт.</option>
         <option value="100" selected>100 шт.</option>
         <option value="250">250 шт.</option>
@@ -211,12 +261,61 @@
           <strong>Сатиновая лента и круглый стикер</strong>
         </div>
 
+
+        <div class="product-showcase-grid" id="productShowcase">
+          <article class="showcase-item showcase-ribbon showcase-ribbon-15 demo-red-gold" data-product-type="ribbon">
+            <div class="showcase-label">Лента 15 мм</div>
+            <div class="showcase-ribbon-body dynamic-ribbon">
+              <div class="showcase-ribbon-print">
+                <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+                <span class="dynamic-showcase-text">ленты по любви</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-ribbon showcase-ribbon-20 demo-beige-black" data-product-type="ribbon">
+            <div class="showcase-label">Лента 20 мм</div>
+            <div class="showcase-ribbon-body dynamic-ribbon">
+              <div class="showcase-ribbon-print">
+                <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+                <span class="dynamic-showcase-text">ленты по любви</span>
+              </div>
+            </div>
+          </article>
+
+                  <div class="showcase-stickers-row" data-product-group="stickers">
+<article class="showcase-item showcase-sticker showcase-sticker-black demo-black-silver" data-product-type="sticker">
+            <div class="showcase-label">Чёрный стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-sticker showcase-sticker-white demo-white-black" data-product-type="sticker">
+            <div class="showcase-label">Белый стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+
+          <article class="showcase-item showcase-sticker showcase-sticker-clear demo-clear-gold" data-product-type="sticker">
+            <div class="showcase-label">Прозрачный стикер</div>
+            <div class="showcase-sticker-body dynamic-sticker">
+              <img class="showcase-logo dynamic-showcase-logo" src="assets/images/печатаетмаксим.svg" alt="">
+              <span class="dynamic-showcase-text">ленты по любви</span>
+            </div>
+          </article>
+        </div>
+        </div>
+
         <div class="kit-table">
           <div class="table-shadow"></div>
 
           <div class="ribbon-mockup">
             <div class="ribbon-edge ribbon-edge-top"></div>
-            <div class="ribbon-surface" id="ribbonSurface">
+            <div class="ribbon-surface kit-print-surface" id="ribbonSurface">
               <svg id="ribbonSvg" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                   <filter id="metallic">
@@ -230,8 +329,10 @@
                 </defs>
                 <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
                 <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="transparent"/>
-                <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="transparent"/>
-                <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
+                <g id="ribbonContent" data-print-content clip-path="url(#ribbonClip)"></g>
+                <g id="ribbonPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none">
+                  <rect x="30" y="82" width="1140" height="96" rx="5"/>
+                </g>
               </svg>
             </div>
             <div class="ribbon-edge ribbon-edge-bottom"></div>
@@ -242,7 +343,10 @@
               <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
                 <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
                 <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="3"/>
-                <g id="stickerContent"></g>
+                <g id="stickerContent" data-print-content></g>
+                <g id="stickerPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none">
+                  <circle cx="200" cy="200" r="150"/>
+                </g>
               </svg>
             </div>
             <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
@@ -255,15 +359,25 @@
           <span>Макро</span>
           <strong>Фактура сатина и качество печати</strong>
         </div>
-        <div class="macro-stage">
+        <div class="macro-stage" id="macroStage">
           <div class="macro-ribbon" id="macroRibbon">
             <div class="macro-fibers"></div>
+            <div class="macro-printable-guide" data-preview-overlay aria-hidden="true"></div>
             <div class="macro-logo" id="macroLogo">
-      <img id="macroLogoImage" alt="" hidden>
-      <span id="macroLogoText">печатаетмаксим</span>
-    </div>
+              <img id="macroLogoImage" alt="" hidden>
+              <span id="macroLogoText">ленты по любви</span>
+            </div>
           </div>
-          <div class="macro-note">Мягкий сатиновый блик · фактура ткани · имитация фольги</div>
+
+          <div class="macro-sticker" id="macroSticker">
+            <div class="macro-sticker-paper">
+              <div class="macro-sticker-printable-guide" data-preview-overlay aria-hidden="true"></div>
+              <img id="macroStickerImage" alt="" hidden>
+              <span id="macroStickerText">ленты по любви</span>
+            </div>
+          </div>
+
+          <div class="macro-note">Крупный план материала и печати</div>
         </div>
       </div>
 
@@ -296,6 +410,38 @@
   </main>
 </div>
 
+
+<div class="crop-modal" id="cropModal" aria-hidden="true">
+  <div class="crop-dialog">
+    <div class="crop-head">
+      <div>
+        <p class="eyebrow">Подготовка изображения</p>
+        <h2>Выделите логотип</h2>
+        <p>Оставьте внутри рамки только нужный логотип или надпись.</p>
+      </div>
+      <button class="close" id="cropCancel" type="button">×</button>
+    </div>
+
+    <div class="crop-stage" id="cropStage">
+      <canvas id="cropCanvas"></canvas>
+      <div class="crop-frame" id="cropFrame">
+        <span class="crop-handle nw" data-handle="nw"></span>
+        <span class="crop-handle ne" data-handle="ne"></span>
+        <span class="crop-handle sw" data-handle="sw"></span>
+        <span class="crop-handle se" data-handle="se"></span>
+      </div>
+    </div>
+
+    <input id="cropZoom" type="hidden" value="100">
+
+    <div class="crop-actions">
+      <button class="button primary" id="cropApply" type="button">Использовать выделенную область</button>
+      <button class="button ghost" id="cropUseAll" type="button">Использовать всё изображение</button>
+      <button class="button ghost" id="cropRotate" type="button">Повернуть 90°</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="orderModal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-head">
@@ -311,6 +457,52 @@
   </div>
 </div>
 
+<div class="mobile-text-editor" id="mobileTextEditor" hidden>
+  <button class="mobile-text-editor-backdrop" id="mobileTextEditorBackdrop" type="button" aria-label="Закрыть выбор редактирования"></button>
+  <section class="mobile-text-editor-sheet" id="mobileTextEditorDialog" role="dialog" aria-modal="true" aria-labelledby="mobileTextEditorTitle">
+    <div class="mobile-text-editor-header">
+      <h2 id="mobileTextEditorTitle">Изменить надпись</h2>
+      <button class="mobile-text-editor-close" id="closeMobileTextEditor" type="button" aria-label="Закрыть">×</button>
+    </div>
+
+    <div class="mobile-text-editor-choices" id="mobileTextEditorChoices">
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonText" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action" id="editProductText" type="button">Только для ленты</button>
+      <button class="mobile-text-editor-action" id="clearProductTextOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileTextEditor" type="button">Отмена</button>
+    </div>
+
+    <form class="mobile-text-editor-form" id="mobileTextOverrideForm" hidden>
+      <label for="mobileTextOverrideInput" id="mobileTextOverrideLabel">Надпись только для ленты</label>
+      <input id="mobileTextOverrideInput" type="text" autocomplete="off">
+      <div class="mobile-text-editor-form-actions">
+        <button class="mobile-text-editor-action mobile-text-editor-action-primary" type="submit">Сохранить</button>
+        <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileTextOverride" type="button">Отмена</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="mobile-text-editor mobile-logo-editor" id="mobileLogoEditor" hidden>
+  <button class="mobile-text-editor-backdrop" id="mobileLogoEditorBackdrop" type="button" aria-label="Закрыть выбор редактирования логотипа"></button>
+  <section class="mobile-text-editor-sheet" id="mobileLogoEditorDialog" role="dialog" aria-modal="true" aria-labelledby="mobileLogoEditorTitle">
+    <div class="mobile-text-editor-header">
+      <h2 id="mobileLogoEditorTitle">Логотип для ленты</h2>
+      <button class="mobile-text-editor-close" id="closeMobileLogoEditor" type="button" aria-label="Закрыть">×</button>
+    </div>
+
+    <div class="mobile-text-editor-choices">
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonLogo" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action" id="editProductLogo" type="button">Только для ленты</button>
+      <button class="mobile-text-editor-action" id="clearProductLogoOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileLogoEditor" type="button">Отмена</button>
+    </div>
+  </section>
+</div>
+
+<script src="assets/js/geometry.js"></script>
+<script src="assets/js/layout.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/mobile-products.js"></script>
 </body>
 </html>
