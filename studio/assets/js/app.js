@@ -3,6 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const NS = 'http://www.w3.org/2000/svg';
+  const {
+    PRINT_MARGIN_MM,
+    getRibbonPrintableGeometry,
+    getStickerPrintableGeometry,
+    fitRectToBounds,
+    fitRectToCircle,
+    clampRectOffsetToBounds,
+  } = window.RibbonStudioGeometry;
+  const textMeasureContext = document.createElement('canvas').getContext('2d');
 
   const state = {
     panel: 'upload',
@@ -402,6 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
       Object.assign(state, restored);
+      if (![25, 30, 40, 50].includes(Number(state.stickerSize))) {
+        state.stickerSize = 40;
+      }
 
       const legacyDemoTexts = ['привет', 'печатаетмаксим', 'сделано красиво'];
       if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
@@ -587,27 +599,44 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProductShowcase();
   }
 
-  function drawLogo(parent, asset, cx, cy, maxW, maxH) {
+  function drawLogo(parent, asset, cx, cy, maxW, maxH, options = {}) {
     if (!asset?.logo) return;
 
-    let width = maxW * state.logoScale;
-    let height = width / asset.logo.ratio;
-
-    if (height > maxH * state.logoScale) {
-      height = maxH * state.logoScale;
-      width = height * asset.logo.ratio;
+    const ratio = Number(asset.logo.ratio) || 1;
+    const source = ratio >= 1
+      ? {x: 0, y: 0, width: ratio, height: 1}
+      : {x: 0, y: 0, width: 1, height: 1 / ratio};
+    const bounds = options.bounds || {
+      x: cx - maxW / 2,
+      y: cy - maxH / 2,
+      width: maxW,
+      height: maxH,
+    };
+    let fitted = options.circle
+      ? fitRectToCircle(source, options.circle, state.logoScale)
+      : fitRectToBounds(source, bounds, state.logoScale);
+    if (!options.circle) {
+      const offset = clampRectOffsetToBounds(
+        fitted,
+        bounds,
+        state.logoOffsetX,
+        0,
+      );
+      fitted = {...fitted, x: offset.x, y: offset.y};
     }
 
     const image = svgEl('image', {
-      x: cx - width / 2 + state.logoOffsetX,
-      y: cy - height / 2,
-      width,
-      height,
+      x: fitted.x,
+      y: fitted.y,
+      width: fitted.width,
+      height: fitted.height,
       preserveAspectRatio: 'xMidYMid meet'
     });
+    image.dataset.effectiveScale = String(fitted.scale);
 
     image.setAttribute('href', asset.logo.data);
     parent.appendChild(image);
+    return fitted;
   }
 
   function drawText(parent, x, y, size, value, anchor = 'middle') {
@@ -628,14 +657,30 @@ document.addEventListener('DOMContentLoaded', () => {
     parent.appendChild(text);
   }
 
-  function fittedTextSize(text, maxWidth, preferredSize, minSize = 10) {
+  function measureTextBox(text, size) {
+    textMeasureContext.font = `700 ${size}px ${state.font}`;
+    const metrics = textMeasureContext.measureText(text || '');
+    const ascent = metrics.actualBoundingBoxAscent || size * 0.8;
+    const descent = metrics.actualBoundingBoxDescent || size * 0.2;
+    return {width: metrics.width, height: ascent + descent};
+  }
+
+  function fittedTextSize(
+    text,
+    maxWidth,
+    preferredSize,
+    minSize = 10,
+    maxHeight = Infinity,
+  ) {
     const value = (text || '').trim();
     if (!value) return preferredSize;
-
-    const estimatedAtPreferred = value.length * preferredSize * 0.58;
-    if (estimatedAtPreferred <= maxWidth) return preferredSize;
-
-    return Math.max(minSize, preferredSize * (maxWidth / estimatedAtPreferred));
+    const measured = measureTextBox(value, preferredSize);
+    const scale = Math.min(
+      1,
+      maxWidth / Math.max(measured.width, 1),
+      maxHeight / Math.max(measured.height, 1),
+    );
+    return Math.max(minSize, preferredSize * scale);
   }
 
   function renderRibbon() {
@@ -649,11 +694,6 @@ document.addEventListener('DOMContentLoaded', () => {
       element.setAttribute('height', height);
     });
 
-    if ($('#safeZone')) {
-      $('#safeZone').setAttribute('y', y + 5);
-      $('#safeZone').setAttribute('height', height - 10);
-    }
-
     if ($('#ribbonBase')) $('#ribbonBase').setAttribute('fill', state.ribbon);
 
     const layer = $('#ribbonContent');
@@ -661,6 +701,24 @@ document.addEventListener('DOMContentLoaded', () => {
     layer.innerHTML = '';
 
     const repeatWidth = Math.max(360, state.repeatMm * 6.2);
+    const printable = getRibbonPrintableGeometry({
+      widthMm: state.width,
+      repeatMm: state.repeatMm,
+      x: 0,
+      y,
+      width: repeatWidth,
+      height,
+    });
+    const guideRect = $('#ribbonPrintableGuide rect');
+    if (guideRect) {
+      guideRect.setAttribute('x', 28 + PRINT_MARGIN_MM * printable.unitsPerMmX);
+      guideRect.setAttribute('y', printable.bounds.y);
+      guideRect.setAttribute(
+        'width',
+        1144 - 2 * PRINT_MARGIN_MM * printable.unitsPerMmX,
+      );
+      guideRect.setAttribute('height', printable.bounds.height);
+    }
     const resolvedLogo = getResolvedLogo('ribbon');
     const hasLogo = Boolean(resolvedLogo?.logo);
     const resolvedText = getResolvedText('ribbon');
@@ -674,10 +732,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const clipPath = svgEl('clipPath', {id: clipId});
 
       clipPath.appendChild(svgEl('rect', {
-        x: startX + 12,
-        y: y + 3,
-        width: repeatWidth - 24,
-        height: height - 6
+        x: startX + printable.bounds.x,
+        y: printable.bounds.y,
+        width: printable.bounds.width,
+        height: printable.bounds.height
       }));
 
       defs.appendChild(clipPath);
@@ -686,20 +744,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const content = svgEl('g', {'clip-path': `url(#${clipId})`});
 
       if (hasLogo && hasText) {
-        const logoZone = repeatWidth * 0.42;
-        const textZone = repeatWidth * 0.46;
-        const gap = repeatWidth * 0.035;
-
-        const logoCenterX = startX + 18 + logoZone / 2;
-        const textCenterX = startX + 18 + logoZone + gap + textZone / 2;
+        const gap = printable.bounds.width * 0.04;
+        const logoZone = printable.bounds.width * 0.42;
+        const textZone = printable.bounds.width - logoZone - gap;
+        const zoneX = startX + printable.bounds.x;
+        const logoBounds = {
+          x: zoneX,
+          y: printable.bounds.y,
+          width: logoZone,
+          height: printable.bounds.height,
+        };
+        const textCenterX = zoneX + logoZone + gap + textZone / 2;
 
         drawLogo(
           content,
           resolvedLogo,
-          logoCenterX,
+          logoBounds.x + logoBounds.width / 2,
           130,
-          logoZone * 0.92,
-          height * 0.72
+          logoBounds.width,
+          logoBounds.height,
+          {bounds: logoBounds}
         );
 
         const preferredSize = state.width === 20 ? 39 : 31;
@@ -707,25 +771,34 @@ document.addEventListener('DOMContentLoaded', () => {
           resolvedText,
           textZone * 0.94,
           preferredSize,
-          17
+          10,
+          printable.bounds.height
         );
 
         drawText(content, textCenterX, 130, textSize, resolvedText);
       } else if (hasLogo) {
+        const bounds = {
+          x: startX + printable.bounds.x,
+          y: printable.bounds.y,
+          width: printable.bounds.width,
+          height: printable.bounds.height,
+        };
         drawLogo(
           content,
           resolvedLogo,
           startX + repeatWidth / 2,
           130,
-          repeatWidth * 0.72,
-          height * 0.76
+          bounds.width,
+          bounds.height,
+          {bounds}
         );
       } else if (hasText) {
         const textSize = fittedTextSize(
           resolvedText,
-          repeatWidth * 0.84,
+          printable.bounds.width,
           state.width === 20 ? 43 : 34,
-          18
+          10,
+          printable.bounds.height
         );
 
         drawText(content, startX + repeatWidth / 2, 130, textSize, resolvedText);
@@ -747,25 +820,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasLogo = Boolean(resolvedLogo?.logo);
     const resolvedText = getResolvedText('sticker');
     const hasText = Boolean(resolvedText.trim());
+    const printable = getStickerPrintableGeometry({
+      diameterMm: state.stickerSize,
+      cx: 200,
+      cy: 200,
+      radius: 178,
+    });
+    const guideCircle = $('#stickerPrintableGuide circle');
+    if (guideCircle) guideCircle.setAttribute('r', printable.circle.radius);
+    const stickerPreferred = {
+      25: {combined: 19, textOnly: 24},
+      30: {combined: 22, textOnly: 28},
+      40: {combined: 27, textOnly: 35},
+      50: {combined: 31, textOnly: 40},
+    }[state.stickerSize];
 
     if (hasLogo && hasText) {
-      drawLogo(layer, resolvedLogo, 200, 145, 154, 84);
+      const logoCircle = {
+        cx: 200,
+        cy: 158,
+        radius: Math.min(
+          printable.circle.radius * 0.58,
+          printable.circle.radius - 42,
+        ),
+      };
+      drawLogo(layer, resolvedLogo, 200, 158, 1, 1, {circle: logoCircle});
 
       const size = fittedTextSize(
         resolvedText,
-        250,
-        state.stickerSize === 30 ? 22 : state.stickerSize === 40 ? 27 : 31,
-        14
+        Math.sqrt(
+          Math.max(
+            0,
+            printable.circle.radius ** 2 -
+              (70 + printable.circle.radius * 0.125) ** 2,
+          ),
+        ) * 2,
+        stickerPreferred.combined,
+        10,
+        printable.circle.radius * 0.25,
       );
       drawText(layer, 200, 270, size, resolvedText);
     } else if (hasLogo) {
-      drawLogo(layer, resolvedLogo, 200, 200, 215, 145);
+      drawLogo(layer, resolvedLogo, 200, 200, 1, 1, {
+        circle: printable.circle,
+      });
     } else if (hasText) {
       const size = fittedTextSize(
         resolvedText,
-        270,
-        state.stickerSize === 30 ? 28 : state.stickerSize === 40 ? 35 : 40,
-        16
+        printable.circle.radius * Math.SQRT2,
+        stickerPreferred.textOnly,
+        10,
+        printable.circle.radius * Math.SQRT2,
       );
       drawText(layer, 200, 200, size, resolvedText);
     }
@@ -780,11 +885,16 @@ document.addEventListener('DOMContentLoaded', () => {
       ? ({10: 390, 25: 590, 50: 790, 100: 1090, 200: 1590}[state.meters] || 0)
       : 0;
     const widthExtra = state.meters > 0 && state.width === 20 ? 180 : 0;
-    const stickerBase = state.stickerQty > 0
+    const stickerPriceUnavailable =
+      state.stickerQty > 0 && state.stickerSize === 25;
+    const stickerBase = state.stickerQty > 0 && !stickerPriceUnavailable
       ? ({50: 450, 100: 700, 250: 1350, 500: 2200}[state.stickerQty] || 0)
       : 0;
 
-    return ribbonBase + widthExtra + stickerBase;
+    return {
+      amount: ribbonBase + widthExtra + stickerBase,
+      unavailable: stickerPriceUnavailable,
+    };
   }
 
   function publishProductSelection() {
@@ -959,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getStickerScale() {
-    return {30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1;
+    return {25: 0.625, 30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1;
   }
 
   function updateStickerScale() {
@@ -1058,6 +1168,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.stickerSize = String(state.stickerSize);
     document.body.style.setProperty('--ribbon-mm', String(state.width));
     document.body.style.setProperty('--sticker-mm', String(state.stickerSize));
+    document.body.style.setProperty(
+      '--ribbon-print-margin-percent',
+      `${(PRINT_MARGIN_MM / state.width) * 100}%`,
+    );
+    document.body.style.setProperty(
+      '--sticker-print-margin-percent',
+      `${(PRINT_MARGIN_MM / state.stickerSize) * 100}%`,
+    );
 
     if (ribbonMockup) {
       ribbonMockup.style.display = state.bundle === 'sticker' ? 'none' : 'block';
@@ -1108,13 +1226,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#orderRibbon')) $('#orderRibbon').textContent = `${state.width} мм · ${state.meters} м`;
     if ($('#orderSticker')) $('#orderSticker').textContent = `Ø${state.stickerSize} мм · ${state.stickerQty} шт.`;
     if ($('#orderRepeat')) $('#orderRepeat').textContent = state.repeatMm + ' мм';
-    if ($('#totalPrice')) $('#totalPrice').textContent = calculatePrice().toLocaleString('ru-RU') + ' ₽';
+    const price = calculatePrice();
+    if ($('#totalPrice')) {
+      $('#totalPrice').textContent = price.unavailable
+        ? 'Требуется расчёт'
+        : price.amount.toLocaleString('ru-RU') + ' ₽';
+      $('#totalPrice').dataset.priceUnavailable = String(price.unavailable);
+    }
     updateOrderProductControls();
 
     saveState();
     publishContentState();
     publishProductSelection();
   }
+
+  window.RibbonStudioProduction = Object.freeze({
+    serialize(product) {
+      const svg = product === 'sticker' ? $('#stickerSvg') : $('#ribbonSvg');
+      if (!svg) return '';
+      return window.RibbonStudioGeometry.serializeProductionSvg(svg);
+    },
+  });
 
   function updateOrderProductControls() {
     const hasRibbon = state.meters > 0;
@@ -2265,6 +2397,28 @@ document.addEventListener('DOMContentLoaded', () => {
     setProductSelection({ribbon: true, sticker: true});
   });
 
+  $('#openOrder').addEventListener('click', () => {
+    const price = calculatePrice();
+    $('#orderSummary').textContent = [
+      state.meters > 0 ? `Лента ${state.width} мм · ${state.meters} м` : '',
+      state.stickerQty > 0
+        ? `Стикер Ø${state.stickerSize} мм · ${state.stickerQty} шт.`
+        : '',
+      price.unavailable
+        ? 'Цена стикера Ø25 мм требует индивидуального расчёта'
+        : `Итого: ${price.amount.toLocaleString('ru-RU')} ₽`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    $('#orderModal').classList.add('open');
+    $('#orderModal').setAttribute('aria-hidden', 'false');
+  });
+
+  $('#closeOrder').addEventListener('click', () => {
+    $('#orderModal').classList.remove('open');
+    $('#orderModal').setAttribute('aria-hidden', 'true');
+  });
+
   $('#resetProject').addEventListener('click', () => {
     localStorage.removeItem('ribbon-studio-v042');
     location.reload();
@@ -2277,4 +2431,5 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
   updateShowcaseContent();
   updateProductShowcase();
+  document.fonts?.ready.then(() => render());
 });

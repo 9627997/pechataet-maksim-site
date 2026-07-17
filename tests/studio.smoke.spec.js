@@ -2300,3 +2300,139 @@ test('mobile product block is absent from the desktop layout', async ({
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeUpload);
 });
+
+test('production geometry enforces 2.5 mm printable margins and circular bounds', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const result = await page.evaluate(() => {
+    const geometry = window.RibbonStudioGeometry;
+    const ribbon = (widthMm) =>
+      geometry.getRibbonPrintableGeometry({
+        widthMm,
+        repeatMm: 100,
+        width: 100,
+        height: widthMm,
+      });
+    const sticker = (diameterMm) =>
+      geometry.getStickerPrintableGeometry({
+        diameterMm,
+        cx: 0,
+        cy: 0,
+        radius: diameterMm / 2,
+      });
+    const circle = { cx: 0, cy: 0, radius: 10 };
+    const side = 20 / Math.sqrt(2);
+    return {
+      margin: geometry.PRINT_MARGIN_MM,
+      ribbons: [ribbon(15).printableHeightMm, ribbon(20).printableHeightMm],
+      stickers: [25, 30, 40, 50].map(
+        (diameter) => sticker(diameter).printableDiameterMm,
+      ),
+      square20: geometry.areRectCornersInsideCircle(
+        { x: -10, y: -10, width: 20, height: 20 },
+        circle,
+        0,
+      ),
+      inscribedSquare: geometry.areRectCornersInsideCircle(
+        { x: -side / 2, y: -side / 2, width: side, height: side },
+        circle,
+        0,
+      ),
+      wide: geometry.fitRectToCircle(
+        { x: 0, y: 0, width: 100, height: 10 },
+        circle,
+        1,
+        0,
+      ),
+      tall: geometry.fitRectToCircle(
+        { x: 0, y: 0, width: 10, height: 100 },
+        circle,
+        1,
+        0,
+      ),
+      shiftedInside: geometry.areRectCornersInsideCircle(
+        { x: 4, y: -1, width: 2, height: 2 },
+        circle,
+        0,
+      ),
+      shiftedOutside: geometry.areRectCornersInsideCircle(
+        { x: 9, y: -1, width: 2, height: 2 },
+        circle,
+        0,
+      ),
+    };
+  });
+
+  expect(result.margin).toBe(2.5);
+  expect(result.ribbons).toEqual([10, 15]);
+  expect(result.stickers).toEqual([20, 25, 35, 45]);
+  expect(result.square20).toBe(false);
+  expect(result.inscribedSquare).toBe(true);
+  expect(result.shiftedInside).toBe(true);
+  expect(result.shiftedOutside).toBe(false);
+  expect(result.wide.width).toBeGreaterThan(result.wide.height);
+  expect(result.tall.height).toBeGreaterThan(result.tall.width);
+});
+
+test('25 mm sticker persists, updates previews, reports missing price, and excludes guides from production', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('.nav-item[data-panel="settings"]').click();
+
+  const option = page.locator('#stickerSizeChoice button[data-value="25"]');
+  await expect(option).toBeVisible();
+  await option.click();
+  await expect(page.locator('#stickerSizeLabel')).toHaveText('Ø25 мм');
+  await expect(page.locator('body')).toHaveAttribute('data-sticker-size', '25');
+  await expect(page.locator('#totalPrice')).toHaveText('Требуется расчёт');
+  await expect(page.locator('#totalPrice')).toHaveAttribute(
+    'data-price-unavailable',
+    'true',
+  );
+
+  if (testInfo.project.name === 'mobile') {
+    await expect(
+      page.locator(
+        '[data-mobile-product-sample="sticker"] .mobile-products-sample-label',
+      ),
+    ).toHaveText('Стикер 25 мм');
+    await expect(
+      page.locator('.mobile-products-printable-guide.sticker-guide'),
+    ).toBeVisible();
+  } else {
+    await page.locator('#sceneTabs button[data-scene="macro"]').click();
+    await expect(page.locator('.macro-sticker-printable-guide')).toBeVisible();
+  }
+
+  for (const guide of await page.locator('[data-preview-overlay]').all()) {
+    await expect(guide).toHaveCSS('pointer-events', 'none');
+  }
+
+  const serialized = await page.evaluate(() => ({
+    ribbon: window.RibbonStudioProduction.serialize('ribbon'),
+    sticker: window.RibbonStudioProduction.serialize('sticker'),
+  }));
+  expect(serialized.ribbon).not.toContain('data-preview-overlay');
+  expect(serialized.ribbon).not.toContain('ribbonPrintableGuide');
+  expect(serialized.sticker).not.toContain('data-preview-overlay');
+  expect(serialized.sticker).not.toContain('stickerPrintableGuide');
+
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await page.locator('#openOrder').click();
+  await expect(page.locator('#orderSummary')).toContainText('Стикер Ø25 мм');
+  await expect(page.locator('#orderSummary')).toContainText(
+    'требует индивидуального расчёта',
+  );
+  await page.locator('#closeOrder').click();
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(
+    page.locator('#stickerSizeChoice button[data-value="25"]'),
+  ).toHaveClass(/active/);
+  await expect(page.locator('body')).toHaveAttribute('data-sticker-size', '25');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});

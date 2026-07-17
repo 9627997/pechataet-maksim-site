@@ -20,6 +20,14 @@
     stickerSurface.removeAttribute('aria-hidden');
     ribbonSurface.replaceChildren();
     stickerSurface.replaceChildren();
+    const ribbonGuide = document.createElement('span');
+    const stickerGuide = document.createElement('span');
+    ribbonGuide.className = 'mobile-products-printable-guide ribbon-guide';
+    stickerGuide.className = 'mobile-products-printable-guide sticker-guide';
+    ribbonGuide.dataset.previewOverlay = '';
+    stickerGuide.dataset.previewOverlay = '';
+    ribbonGuide.setAttribute('aria-hidden', 'true');
+    stickerGuide.setAttribute('aria-hidden', 'true');
 
     const createLogoZone = (product) => {
       const zone = document.createElement('button');
@@ -70,9 +78,9 @@
 
     stickerContent.className = 'mobile-products-sticker-content';
     stickerContent.dataset.mobileProductsSafeZone = 'sticker-content';
-    ribbonSurface.append(ribbonLogo.zone, ribbonText.zone);
+    ribbonSurface.append(ribbonLogo.zone, ribbonText.zone, ribbonGuide);
     stickerContent.append(stickerLogo.zone, stickerText.zone);
-    stickerSurface.appendChild(stickerContent);
+    stickerSurface.append(stickerContent, stickerGuide);
 
     const syncVisibility = () => {
       switches.forEach((productSwitch) => {
@@ -139,6 +147,13 @@
       const font = document.querySelector('#fontSelect')?.value || 'Manrope';
       const fontSize = Number(document.querySelector('#fontSize')?.value) || 32;
       const logoScale = Number(document.querySelector('#logoScale')?.value) || 100;
+      const ribbonWidth =
+        Number(document.querySelector('#widthChoice button.active')?.dataset.value) ||
+        15;
+      const stickerSize =
+        Number(
+          document.querySelector('#stickerSizeChoice button.active')?.dataset.value,
+        ) || 40;
       const print =
         document.querySelector('#printChoice button.active')?.dataset.value || '#171717';
       const ribbon =
@@ -199,6 +214,24 @@
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
+      ribbonSurface.style.height = `${(ribbonWidth / 15) * 46}px`;
+      ribbonSurface.style.setProperty(
+        '--mobile-ribbon-margin',
+        `${(window.RibbonStudioGeometry.PRINT_MARGIN_MM / ribbonWidth) * 100}%`,
+      );
+      stickerSurface.style.width = `${stickerSize * 2.5}px`;
+      stickerSurface.style.setProperty(
+        '--mobile-sticker-margin',
+        `${(window.RibbonStudioGeometry.PRINT_MARGIN_MM / stickerSize) * 100}%`,
+      );
+      stickerContent.style.width = `${(((stickerSize - 5) / stickerSize) * 100) / Math.SQRT2}%`;
+      stickerContent.style.height = stickerContent.style.width;
+      panel.querySelector(
+        '[data-mobile-product-sample="ribbon"] .mobile-products-sample-label',
+      ).textContent = `Лента ${ribbonWidth} мм`;
+      panel.querySelector(
+        '[data-mobile-product-sample="sticker"] .mobile-products-sample-label',
+      ).textContent = `Стикер ${stickerSize} мм`;
       ribbonText.text.style.fontSize = `${Math.min(20, Math.max(10, fontSize * 0.44))}px`;
       stickerText.text.style.fontSize = `${Math.min(17, Math.max(9, fontSize * 0.36))}px`;
       ribbonLogo.image.style.width = `${Math.min(92, 54 * scale)}%`;

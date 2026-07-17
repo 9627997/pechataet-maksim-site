@@ -13,6 +13,7 @@
     20
   ],
   "sticker_sizes_mm": [
+    25,
     30,
     40,
     50
@@ -24,6 +25,7 @@
     "jpeg"
   ],
   "status": "preview",
+  "print_margin_mm": 2.5,
   "architecture": "modular",
   "render_engine": {
     "type": "web-native",
@@ -113,6 +115,7 @@
       20
     ],
     "sticker_diameters_mm": [
+      25,
       30,
       40,
       50

@@ -150,6 +150,7 @@
       </div>
 <label>Размер круглого стикера</label>
       <div class="segmented" id="stickerSizeChoice">
+        <button data-value="25">25 мм</button>
         <button data-value="30">30 мм</button>
         <button class="active" data-value="40">40 мм</button>
         <button data-value="50">50 мм</button>
@@ -327,8 +328,10 @@
                 </defs>
                 <rect id="ribbonBase" x="28" y="70" width="1144" height="120" rx="6" fill="#f3eadc"/>
                 <rect id="ribbonShine" x="28" y="70" width="1144" height="120" rx="6" fill="transparent"/>
-                <rect id="safeZone" x="30" y="82" width="1140" height="96" rx="5" fill="none" stroke="transparent"/>
-                <g id="ribbonContent" clip-path="url(#ribbonClip)"></g>
+                <g id="ribbonContent" data-print-content clip-path="url(#ribbonClip)"></g>
+                <g id="ribbonPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none">
+                  <rect x="30" y="82" width="1140" height="96" rx="5"/>
+                </g>
               </svg>
             </div>
             <div class="ribbon-edge ribbon-edge-bottom"></div>
@@ -339,7 +342,10 @@
               <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
                 <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
                 <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="3"/>
-                <g id="stickerContent"></g>
+                <g id="stickerContent" data-print-content></g>
+                <g id="stickerPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none">
+                  <circle cx="200" cy="200" r="150"/>
+                </g>
               </svg>
             </div>
             <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
@@ -355,6 +361,7 @@
         <div class="macro-stage" id="macroStage">
           <div class="macro-ribbon" id="macroRibbon">
             <div class="macro-fibers"></div>
+            <div class="macro-printable-guide" data-preview-overlay aria-hidden="true"></div>
             <div class="macro-logo" id="macroLogo">
               <img id="macroLogoImage" alt="" hidden>
               <span id="macroLogoText">ленты по любви</span>
@@ -363,6 +370,7 @@
 
           <div class="macro-sticker" id="macroSticker">
             <div class="macro-sticker-paper">
+              <div class="macro-sticker-printable-guide" data-preview-overlay aria-hidden="true"></div>
               <img id="macroStickerImage" alt="" hidden>
               <span id="macroStickerText">ленты по любви</span>
             </div>
@@ -491,6 +499,7 @@
   </section>
 </div>
 
+<script src="assets/js/geometry.js"></script>
 <script src="assets/js/app.js"></script>
 <script src="assets/js/mobile-products.js"></script>
 </body>
