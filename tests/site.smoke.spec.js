@@ -21,6 +21,30 @@ const expectNoHorizontalOverflow = async (page) => {
   expect(overflow).toEqual({ documentElement: false, body: false });
 };
 
+test('local styles and scripts use deployment cache versions', async ({
+  page,
+}) => {
+  for (const path of ['/', '/studio/']) {
+    await page.goto(path, { waitUntil: 'networkidle' });
+    const unversionedAssets = await page.evaluate(() =>
+      [
+        ...document.querySelectorAll(
+          'link[rel="stylesheet"][href], script[src]',
+        ),
+      ]
+        .map((element) => new URL(element.href || element.src, location.href))
+        .filter(
+          (url) =>
+            url.origin === location.origin &&
+            /\.(?:css|js)$/.test(url.pathname) &&
+            !url.searchParams.has('v'),
+        )
+        .map((url) => url.pathname),
+    );
+    expect(unversionedAssets).toEqual([]);
+  }
+});
+
 test('landing page is responsive and downloads an honest request', async ({
   page,
 }) => {
