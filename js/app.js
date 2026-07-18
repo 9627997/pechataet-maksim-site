@@ -61,6 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('contact-form');
   const status = document.querySelector('.form-status');
 
+  const downloadTextFile = (filename, content) => {
+    const url = URL.createObjectURL(
+      new Blob([content], { type: 'text/plain;charset=utf-8' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   if (form && status) {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -68,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData(form);
       const name = (formData.get('name') || '').toString().trim();
       const contact = (formData.get('contact') || '').toString().trim();
+      const comment = (formData.get('comment') || '').toString().trim();
 
       if (!name || !contact) {
         status.textContent = 'Пожалуйста, укажите имя и контакт для обратной связи.';
@@ -75,9 +89,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      status.textContent = 'Спасибо! Заявка получена. Подключение отправки будет добавлено позже.';
+      const request = [
+        'Заявка — Печатает Максим',
+        '',
+        `Имя: ${name}`,
+        `Контакт: ${contact}`,
+        `Комментарий: ${comment || 'не указан'}`,
+        '',
+        'Файл сформирован на сайте печатаетмаксим.рф.',
+      ].join('\n');
+
+      downloadTextFile('zayavka-pechataet-maksim.txt', request);
+      status.textContent =
+        'Заявка скачана. Прямая отправка пока не подключена — сохраните файл для связи с Максимом.';
       status.classList.remove('is-error');
-      form.reset();
     });
   }
 });

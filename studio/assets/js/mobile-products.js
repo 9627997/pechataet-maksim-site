@@ -258,13 +258,15 @@
         surface.dataset.layoutValid = String(layout.valid);
         logoPart.zone.dataset.layoutBox = JSON.stringify(layout.logoBox);
         textPart.zone.dataset.layoutBox = JSON.stringify(layout.textBox);
+        const surfaceHeight = surface.getBoundingClientRect().height;
+        if (surfaceHeight <= 0) return;
+
         if (surface === stickerSurface) {
           const place = (zone, box, minHeight = 0) => {
             for (const property of ['left', 'top', 'width', 'height']) {
               zone.style.removeProperty(property);
             }
             if (!box) return;
-            const surfaceHeight = surface.getBoundingClientRect().height;
             const height = Math.max(box.height * surfaceHeight, minHeight);
             zone.style.left = `${box.x * 100}%`;
             zone.style.top =
@@ -272,24 +274,37 @@
             zone.style.width = `${box.width * 100}%`;
             zone.style.height = `${height}px`;
           };
-          place(logoPart.zone, layout.logoBox);
-          place(textPart.zone, layout.textBox, 10);
+          place(
+            logoPart.zone,
+            hasStickerLogo ? layout.logoBox : null,
+          );
+          place(
+            textPart.zone,
+            hasStickerText ? layout.textBox : null,
+            10,
+          );
         }
         if (layout.logoBox) {
-          logoPart.image.style.width =
-            surface === stickerSurface
-              ? '100%'
-              : `${layout.logoBox.width * 100}%`;
+          logoPart.image.style.width = '100%';
           logoPart.image.style.height =
             surface === stickerSurface
               ? '100%'
-              : `${layout.logoBox.height * 100}%`;
+              : `${(layout.printable?.height || 1) * surfaceHeight}px`;
         }
-        const validText = Boolean(layout.valid && layout.textBox);
-        textPart.text.hidden = !validText;
-        if (validText) {
+        const textBox = layout.valid
+          ? layout.textBox
+          : layout.previewTextBox;
+        const visibleText = Boolean(textBox);
+        textPart.text.hidden = !visibleText;
+        if (visibleText) {
+          if (!layout.valid && layout.previewText) {
+            textPart.text.textContent = layout.previewText;
+          }
+          const fontSizeRatio = layout.valid
+            ? layout.fontSizeRatio
+            : layout.previewFontSizeRatio;
           textPart.text.style.fontSize =
-            `${layout.fontSizeRatio * surface.getBoundingClientRect().height}px`;
+            `${fontSizeRatio * surfaceHeight}px`;
         }
       };
       applyLayout(
@@ -312,9 +327,24 @@
             ? 'logo-only'
             : 'text-only';
       stickerContent.dataset.mobileProductsMode = mode;
+      ribbonSurface.dataset.mobileProductsMode =
+        hasRibbonLogo && hasRibbonText
+          ? 'logo-and-text'
+          : hasRibbonLogo
+            ? 'logo-only'
+            : hasRibbonText
+              ? 'text-only'
+              : 'empty';
     };
 
-    const scheduleStudioSync = () => requestAnimationFrame(syncStudioState);
+    let studioSyncFrame = null;
+    const scheduleStudioSync = () => {
+      if (studioSyncFrame !== null) cancelAnimationFrame(studioSyncFrame);
+      studioSyncFrame = requestAnimationFrame(() => {
+        studioSyncFrame = null;
+        syncStudioState();
+      });
+    };
 
     switches.forEach((productSwitch) => {
       productSwitch.addEventListener('change', () => {
@@ -357,6 +387,13 @@
       attributes: true,
       attributeFilter: ['src', 'hidden'],
     });
+
+    const previewResizeObserver = new ResizeObserver(scheduleStudioSync);
+    previewResizeObserver.observe(panel);
+    previewResizeObserver.observe(ribbonSurface);
+    previewResizeObserver.observe(stickerSurface);
+    window.addEventListener('resize', scheduleStudioSync, { passive: true });
+    document.fonts?.ready.then(scheduleStudioSync);
 
     applyProductSelection({
       ribbon: document.body.dataset.hasRibbon === 'true',

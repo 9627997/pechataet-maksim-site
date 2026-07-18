@@ -46,6 +46,61 @@ const expectMobileLogosToMatch = async (page, expectedSrc) => {
   }
 };
 
+const expectMobileArtworkRendered = async (page) => {
+  for (const selector of [
+    '.mobile-products-ribbon-logo',
+    '.mobile-products-ribbon-text',
+    '.mobile-products-sticker-logo',
+    '.mobile-products-sticker-text',
+  ]) {
+    const artwork = page.locator(selector);
+    await expect(artwork).toBeVisible();
+    await expect
+      .poll(async () => {
+        const bounds = await artwork.boundingBox();
+        return bounds ? Math.min(bounds.width, bounds.height) : 0;
+      })
+      .toBeGreaterThan(0);
+  }
+};
+
+const expectMobileRibbonFramed = async (page) => {
+  await expect
+    .poll(() =>
+      page.locator('.mobile-products-ribbon-sample').evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const panel = element.closest('.mobile-products-panel');
+        const panelBounds = panel.getBoundingClientRect();
+        const panelStyle = getComputedStyle(panel);
+        const leftEdge =
+          panelBounds.left + Number.parseFloat(panelStyle.borderLeftWidth);
+        const rightEdge =
+          panelBounds.right - Number.parseFloat(panelStyle.borderRightWidth);
+        return (
+          Math.abs(bounds.left - leftEdge) <= 1 &&
+          Math.abs(bounds.right - rightEdge) <= 1 &&
+          Math.abs(bounds.width - (rightEdge - leftEdge)) <= 1
+        );
+      }),
+    )
+    .toBe(true);
+  await expectNoHorizontalOverflow(page);
+};
+
+const expectShowcaseCaptionClear = async (page) => {
+  const gap = await page.locator('#scene-kit').evaluate((scene) => {
+    const caption = scene.querySelector('.scene-caption');
+    const firstLabel = scene.querySelector(
+      '.showcase-ribbon-15 .showcase-label',
+    );
+    return (
+      firstLabel.getBoundingClientRect().top -
+      caption.getBoundingClientRect().bottom
+    );
+  });
+  expect(gap).toBeGreaterThanOrEqual(16);
+};
+
 const expectInterfaceResponsive = async (page) => {
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
   const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
@@ -62,6 +117,15 @@ const completeFirstStepWithText = async (page) => {
 
 const readContentSnapshot = async (page) =>
   JSON.parse(await page.locator('body').getAttribute('data-studio-content'));
+
+const readRibbonPreviewText = (page) =>
+  page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const content = JSON.parse(document.body.dataset.studioContent);
+    return layout.valid
+      ? content.text.resolvedRibbon.trim()
+      : layout.previewText;
+  });
 
 const expectSvgDataToContain = async (locator, marker, attribute = 'src') => {
   await expect
@@ -91,6 +155,15 @@ const svgUpload = (name, marker, width = 30, height = 10) => ({
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><path id="${marker}" d="M0 0h${width}v${height}H0z"/></svg>`,
   ),
 });
+
+const jpegUpload = {
+  name: 'test-logo.jpg',
+  mimeType: 'image/jpeg',
+  buffer: Buffer.from(
+    '/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAADKADAAQAAAABAAAADAAAAAD/wAARCAAMAAwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwACAgICAgIDAgIDBQMDAwUGBQUFBQYIBgYGBgYICggICAgICAoKCgoKCgoKDAwMDAwMDg4ODg4PDw8PDw8PDw8P/9sAQwECAgIEBAQHBAQHEAsJCxAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ/90ABAAB/9oADAMBAAIRAxEAPwD7j/bM8WftLfDfxf4H1X4Y/Eu00HQPHPiDSvDEenTaLbXb2k175nmXZnlJaQDaP3eF9mFfdvgXTPFei+ENK0rxzraeI9ftoFS81GO2WzS6lHWQQISsYP8AdBIrJ8f/AAp+HnxS/sP/AIWBokOtf8I3qMOq6f5xcfZ723z5co2MucZ+62VPcGvQqAP/2Q==',
+    'base64',
+  ),
+};
 
 test('Studio opens without console errors or horizontal scrolling', async ({
   page,
@@ -133,6 +206,67 @@ test('Studio opens without console errors or horizontal scrolling', async ({
     path: `playwright-screenshots/studio-${testInfo.project.name}.png`,
     fullPage: true,
   });
+});
+
+test('fresh first step marks the demo and keeps customer content honest', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  await expect(textInput).toHaveValue('');
+  await expect(textInput).toHaveAttribute(
+    'placeholder',
+    'Например: ленты по любви',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'true',
+  );
+  await expect(page.locator('#continueUpload')).toBeDisabled();
+  await expectShowcaseCaptionClear(page);
+
+  const demoText =
+    testInfo.project.name === 'mobile'
+      ? page.locator('.mobile-products-ribbon-text')
+      : page.locator('.dynamic-showcase-text').first();
+  await expect(demoText).toHaveText('ленты по любви');
+
+  await textInput.fill('Мой бренд');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'true',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-logo-demo',
+    'true',
+  );
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('Мой бренд');
+  expect(snapshot.logo.common).toBeNull();
+  expect(
+    await page.evaluate(() =>
+      window.RibbonStudioProduction.serialize('ribbon').includes('<image'),
+    ),
+  ).toBe(false);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(textInput).toHaveValue('Мой бренд');
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.logo.common).toBeNull();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
 });
 
 test('legacy Studio content migrates to common content', async ({
@@ -184,10 +318,13 @@ test('legacy Studio content migrates to common content', async ({
   expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
-  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
+  await expect(page.locator('#macroLogoText')).toHaveText(/…$/);
   await expect(page.locator('#macroStickerText')).toHaveText(
     'старый общий текст',
   );
+  await expect(
+    page.locator('.ribbon-overflow-card-mobile [data-ribbon-overflow-text]'),
+  ).toHaveText('старый общий текст');
   await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
     'hidden',
     '',
@@ -821,9 +958,10 @@ test('resolved product text stays independent from common editing', async ({
       sticker: { mode: 'override', resolved: 'только стикер' },
     },
   });
-  await expect(macroRibbonText).toHaveText('обновлённый общий');
+  const updatedRibbonPreview = await readRibbonPreviewText(page);
+  await expect(macroRibbonText).toHaveText(updatedRibbonPreview);
   await expect(macroStickerText).toHaveText('только стикер');
-  await expect(mobileRibbonText).toHaveText('обновлённый общий');
+  await expect(mobileRibbonText).toHaveText(updatedRibbonPreview);
   await expect(mobileStickerText).toHaveText('только стикер');
 
   let snapshot = await readContentSnapshot(page);
@@ -911,6 +1049,7 @@ test('mobile text zones request editing and require scope after shared editing s
   await ribbonText.click();
   expect(await editRequest).toEqual({ kind: 'text', product: 'ribbon' });
   await expect(textInput).toBeFocused();
+  await textInput.fill('общий текст');
 
   const scopeRequired = page.evaluate(
     () =>
@@ -943,7 +1082,7 @@ test('common text input enables product scope on the next safe-zone tap', async 
 
   await textInput.fill('изменённый общий текст');
   await expect(page.locator('#macroLogoText')).toHaveText(
-    'изменённый общий текст',
+    await readRibbonPreviewText(page),
   );
   await expect(page.locator('#macroStickerText')).toHaveText(
     'изменённый общий текст',
@@ -995,7 +1134,7 @@ test('successful mobile text editing returns to the combined preview', async ({
   await page.locator('#clearProductTextOverride').click();
   await expectMobilePreviewVisible(page);
   await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
-    'общий текст после подтверждения',
+    await readRibbonPreviewText(page),
   );
 
   await ribbonZone.click();
@@ -1047,7 +1186,7 @@ test('empty inherited common text always focuses the shared editor', async ({
   for (const product of ['ribbon', 'sticker', 'ribbon']) {
     await page
       .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
-      .click();
+      .click({ position: { x: 8, y: 8 } });
     await expect(textInput).toBeFocused();
     await textInput.blur();
   }
@@ -1074,10 +1213,11 @@ test('mobile text editor creates, persists, and clears product overrides', async
     '[data-mobile-products-safe-zone="sticker-text"]',
   );
   const overrideInput = page.locator('#mobileTextOverrideInput');
-  const commonText = await textInput.inputValue();
 
   await ribbonZone.click();
   await expect(textInput).toBeFocused();
+  await textInput.fill('общий текст');
+  const commonText = await textInput.inputValue();
   await ribbonZone.click();
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute('aria-modal', 'true');
@@ -1595,6 +1735,50 @@ test('order product controls remove, restore, and persist products', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('order dialog validates contact and downloads an accessible request', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+  await page.locator('#panel-settings .next-panel').click();
+
+  const openOrder = page.locator('#openOrder');
+  await openOrder.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Сформировать заявку' });
+  const customerName = page.getByLabel('Имя');
+  const customerPhone = page.getByLabel('Телефон');
+  const downloadOrder = page.getByRole('button', { name: 'Скачать заявку' });
+  await expect(dialog).toBeVisible();
+  await expect(customerName).toBeFocused();
+
+  await customerName.fill('Максим');
+  await downloadOrder.click();
+  await expect(page.locator('#orderFormStatus')).toHaveText(
+    'Укажите телефон или Telegram.',
+  );
+  await expect(customerPhone).toBeFocused();
+
+  await customerPhone.fill('+7 900 000-00-00');
+  const downloadPromise = page.waitForEvent('download');
+  await downloadOrder.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(
+    'zayavka-studio-pechataet-maksim.txt',
+  );
+  await expect(page.locator('#orderFormStatus')).toContainText(
+    'Заявка скачана.',
+  );
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(openOrder).toBeFocused();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile logo zones request scope and upload common and product SVG assets', async ({
   page,
 }, testInfo) => {
@@ -1827,7 +2011,7 @@ test('null logo override opens an accessible cancellable scope dialog', async ({
 
   await zone.click();
   await page.locator('#clearProductLogoOverride').click();
-  await expectSvgDataToContain(page.locator('#macroLogoImage'), '_Слой_1');
+  await expect(page.locator('#macroLogoImage')).toBeHidden();
   expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
@@ -1903,6 +2087,7 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
   await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
 
+  await textInput.fill('временная надпись');
   await textInput.fill('');
   for (const zone of [zones.ribbonText, zones.stickerText]) {
     await expect(zone).toBeVisible();
@@ -1971,18 +2156,17 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   ]);
   expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
   await fileChooser.setFiles([]);
-  await zones.stickerLogo.click();
-  await expect(page.locator('#mobileLogoEditorDialog')).toBeVisible();
-  await page.locator('#cancelMobileLogoEditor').click();
+  const [stickerFileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    zones.stickerLogo.click({ position: { x: 10, y: 10 } }),
+  ]);
+  expect(await stickerFileChooser.element().getAttribute('id')).toBe(
+    'logoInput',
+  );
+  await stickerFileChooser.setFiles([]);
   await expect(logoInput).toHaveAttribute('id', 'logoInput');
 
-  await page.locator('#macroLogoImage').evaluate((element) => {
-    element.hidden = false;
-  });
-  await page.locator('#macroStickerImage').evaluate((element) => {
-    element.hidden = false;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  await logoInput.setInputFiles(fixturePath('test-logo.svg'));
   await expect(zones.ribbonLogo).toHaveAttribute(
     'aria-label',
     'Изменить логотип',
@@ -2042,14 +2226,12 @@ test('mobile previews stay synchronized with Studio state', async ({
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
   const ribbonSurface = page.locator('.mobile-products-ribbon-sample');
-  const ribbonLogo = page.locator('.mobile-products-ribbon-logo');
   const stickerLogo = page.locator('.mobile-products-sticker-logo');
   const ribbonText = page.locator('.mobile-products-ribbon-text');
   const stickerText = page.locator('.mobile-products-sticker-text');
   const stickerContent = page.locator('.mobile-products-sticker-content');
 
-  await expect(ribbonLogo).toBeVisible();
-  await expect(stickerLogo).toBeVisible();
+  await expectMobileArtworkRendered(page);
   await expect(ribbonText).toHaveText('ленты по любви');
   await expect(stickerText).toHaveText('ленты по любви');
   await expect(stickerContent).toHaveAttribute(
@@ -2058,12 +2240,15 @@ test('mobile previews stay synchronized with Studio state', async ({
   );
 
   await page.locator('#textInput').fill('новая длинная надпись для упаковки');
-  await expect(ribbonText).toHaveText('новая длинная надпись для упаковки');
+  await expect(ribbonText).toHaveText(await readRibbonPreviewText(page));
   await expect(stickerText).toHaveText('новая длинная надпись для упаковки');
 
   await page.locator('#fontSelect').selectOption('Georgia');
   await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
   await expect(stickerText).toHaveCSS('font-family', 'Georgia');
+
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(stickerLogo).toBeVisible();
 
   await page.locator('.nav-item[data-panel="settings"]').click();
   await page.locator('#printChoice button[data-value="#b69249"]').click();
@@ -2202,6 +2387,12 @@ test('SVG upload updates both mobile product logos', async ({
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   await expect(page.locator('#fileCardMeta')).toContainText('SVG');
   await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'false',
+  );
+  const snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('');
   await expect
     .poll(() => macroLogo.getAttribute('src'))
     .toMatch(/^data:image\/svg\+xml;base64,/);
@@ -2327,6 +2518,89 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   expect(runtimeErrors).toEqual([]);
 });
 
+test('JPEG upload opens an accessible crop dialog and completes tracing', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  await page.locator('#logoInput').setInputFiles(jpegUpload);
+  const cropDialog = page.getByRole('dialog', {
+    name: 'Выделите логотип',
+  });
+  await expect(cropDialog).toBeVisible();
+  await expect(page.locator('#cropCancel')).toBeFocused();
+
+  await page.locator('#cropUseAll').click();
+  await expect(cropDialog).toBeHidden();
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.jpg');
+  await expect(page.locator('#fileCardMeta')).toContainText('JPG · выделено');
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile first reveal keeps artwork visible and switches paired with labels', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const panel = page.locator('.mobile-products-panel');
+  await expect(panel).toBeHidden();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(panel).toBeVisible();
+  await expectMobileArtworkRendered(page);
+  await expectMobileRibbonFramed(page);
+
+  const switchLayout = await panel
+    .locator('.mobile-products-switch')
+    .evaluateAll((labels) => {
+      const row = labels[0].parentElement.getBoundingClientRect();
+      const pairBounds = labels.map((label) => {
+        const text = label.querySelector('span:first-child');
+        const control = label.querySelector('.mobile-products-switch-control');
+        const labelBounds = label.getBoundingClientRect();
+        return {
+          bounds: labelBounds.toJSON(),
+          gap:
+            control.getBoundingClientRect().left -
+            text.getBoundingClientRect().right,
+        };
+      });
+      return {
+        pairBounds,
+        leftInset: pairBounds[0].bounds.left - row.left,
+        rightInset: row.right - pairBounds.at(-1).bounds.right,
+        centerOffset:
+          (pairBounds[0].bounds.left + pairBounds.at(-1).bounds.right) / 2 -
+          (row.left + row.right) / 2,
+      };
+    });
+  for (const { gap } of switchLayout.pairBounds) {
+    expect(gap).toBeGreaterThanOrEqual(6);
+    expect(gap).toBeLessThanOrEqual(12);
+  }
+  for (const { bounds } of switchLayout.pairBounds) {
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(switchLayout.leftInset).toBeGreaterThanOrEqual(6);
+  expect(switchLayout.leftInset).toBeLessThanOrEqual(12);
+  expect(switchLayout.rightInset).toBeGreaterThanOrEqual(6);
+  expect(switchLayout.rightInset).toBeLessThanOrEqual(12);
+  expect(Math.abs(switchLayout.centerOffset)).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ width: 700, height: 900 });
+  await expect(panel).toBeVisible();
+  await expectMobileRibbonFramed(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile product block is absent from the desktop layout', async ({
   page,
 }, testInfo) => {
@@ -2421,6 +2695,90 @@ test('production geometry enforces 2.5 mm printable margins and circular bounds'
   expect(result.tall.height).toBeGreaterThan(result.tall.width);
 });
 
+test('printable guides stay contextual and never enter the final preview', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const guide = page.locator(
+    testInfo.project.name === 'mobile'
+      ? '.mobile-products-printable-guide.ribbon-guide'
+      : '#ribbonPrintableGuide',
+  );
+  const guideColorTarget =
+    testInfo.project.name === 'mobile'
+      ? guide
+      : page.locator('#ribbonPrintableGuide rect');
+  const showcaseGuide = page.locator(
+    '.showcase-ribbon-15 .showcase-ribbon-body',
+  );
+  const expectShowcaseGuideOpacity = (expected) =>
+    expect
+      .poll(() =>
+        showcaseGuide.evaluate(
+          (element) => getComputedStyle(element, '::after').opacity,
+        ),
+      )
+      .toBe(expected);
+  const textInput = page.locator('#textInput');
+  const uploadNavigation = page.locator('.nav-item[data-panel="upload"]');
+  const settingsNavigation = page.locator('.nav-item[data-panel="settings"]');
+  const orderNavigation = page.locator('.nav-item[data-panel="order"]');
+  const toggle = page.getByRole('switch', {
+    name: 'Показать поля печати',
+  });
+
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
+  await textInput.focus();
+  await expect(guide).toHaveCSS('opacity', '1');
+  await expectShowcaseGuideOpacity('1');
+  await uploadNavigation.focus();
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
+
+  await completeFirstStepWithText(page);
+  await settingsNavigation.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
+
+  await toggle.check();
+  await settingsNavigation.focus();
+  await expect(guide).toHaveCSS('opacity', '1');
+  await expectShowcaseGuideOpacity('1');
+
+  await toggle.uncheck();
+  await settingsNavigation.focus();
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
+
+  await uploadNavigation.click();
+  await textInput.fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
+  await uploadNavigation.focus();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-artwork-valid',
+    'false',
+  );
+  await expect(guide).toHaveCSS('opacity', '1');
+  await expectShowcaseGuideOpacity('1');
+  await expect(guideColorTarget).toHaveCSS(
+    testInfo.project.name === 'mobile' ? 'border-top-color' : 'stroke',
+    'rgba(190, 56, 65, 0.82)',
+  );
+
+  await orderNavigation.click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-panel',
+    'order',
+  );
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('25 mm sticker persists, updates previews, reports missing price, and excludes guides from production', async ({
   page,
 }, testInfo) => {
@@ -2448,10 +2806,10 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
     ).toHaveText('Стикер 25 мм');
     await expect(
       page.locator('.mobile-products-printable-guide.sticker-guide'),
-    ).toBeVisible();
+    ).toBeAttached();
   } else {
     await page.locator('#sceneTabs button[data-scene="macro"]').click();
-    await expect(page.locator('.macro-sticker-printable-guide')).toBeVisible();
+    await expect(page.locator('.macro-sticker-printable-guide')).toBeAttached();
   }
 
   for (const guide of await page.locator('[data-preview-overlay]').all()) {
@@ -2484,9 +2842,256 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
   expect(runtimeErrors).toEqual([]);
 });
 
-test('long production text is invalid and is not rendered outside printable areas', async ({
+test('default logo and text fill and center the available print areas', async ({
   page,
 }) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const metrics = await page.evaluate(() => {
+    const { ribbon, sticker } = JSON.parse(document.body.dataset.studioLayout);
+    const stickerSafeDiameter = sticker.printable.radius * 2;
+    return {
+      ribbonLogoHeight: ribbon.logoBox.height,
+      ribbonSafeHeight: ribbon.printable.height,
+      stickerLogoFill: sticker.logoBox.width / stickerSafeDiameter,
+      stickerTextFill: sticker.textBox.width / stickerSafeDiameter,
+      stickerGap:
+        (sticker.textBox.y - (sticker.logoBox.y + sticker.logoBox.height)) /
+        stickerSafeDiameter,
+      stickerGroupCenter:
+        (sticker.logoBox.y + sticker.textBox.y + sticker.textBox.height) / 2,
+      stickerCenter: sticker.printable.cy,
+    };
+  });
+
+  expect(metrics.ribbonLogoHeight).toBeCloseTo(metrics.ribbonSafeHeight, 5);
+  expect(metrics.stickerLogoFill).toBeGreaterThanOrEqual(0.84);
+  expect(metrics.stickerTextFill).toBeGreaterThanOrEqual(0.75);
+  expect(metrics.stickerGap).toBeLessThanOrEqual(0.04);
+  expect(metrics.stickerGroupCenter).toBeCloseTo(metrics.stickerCenter, 5);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('uploaded wide logo paints at the full ribbon safe height on mobile', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles({
+    name: 'wide-logo.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100">' +
+        '<rect width="400" height="100" fill="#111"/></svg>',
+    ),
+  });
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+
+  const result = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const surface = document
+      .querySelector('.mobile-products-ribbon-sample')
+      .getBoundingClientRect();
+    const image = document.querySelector('.mobile-products-ribbon-logo');
+    const imageBounds = image.getBoundingClientRect();
+    const intrinsicRatio = image.naturalWidth / image.naturalHeight;
+    const paintedHeight = Math.min(
+      imageBounds.height,
+      imageBounds.width / intrinsicRatio,
+    );
+    return {
+      paintedHeight,
+      safeHeight: surface.height * layout.printable.height,
+      layoutLogoHeight: layout.logoBox.height,
+      layoutSafeHeight: layout.printable.height,
+    };
+  });
+
+  expect(result.paintedHeight / result.safeHeight).toBeGreaterThanOrEqual(0.98);
+  expect(result.layoutLogoHeight).toBeCloseTo(result.layoutSafeHeight, 5);
+  await expectNoHorizontalOverflow(page);
+});
+
+test('ribbon overflow shows a clipped fragment and applies a proportional full preview', async ({
+  page,
+}, testInfo) => {
+  const fullText = 'Название бренда для упаковки';
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await page.locator('#repeatMm').evaluate((element) => {
+    element.value = '40';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#textInput').fill(fullText);
+
+  const card = page.locator(
+    testInfo.project.name === 'mobile'
+      ? '.ribbon-overflow-card-mobile'
+      : '.ribbon-overflow-card-desktop',
+  );
+  await expect(card).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-overflow',
+    'true',
+  );
+
+  const before = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const surface = [
+      ...document.querySelectorAll('[data-ribbon-overflow-full]'),
+    ]
+      .find((element) => element.getBoundingClientRect().width > 0)
+      .getBoundingClientRect();
+    const fullPreviewText = [
+      ...document.querySelectorAll('[data-ribbon-overflow-text]'),
+    ].find((element) => element.getBoundingClientRect().width > 0);
+    return {
+      layout,
+      surfaceRatio: surface.width / surface.height,
+      fullTextFits:
+        fullPreviewText.scrollWidth <= fullPreviewText.clientWidth + 1,
+      production: window.RibbonStudioProduction.serialize('ribbon'),
+    };
+  });
+  expect(before.layout.valid).toBe(false);
+  expect(before.layout.previewText).toMatch(/…$/);
+  expect(before.layout.previewText.length).toBeLessThan(fullText.length);
+  expect(before.layout.overflow.requiredRepeatMm).toBeGreaterThan(40);
+  expect(before.layout.overflow.requiredRepeatMm % 5).toBe(0);
+  expect(before.layout.overflow.canApply).toBe(true);
+  expect(before.surfaceRatio).toBeCloseTo(
+    before.layout.overflow.requiredRepeatMm / 15,
+    2,
+  );
+  expect(before.fullTextFits).toBe(true);
+  expect(before.production).not.toContain(fullText);
+  expect(before.production).not.toContain('…');
+
+  await expect(card.locator('[data-ribbon-overflow-text]')).toHaveText(
+    fullText,
+  );
+  await expect(card.locator('[data-apply-ribbon-repeat]')).toContainText(
+    `${before.layout.overflow.requiredRepeatMm} мм`,
+  );
+  const clippedPreview =
+    testInfo.project.name === 'mobile'
+      ? page.locator('.mobile-products-ribbon-text')
+      : page
+          .locator('[data-product-type="ribbon"] .dynamic-showcase-text')
+          .first();
+  await expect(clippedPreview).toHaveText(before.layout.previewText);
+  await expect(page.locator('#downloadOrder')).toBeDisabled();
+
+  await card.locator('[data-apply-ribbon-repeat]').click();
+  await expect(page.locator('#repeatMm')).toHaveValue(
+    String(before.layout.overflow.requiredRepeatMm),
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-overflow',
+    'false',
+  );
+  await expect(card).toBeHidden();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-artwork-valid',
+    'true',
+  );
+  const production = await page.evaluate(() =>
+    window.RibbonStudioProduction.serialize('ribbon'),
+  );
+  expect(production).toContain(fullText);
+  expect(production).not.toContain('…');
+  await expect(page.locator('#downloadOrder')).toBeEnabled();
+  await expectNoHorizontalOverflow(page);
+});
+
+test('demo and uploaded logos remain visible when the inscription grows', async ({
+  page,
+}, testInfo) => {
+  const fullText = 'Название бренда для упаковки';
+  const card = page.locator(
+    testInfo.project.name === 'mobile'
+      ? '.ribbon-overflow-card-mobile'
+      : '.ribbon-overflow-card-desktop',
+  );
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await page.locator('#textInput').fill(fullText);
+  await page.locator('#fontSize').evaluate((element) => {
+    element.value = '64';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-logo-demo',
+    'true',
+  );
+  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+  }
+  await expect(card).toBeVisible();
+  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+
+  let result = await page.evaluate(() => {
+    const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const production = JSON.parse(
+      document.body.dataset.studioProductionLayout,
+    ).ribbon;
+    return {
+      preview,
+      production,
+      content: JSON.parse(document.body.dataset.studioContent),
+      serialized: window.RibbonStudioProduction.serialize('ribbon'),
+    };
+  });
+  expect(result.preview.logoBox).not.toBeNull();
+  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.production.logoBox).toBeNull();
+  expect(result.content.logo.common).toBeNull();
+  expect(result.serialized).not.toContain('<image');
+
+  const demoSrc = await page.locator('#macroLogoImage').getAttribute('src');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-logo-demo',
+    'false',
+  );
+  await expect
+    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
+    .not.toBe(demoSrc);
+  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+
+  result = await page.evaluate(() => {
+    const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const production = JSON.parse(
+      document.body.dataset.studioProductionLayout,
+    ).ribbon;
+    return {
+      preview,
+      production,
+      content: JSON.parse(document.body.dataset.studioContent),
+      serialized: window.RibbonStudioProduction.serialize('ribbon'),
+    };
+  });
+  expect(result.preview.logoBox).not.toBeNull();
+  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.production.logoBox).not.toBeNull();
+  expect(result.content.logo.common).toMatchObject({
+    hasLogo: true,
+    logoType: 'svg',
+  });
+  expect(result.serialized).toContain('<image');
+  await expectNoHorizontalOverflow(page);
+});
+
+test('long production text is invalid and is not rendered outside printable areas', async ({
+  page,
+}, testInfo) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
   await page
@@ -2500,14 +3105,44 @@ test('long production text is invalid and is not rendered outside printable area
   expect(layouts.sticker.valid).toBe(false);
   expect(layouts.ribbon.reason).toBe('text-too-long');
   expect(layouts.sticker.reason).toBe('text-too-long');
-  await expect(page.locator('#ribbonContent text')).toHaveCount(0);
-  await expect(page.locator('#stickerContent text')).toHaveCount(0);
+  await expect(
+    page.locator('#ribbonContent [data-production-content] text'),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('#stickerContent [data-production-content] text'),
+  ).toHaveCount(0);
   await expect(page.locator('#artworkValidation')).toContainText(
     'Сократите надпись',
   );
   await expect(page.locator('#downloadOrder')).toBeDisabled();
-  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+    await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(/…$/);
+  } else {
+    await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+    await expect(
+      page
+        .locator('[data-product-type="ribbon"] .dynamic-showcase-text')
+        .first(),
+    ).toHaveText(/…$/);
+  }
   await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+  const overflowCard = page.locator(
+    testInfo.project.name === 'mobile'
+      ? '.ribbon-overflow-card-mobile'
+      : '.ribbon-overflow-card-desktop',
+  );
+  await expect(overflowCard).toBeVisible();
+  await expect(
+    overflowCard.locator('[data-ribbon-overflow-message]'),
+  ).toContainText(
+    /доступно не более 250 мм|Не удалось подобрать производственный шаг/,
+  );
+  await expect(overflowCard.locator('[data-apply-ribbon-repeat]')).toBeHidden();
+  const invalidProduction = await page.evaluate(() =>
+    window.RibbonStudioProduction.serialize('ribbon'),
+  );
+  expect(invalidProduction).not.toContain('…');
 
   await page.locator('#textInput').fill('коротко');
   await expect(page.locator('body')).toHaveAttribute(
@@ -2515,14 +3150,16 @@ test('long production text is invalid and is not rendered outside printable area
     'true',
   );
   await expect(page.locator('#ribbonContent text').first()).toBeAttached();
-  await expect(page.locator('#stickerContent text')).toBeAttached();
+  await expect(page.locator('#stickerContent text').first()).toBeAttached();
   await expect(page.locator('#downloadOrder')).toBeEnabled();
+  await expect(overflowCard).toBeHidden();
 });
 
 test('effective layout is shared with macro and mobile and sticker boxes pass corner validation', async ({
   page,
 }) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
   await page
     .locator('#stickerSizeChoice button[data-value="25"]')
