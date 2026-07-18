@@ -13,7 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   } = window.RibbonStudioLayout;
   const textMeasureContext = document.createElement('canvas').getContext('2d');
   let currentLayouts = {ribbon: null, sticker: null};
+  let currentPreviewLayouts = {ribbon: null, sticker: null};
   let textMeasurementSvg = null;
+  let demoLogoAsset = null;
+  const DEMO_TEXT = 'ленты по любви';
+  const MIN_RIBBON_REPEAT_MM = 40;
+  const MAX_RIBBON_REPEAT_MM = 250;
 
   const state = {
     panel: 'upload',
@@ -27,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     traceInfo: null,
     logoScale: 1,
     logoOffsetX: 0,
-    text: 'ленты по любви',
+    text: DEMO_TEXT,
     content: {
       logo: {
         common: null,
@@ -46,6 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bundle: 'bundle',
     stickerSize: 40,
     stickerBg: '#ffffff',
+    showPrintGuides: false,
+    commonTextAuthored: false,
+    commonLogoUploaded: false,
     meters: 100,
     stickerQty: 100,
     lastMeters: 100,
@@ -53,7 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   let hasUsedCommonTextEditor = false;
   let hasUsedCommonLogoEditor = false;
+  let hasCompletedCommonLogoUpload = false;
   let pendingLogoTarget = 'common';
+  let cropModalOrigin = null;
+  let orderModalOrigin = null;
 
   const cropState = {
     file: null,
@@ -74,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const DEFAULT_LOGO_SVG = `<?xml version="1.0" encoding="UTF-8"?>
-<svg id="_Слой_1" data-name="Слой 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+<svg id="_Слой_1" data-name="Слой 1" xmlns="http://www.w3.org/2000/svg" viewBox="6.5 11.35 87.5 27.3">
   <defs><style>.cls-1{fill:#1d1d1b;}</style></defs>
   <g>
     <path class="cls-1" d="m27.75,16.43c-.44,0-.79.35-.83.78-.08.78-.42,1.54-1.01,2.13-.93.93-2.25,1.23-3.43.91-.5-.14-.67-.78-.3-1.15l.59-.59,3.59-3.59.57-.57c.28-.28.28-.74,0-1.02h0c-2.08-2.08-5.54-1.94-7.43.42-1.44,1.79-1.44,4.41,0,6.2,1.89,2.36,5.35,2.5,7.43.42.92-.92,1.4-2.1,1.45-3.3.01-.35-.28-.64-.63-.64h0Zm-6.84-2.08c1.2-1.2,3.06-1.35,4.43-.46l-4.89,4.89c-.89-1.37-.74-3.22.46-4.43Z"/>
@@ -211,6 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return override?.mode === 'override' ? override.value : state.content.text.common;
   }
 
+  function isDemoPreviewActive() {
+    return !state.commonTextAuthored && !state.commonLogoUploaded;
+  }
+
   function setCommonText(value) {
     const common = typeof value === 'string' ? value : '';
     state.content.text.common = common;
@@ -236,6 +251,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function getResolvedLogo(product) {
     const override = state.content.logo[product];
     return override?.mode === 'override' ? override.value : state.content.logo.common;
+  }
+
+  function isDemoLogoPreview(product) {
+    return Boolean(
+      demoLogoAsset &&
+      state.content.logo[product]?.mode !== 'override' &&
+      !getResolvedLogo(product),
+    );
+  }
+
+  function getPreviewLogo(product) {
+    return isDemoLogoPreview(product)
+      ? demoLogoAsset
+      : getResolvedLogo(product);
   }
 
   function normalizeLogoTarget(target) {
@@ -280,8 +309,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function commitLogoAsset(asset, target) {
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
+      if (!state.commonTextAuthored) {
+        state.text = '';
+        state.content.text.common = '';
+      }
       state.content.logo.common = asset;
+      hasCompletedCommonLogoUpload = true;
+      state.commonLogoUploaded = true;
       syncLegacyContentAliasesFromContent();
+      updateFirstStepAvailability();
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
     }
@@ -413,15 +449,33 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
       Object.assign(state, restored);
+      state.showPrintGuides = restored.showPrintGuides === true;
       if (![25, 30, 40, 50].includes(Number(state.stickerSize))) {
         state.stickerSize = 40;
       }
+      state.repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.max(
+          MIN_RIBBON_REPEAT_MM,
+          Number(state.repeatMm) || 100,
+        ),
+      );
 
-      const legacyDemoTexts = ['привет', 'печатаетмаксим', 'сделано красиво'];
+      const legacyDemoTexts = [
+        'привет',
+        'печатаетмаксим',
+        'сделано красиво',
+        DEMO_TEXT,
+      ];
       if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
-        state.text = 'ленты по любви';
+        state.text = DEMO_TEXT;
       }
       state.content = normalizeContentModel(restored.content, state);
+      const commonText = state.content.text.common.trim();
+      state.commonTextAuthored =
+        restored.commonTextAuthored === true ||
+        Boolean(commonText && !legacyDemoTexts.includes(commonText.toLowerCase()));
+      state.commonLogoUploaded = restored.commonLogoUploaded === true;
       syncLegacyContentAliasesFromContent();
 
       const validMeters = [10, 25, 50, 100, 200];
@@ -450,19 +504,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadDefaultLogo() {
-    if (state.logo) return;
+    if (!demoLogoAsset) {
+      const doc = new DOMParser().parseFromString(
+        DEFAULT_LOGO_SVG,
+        'image/svg+xml',
+      );
+      const svg = doc.documentElement;
+      const viewBox = (svg.getAttribute('viewBox') || '0 0 100 50')
+        .trim()
+        .split(/\s+/)
+        .map(Number);
+      const ratio =
+        viewBox.length === 4 && viewBox[3] ? viewBox[2] / viewBox[3] : 2;
+      demoLogoAsset = {
+        logo: {
+          data: recolorSvgSource(DEFAULT_LOGO_SVG),
+          ratio,
+        },
+        logoType: 'svg',
+        logoSvgSource: DEFAULT_LOGO_SVG,
+        originalRaster: null,
+        traceInfo: null,
+      };
+    }
 
-    const doc = new DOMParser().parseFromString(DEFAULT_LOGO_SVG, 'image/svg+xml');
-    const svg = doc.documentElement;
-    const viewBox = (svg.getAttribute('viewBox') || '0 0 100 50')
-      .trim().split(/\s+/).map(Number);
-    const ratio = viewBox.length === 4 && viewBox[3] ? viewBox[2] / viewBox[3] : 2;
+    if (state.logo || state.commonTextAuthored || state.commonLogoUploaded) return;
 
     state.logoSvgSource = DEFAULT_LOGO_SVG;
-    state.logo = {
-      data: recolorSvgSource(DEFAULT_LOGO_SVG),
-      ratio
-    };
+    state.logo = {...demoLogoAsset.logo};
     state.logoType = 'svg';
     syncCommonContentFromLegacyAliases();
   }
@@ -529,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const product = root.dataset.productType === 'sticker' ? 'sticker' : 'ribbon';
-        const fixedLogo = recolorLogoForShowcase(getResolvedLogo(product), item.print);
+        const fixedLogo = recolorLogoForShowcase(getPreviewLogo(product), item.print);
 
         root.querySelectorAll('.dynamic-showcase-logo').forEach((img) => {
           if (fixedLogo) {
@@ -557,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
           img.closest('[data-product-type]')?.dataset.productType === 'sticker'
             ? 'sticker'
             : 'ribbon';
-        const asset = getResolvedLogo(product);
+        const asset = getPreviewLogo(product);
         if (asset?.logo?.data) {
           img.src = asset.logo.data;
           img.hidden = false;
@@ -595,10 +664,90 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showPanel(id) {
+    if (id !== 'upload' && !isFirstStepReady()) return;
+
     state.panel = id;
+    document.body.dataset.activePanel = id;
+    if (id === 'order') setPrintGuidesEditing(false);
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
     updateProductShowcase();
+  }
+
+  function setPrintGuidesEditing(active) {
+    document.body.classList.toggle('print-guides-editing', Boolean(active));
+  }
+
+  function syncPrintGuideState() {
+    const visible = Boolean(state.showPrintGuides);
+    document.body.classList.toggle('print-guides-pinned', visible);
+    if ($('#printGuidesToggle')) $('#printGuidesToggle').checked = visible;
+  }
+
+  function isFirstStepReady() {
+    return (
+      hasCompletedCommonLogoUpload ||
+      (hasUsedCommonTextEditor && Boolean(state.content.text.common.trim()))
+    );
+  }
+
+  function updateFirstStepAvailability() {
+    const ready = isFirstStepReady();
+    const continueButton = $('#continueUpload');
+    if (continueButton) continueButton.disabled = !ready;
+
+    $$('.nav-item').forEach((button) => {
+      if (button.dataset.panel === 'upload') return;
+      button.disabled = !ready;
+    });
+  }
+
+  function clearDemoLogo() {
+    if (state.commonLogoUploaded || hasCompletedCommonLogoUpload) return;
+    state.logo = null;
+    state.logoType = null;
+    state.logoSvgSource = null;
+    state.originalRaster = null;
+    state.traceInfo = null;
+    state.content.logo.common = null;
+  }
+
+  function trapDialogFocus(event, dialog) {
+    if (event.key !== 'Tab') return;
+    const focusable = [
+      ...dialog.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter(
+      (element) =>
+        !element.hidden &&
+        !element.closest('[hidden]') &&
+        element.offsetParent !== null,
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function downloadTextFile(filename, content) {
+    const url = URL.createObjectURL(
+      new Blob([content], {type: 'text/plain;charset=utf-8'}),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function drawText(parent, x, y, size, value, anchor = 'middle') {
@@ -678,9 +827,188 @@ document.addEventListener('DOMContentLoaded', () => {
     return image;
   }
 
-  function renderRibbon() {
+  function calculateRibbonLayout(
+    repeatMm,
+    text,
+    resolvedLogo,
+    textMetrics = getTextMetrics(text),
+  ) {
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
+    const repeatWidth = Math.max(360, repeatMm * 6.2);
+    const printable = getRibbonPrintableGeometry({
+      widthMm: state.width,
+      repeatMm,
+      x: 0,
+      y,
+      width: repeatWidth,
+      height,
+    });
+    const layout = getRibbonContentLayout({
+      bounds: printable.bounds,
+      centerY: y + height / 2,
+      logo: resolvedLogo?.logo
+        ? {ratio: Number(resolvedLogo.logo.ratio) || 1}
+        : null,
+      text,
+      textMetrics,
+      logoScale: state.logoScale,
+      logoOffsetX: state.logoOffsetX,
+      preferredFontSize:
+        (state.width === 20 ? 39 : 31) * (state.fontSize / 32),
+    });
+    return {
+      ...layout,
+      outer: {x: 0, y, width: repeatWidth, height},
+      printable,
+      repeatMm,
+    };
+  }
+
+  function getClippedRibbonPreview(text, resolvedLogo) {
+    const characters = [...text.trim()];
+    let low = 0;
+    let high = characters.length;
+    let result = null;
+
+    while (low <= high) {
+      const length = Math.floor((low + high) / 2);
+      const prefix = characters.slice(0, length).join('').trimEnd();
+      const candidate = `${prefix}…`;
+      const layout = calculateRibbonLayout(
+        state.repeatMm,
+        candidate,
+        resolvedLogo,
+      );
+      if (layout.valid) {
+        result = {text: candidate, layout};
+        low = length + 1;
+      } else {
+        high = length - 1;
+      }
+    }
+
+    return result;
+  }
+
+  function getRequiredRibbonLayout(text, resolvedLogo, textMetrics) {
+    const recommendationMetrics = {
+      ...textMetrics,
+      widthPerSize: textMetrics.widthPerSize * 1.28,
+    };
+    const minimum = Math.max(MIN_RIBBON_REPEAT_MM, state.repeatMm);
+    let maximum = Math.max(MAX_RIBBON_REPEAT_MM, minimum);
+    let maximumLayout = calculateRibbonLayout(
+      maximum,
+      text,
+      resolvedLogo,
+      recommendationMetrics,
+    );
+
+    while (!maximumLayout.valid && maximum < 10000) {
+      maximum = Math.min(10000, maximum * 2);
+      maximumLayout = calculateRibbonLayout(
+        maximum,
+        text,
+        resolvedLogo,
+        recommendationMetrics,
+      );
+    }
+    if (!maximumLayout.valid) return null;
+
+    let low = minimum;
+    let high = maximum;
+    while (high - low > 1) {
+      const middle = (low + high) / 2;
+      const layout = calculateRibbonLayout(
+        middle,
+        text,
+        resolvedLogo,
+        recommendationMetrics,
+      );
+      if (layout.valid) high = middle;
+      else low = middle;
+    }
+
+    let repeatMm = Math.ceil(high / 5) * 5;
+    let layout = calculateRibbonLayout(
+      repeatMm,
+      text,
+      resolvedLogo,
+      recommendationMetrics,
+    );
+    while (!layout.valid && repeatMm < 10000) {
+      repeatMm += 5;
+      layout = calculateRibbonLayout(
+        repeatMm,
+        text,
+        resolvedLogo,
+        recommendationMetrics,
+      );
+    }
+    return layout.valid ? {repeatMm, layout} : null;
+  }
+
+  function addRibbonOverflow(layout, text, resolvedLogo, textMetrics) {
+    if (layout.valid || !text) return layout;
+
+    const preview = getClippedRibbonPreview(text, resolvedLogo);
+    const required = getRequiredRibbonLayout(
+      text,
+      resolvedLogo,
+      textMetrics,
+    );
+    layout.previewText = preview?.text || '…';
+    layout.previewTextBox = preview?.layout.textBox || null;
+    layout.previewFontSize =
+      preview?.layout.fontSize || layout.fontSize;
+    layout.overflow = required
+      ? {
+          requiredRepeatMm: required.repeatMm,
+          canApply: required.repeatMm <= MAX_RIBBON_REPEAT_MM,
+          fullLayout: required.layout,
+        }
+      : {
+          requiredRepeatMm: null,
+          canApply: false,
+          fullLayout: null,
+        };
+    return layout;
+  }
+
+  function renderRibbon() {
+    const resolvedLogo = getResolvedLogo('ribbon');
+    const previewLogo = getPreviewLogo('ribbon');
+    const resolvedText = getResolvedText('ribbon').trim();
+    const textMetrics = getTextMetrics(resolvedText);
+    const ribbonLayout = addRibbonOverflow(
+      calculateRibbonLayout(
+        state.repeatMm,
+        resolvedText,
+        resolvedLogo,
+        textMetrics,
+      ),
+      resolvedText,
+      resolvedLogo,
+      textMetrics,
+    );
+    const previewLayout = previewLogo === resolvedLogo
+      ? ribbonLayout
+      : addRibbonOverflow(
+          calculateRibbonLayout(
+            state.repeatMm,
+            resolvedText,
+            previewLogo,
+            textMetrics,
+          ),
+          resolvedText,
+          previewLogo,
+          textMetrics,
+        );
+    const {height, y, width: repeatWidth} = ribbonLayout.outer;
+    const {printable} = ribbonLayout;
+    currentLayouts.ribbon = ribbonLayout;
+    currentPreviewLayouts.ribbon = previewLayout;
 
     ['ribbonBase', 'ribbonShine', 'clipRect'].forEach((id) => {
       const element = $('#' + id);
@@ -688,52 +1016,19 @@ document.addEventListener('DOMContentLoaded', () => {
       element.setAttribute('y', y);
       element.setAttribute('height', height);
     });
-
     if ($('#ribbonBase')) $('#ribbonBase').setAttribute('fill', state.ribbon);
 
     const layer = $('#ribbonContent');
     if (!layer) return;
     layer.innerHTML = '';
 
-    const repeatWidth = Math.max(360, state.repeatMm * 6.2);
-    const printable = getRibbonPrintableGeometry({
-      widthMm: state.width,
-      repeatMm: state.repeatMm,
-      x: 0,
-      y,
-      width: repeatWidth,
-      height,
-    });
     const guideRect = $('#ribbonPrintableGuide rect');
     if (guideRect) {
       guideRect.setAttribute('x', 28 + printable.bounds.x);
       guideRect.setAttribute('y', printable.bounds.y);
-      guideRect.setAttribute(
-        'width',
-        1144 - 2 * printable.bounds.x,
-      );
+      guideRect.setAttribute('width', 1144 - 2 * printable.bounds.x);
       guideRect.setAttribute('height', printable.bounds.height);
     }
-    const resolvedLogo = getResolvedLogo('ribbon');
-    const hasLogo = Boolean(resolvedLogo?.logo);
-    const resolvedText = getResolvedText('ribbon');
-    const hasText = Boolean(resolvedText.trim());
-    const ribbonLayout = getRibbonContentLayout({
-      bounds: printable.bounds,
-      centerY: 130,
-      logo: hasLogo ? {ratio: Number(resolvedLogo.logo.ratio) || 1} : null,
-      text: hasText ? resolvedText : '',
-      textMetrics: getTextMetrics(resolvedText),
-      logoScale: state.logoScale,
-      logoOffsetX: state.logoOffsetX,
-      preferredFontSize:
-        (state.width === 20 ? 39 : 31) * (state.fontSize / 32),
-    });
-    currentLayouts.ribbon = {
-      ...ribbonLayout,
-      outer: {x: 0, y, width: repeatWidth, height},
-      printable,
-    };
 
     for (let startX = -30; startX < 1260; startX += repeatWidth) {
       const cell = svgEl('g');
@@ -752,7 +1047,10 @@ document.addEventListener('DOMContentLoaded', () => {
       defs.appendChild(clipPath);
       cell.appendChild(defs);
 
-      const content = svgEl('g', {'clip-path': `url(#${clipId})`});
+      const content = svgEl('g', {
+        'clip-path': `url(#${clipId})`,
+        'data-production-content': '',
+      });
 
       if (ribbonLayout.logoBox) {
         drawLogoBox(content, resolvedLogo, {
@@ -772,6 +1070,39 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       cell.appendChild(content);
+
+      if (previewLayout !== ribbonLayout) {
+        cell.dataset.demoLogoPreview = 'true';
+        const previewContent = svgEl('g', {
+          'clip-path': `url(#${clipId})`,
+          'data-preview-overlay': '',
+        });
+        if (previewLayout.logoBox) {
+          drawLogoBox(previewContent, previewLogo, {
+            ...previewLayout.logoBox,
+            x: startX + previewLayout.logoBox.x,
+          });
+        }
+        const previewTextBox = previewLayout.valid
+          ? previewLayout.textBox
+          : previewLayout.previewTextBox;
+        const previewText = previewLayout.valid
+          ? resolvedText
+          : previewLayout.previewText;
+        const previewFontSize = previewLayout.valid
+          ? previewLayout.fontSize
+          : previewLayout.previewFontSize;
+        if (previewTextBox && previewText) {
+          drawText(
+            previewContent,
+            startX + previewTextBox.x + previewTextBox.width / 2,
+            previewTextBox.y + previewTextBox.height / 2,
+            previewFontSize,
+            previewText,
+          );
+        }
+        cell.appendChild(previewContent);
+      }
       layer.appendChild(cell);
     }
   }
@@ -784,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     layer.innerHTML = '';
 
     const resolvedLogo = getResolvedLogo('sticker');
-    const hasLogo = Boolean(resolvedLogo?.logo);
+    const previewLogo = getPreviewLogo('sticker');
     const resolvedText = getResolvedText('sticker');
     const hasText = Boolean(resolvedText.trim());
     const printable = getStickerPrintableGeometry({
@@ -796,39 +1127,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const guideCircle = $('#stickerPrintableGuide circle');
     if (guideCircle) guideCircle.setAttribute('r', printable.circle.radius);
     const stickerPreferred = {
-      25: {combined: 19, textOnly: 24},
-      30: {combined: 22, textOnly: 28},
-      40: {combined: 27, textOnly: 35},
-      50: {combined: 31, textOnly: 40},
+      25: {combined: 28, textOnly: 34},
+      30: {combined: 30, textOnly: 38},
+      40: {combined: 32, textOnly: 44},
+      50: {combined: 33, textOnly: 48},
     }[state.stickerSize];
 
-    const stickerLayout = getStickerContentLayout({
-      circle: printable.circle,
-      logo: hasLogo ? {ratio: Number(resolvedLogo.logo.ratio) || 1} : null,
-      text: hasText ? resolvedText : '',
-      textMetrics: getTextMetrics(resolvedText),
-      logoScale: state.logoScale,
-      preferredFontSize: hasLogo && hasText
-        ? stickerPreferred.combined * (state.fontSize / 32)
-        : stickerPreferred.textOnly * (state.fontSize / 32),
-    });
+    const getLayout = (logo) => {
+      const hasLogo = Boolean(logo?.logo);
+      return getStickerContentLayout({
+        circle: printable.circle,
+        logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
+        text: hasText ? resolvedText : '',
+        textMetrics: getTextMetrics(resolvedText),
+        logoScale: state.logoScale,
+        preferredFontSize: hasLogo && hasText
+          ? stickerPreferred.combined * (state.fontSize / 32)
+          : stickerPreferred.textOnly * (state.fontSize / 32),
+      });
+    };
+    const stickerLayout = getLayout(resolvedLogo);
+    const previewLayout = previewLogo === resolvedLogo
+      ? stickerLayout
+      : getLayout(previewLogo);
     currentLayouts.sticker = {
       ...stickerLayout,
       outer: {x: 22, y: 22, width: 356, height: 356},
       printable,
     };
+    currentPreviewLayouts.sticker = {
+      ...previewLayout,
+      outer: {x: 22, y: 22, width: 356, height: 356},
+      printable,
+    };
+
+    const productionContent = svgEl('g', {
+      'data-production-content': '',
+    });
     if (stickerLayout.logoBox) {
-      drawLogoBox(layer, resolvedLogo, stickerLayout.logoBox);
+      drawLogoBox(productionContent, resolvedLogo, stickerLayout.logoBox);
     }
     if (stickerLayout.valid && stickerLayout.textBox) {
       const text = drawText(
-        layer,
+        productionContent,
         stickerLayout.textBox.x + stickerLayout.textBox.width / 2,
         stickerLayout.textBox.y + stickerLayout.textBox.height / 2,
         stickerLayout.fontSize,
         resolvedText,
       );
       text.dataset.effectiveFontSize = String(stickerLayout.fontSize);
+    }
+    layer.appendChild(productionContent);
+
+    if (previewLayout !== stickerLayout) {
+      layer.dataset.demoLogoPreview = 'true';
+      const previewContent = svgEl('g', {'data-preview-overlay': ''});
+      if (previewLayout.logoBox) {
+        drawLogoBox(previewContent, previewLogo, previewLayout.logoBox);
+      }
+      if (previewLayout.valid && previewLayout.textBox) {
+        drawText(
+          previewContent,
+          previewLayout.textBox.x + previewLayout.textBox.width / 2,
+          previewLayout.textBox.y + previewLayout.textBox.height / 2,
+          previewLayout.fontSize,
+          resolvedText,
+        );
+      }
+      layer.appendChild(previewContent);
+    } else {
+      delete layer.dataset.demoLogoPreview;
     }
 
     if ($('#stickerSizeLabel')) {
@@ -865,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
             height: box.height / outer.height,
           }
         : null;
-    return {
+    const normalized = {
       valid: layout.valid,
       reason: layout.reason || null,
       logoBox: normalizeBox(layout.logoBox),
@@ -879,6 +1247,20 @@ document.addEventListener('DOMContentLoaded', () => {
             radius: layout.circle.radius / outer.width,
           },
     };
+    if (layout.previewText) {
+      normalized.previewText = layout.previewText;
+      normalized.previewTextBox = normalizeBox(layout.previewTextBox);
+      normalized.previewFontSizeRatio =
+        layout.previewFontSize / outer.height;
+    }
+    if (layout.overflow) {
+      normalized.overflow = {
+        requiredRepeatMm: layout.overflow.requiredRepeatMm,
+        canApply: layout.overflow.canApply,
+        fullLayout: normalizeLayout(layout.overflow.fullLayout),
+      };
+    }
+    return normalized;
   }
 
   function positionPreviewContent(root, image, text, layout, textValue) {
@@ -893,28 +1275,147 @@ document.addEventListener('DOMContentLoaded', () => {
       image.style.transform = 'translate(-50%, -50%)';
     }
     if (text) {
-      const showText = Boolean(layout.valid && layout.textBox && textValue.trim());
+      const textBox = layout.valid
+        ? layout.textBox
+        : layout.previewTextBox;
+      const displayText = layout.valid ? textValue.trim() : layout.previewText;
+      const fontSizeRatio = layout.valid
+        ? layout.fontSizeRatio
+        : layout.previewFontSizeRatio;
+      const showText = Boolean(textBox && displayText);
       text.hidden = !showText;
       if (showText) {
-        text.style.left = `${(layout.textBox.x + layout.textBox.width / 2) * 100}%`;
-        text.style.top = `${(layout.textBox.y + layout.textBox.height / 2) * 100}%`;
-        text.style.width = `${layout.textBox.width * 100}%`;
-        text.style.height = `${layout.textBox.height * 100}%`;
+        text.textContent = displayText;
+        text.style.left = `${(textBox.x + textBox.width / 2) * 100}%`;
+        text.style.top = `${(textBox.y + textBox.height / 2) * 100}%`;
+        text.style.width = `${textBox.width * 100}%`;
+        text.style.height = `${textBox.height * 100}%`;
         text.style.setProperty(
           'font-size',
-          `${layout.fontSizeRatio * root.getBoundingClientRect().height}px`,
+          `${fontSizeRatio * root.getBoundingClientRect().height}px`,
           'important',
         );
       }
     }
   }
 
+  function updateRibbonOverflowCards(layout) {
+    const overflow = layout?.overflow;
+    const visible = Boolean(overflow && state.bundle !== 'sticker');
+    const requiredRepeatMm = overflow?.requiredRepeatMm || null;
+    document.body.dataset.ribbonOverflow = String(visible);
+    if (requiredRepeatMm) {
+      document.body.dataset.ribbonRecommendedRepeat = String(
+        requiredRepeatMm,
+      );
+    } else {
+      delete document.body.dataset.ribbonRecommendedRepeat;
+    }
+
+    const displayText = layout?.previewText || getResolvedText('ribbon').trim();
+    $$('[data-product-type="ribbon"] .dynamic-showcase-text').forEach(
+      (element) => {
+        element.textContent = displayText;
+      },
+    );
+
+    $$('[data-ribbon-overflow-card]').forEach((card) => {
+      card.hidden = !visible;
+      if (!visible) return;
+
+      const fullLayout = overflow.fullLayout;
+      const surface = card.querySelector('[data-ribbon-overflow-full]');
+      const logo = card.querySelector('[data-ribbon-overflow-logo]');
+      const text = card.querySelector('[data-ribbon-overflow-text]');
+      const measure = card.querySelector('[data-ribbon-overflow-measure]');
+      const message = card.querySelector('[data-ribbon-overflow-message]');
+      const button = card.querySelector('[data-apply-ribbon-repeat]');
+      const resolvedLogo = getPreviewLogo('ribbon');
+      const fullText = getResolvedText('ribbon').trim();
+
+      card.dataset.canApply = String(Boolean(overflow.canApply));
+      if (measure) {
+        measure.textContent = requiredRepeatMm
+          ? `Рекомендуемый шаг ${requiredRepeatMm} мм`
+          : 'Надпись слишком длинная';
+      }
+      if (message) {
+        message.textContent = overflow.canApply
+          ? `Полный текст поместится без уменьшения при шаге ${requiredRepeatMm} мм.`
+          : requiredRepeatMm
+            ? `Для полного текста нужен шаг ${requiredRepeatMm} мм — доступно не более ${MAX_RIBBON_REPEAT_MM} мм. Уменьшите текст или размер шрифта.`
+            : 'Не удалось подобрать производственный шаг. Уменьшите текст или размер шрифта.';
+      }
+      if (button) {
+        button.hidden = !overflow.canApply;
+        button.dataset.repeatMm = requiredRepeatMm || '';
+        button.textContent = requiredRepeatMm
+          ? `Применить шаг ${requiredRepeatMm} мм`
+          : 'Применить рекомендуемый шаг';
+      }
+      if (!surface) return;
+      surface.hidden = !fullLayout || !requiredRepeatMm;
+      if (!fullLayout || !requiredRepeatMm) return;
+
+      surface.style.aspectRatio = `${requiredRepeatMm} / ${state.width}`;
+      surface.style.minHeight =
+        requiredRepeatMm > MAX_RIBBON_REPEAT_MM ? '18px' : '';
+      surface.style.backgroundColor = state.ribbon;
+      surface.style.color = state.print;
+      surface.dataset.repeatMm = String(requiredRepeatMm);
+      surface.dataset.ribbonWidthMm = String(state.width);
+      surface.dataset.layout = JSON.stringify(fullLayout);
+      surface.setAttribute(
+        'aria-label',
+        `Полный макет надписи на ленте ${state.width} мм с шагом ${requiredRepeatMm} мм`,
+      );
+
+      const surfaceHeight = surface.getBoundingClientRect().height;
+      if (logo) {
+        const logoBox = fullLayout.logoBox;
+        logo.hidden = !logoBox || !resolvedLogo?.logo?.data;
+        if (!logo.hidden) {
+          logo.src = resolvedLogo.logo.data;
+          logo.style.left =
+            `${(logoBox.x + logoBox.width / 2) * 100}%`;
+          logo.style.top =
+            `${(logoBox.y + logoBox.height / 2) * 100}%`;
+          logo.style.width = `${logoBox.width * 100}%`;
+          logo.style.height = `${logoBox.height * 100}%`;
+        }
+      }
+      if (text) {
+        text.hidden = !fullLayout.textBox || !fullText;
+        if (!text.hidden) {
+          const textBox = fullLayout.textBox;
+          text.textContent = fullText;
+          text.style.left =
+            `${(textBox.x + textBox.width / 2) * 100}%`;
+          text.style.top =
+            `${(textBox.y + textBox.height / 2) * 100}%`;
+          text.style.width = `${textBox.width * 100}%`;
+          text.style.height = `${textBox.height * 100}%`;
+          text.style.fontFamily = state.font;
+          text.style.fontSize =
+            `${fullLayout.fontSizeRatio * surfaceHeight}px`;
+          text.style.color = state.print;
+        }
+      }
+    });
+  }
+
   function publishEffectiveLayouts() {
     const layouts = {
+      ribbon: normalizeLayout(currentPreviewLayouts.ribbon),
+      sticker: normalizeLayout(currentPreviewLayouts.sticker),
+    };
+    const productionLayouts = {
       ribbon: normalizeLayout(currentLayouts.ribbon),
       sticker: normalizeLayout(currentLayouts.sticker),
     };
     document.body.dataset.studioLayout = JSON.stringify(layouts);
+    document.body.dataset.studioProductionLayout =
+      JSON.stringify(productionLayouts);
     document.body.style.setProperty(
       '--ribbon-repeat-margin-percent',
       `${layouts.ribbon.printable.x * 100}%`,
@@ -975,6 +1476,7 @@ document.addEventListener('DOMContentLoaded', () => {
       layouts.sticker,
       getResolvedText('sticker'),
     );
+    updateRibbonOverflowCards(layouts.ribbon);
     const invalid = [
       state.bundle !== 'sticker' && !layouts.ribbon.valid ? 'ribbon' : null,
       state.bundle !== 'ribbon' && !layouts.sticker.valid ? 'sticker' : null,
@@ -982,9 +1484,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const validation = $('#artworkValidation');
     if (validation) {
       validation.hidden = invalid.length === 0;
-      validation.textContent = invalid.length
-        ? 'Текст не помещается в печатную область. Сократите надпись.'
-        : '';
+      if (!invalid.length) {
+        validation.textContent = '';
+      } else if (invalid.includes('ribbon') && layouts.ribbon.overflow) {
+        const {requiredRepeatMm, canApply} = layouts.ribbon.overflow;
+        validation.textContent = canApply
+          ? `Текст не помещается в текущий шаг ленты. Примените рекомендуемый шаг ${requiredRepeatMm} мм.`
+          : `Текст не помещается в ленту: требуется шаг ${requiredRepeatMm || 'более 10 000'} мм, доступно не более ${MAX_RIBBON_REPEAT_MM} мм. Сократите надпись или размер текста.`;
+        if (invalid.includes('sticker')) {
+          validation.textContent += ' Надпись также не помещается на стикере.';
+        }
+      } else {
+        validation.textContent =
+          'Текст не помещается в печатную область. Сократите надпись.';
+      }
     }
     document.body.dataset.artworkValid = String(invalid.length === 0);
     $('#downloadOrder').disabled = invalid.length > 0;
@@ -1090,8 +1603,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ribbonTextValue = getResolvedText('ribbon');
     const stickerTextValue = getResolvedText('sticker');
-    const ribbonLogo = getResolvedLogo('ribbon');
-    const stickerLogo = getResolvedLogo('sticker');
+    const ribbonLogo = getPreviewLogo('ribbon');
+    const stickerLogo = getPreviewLogo('sticker');
 
     const macroImage = $('#macroLogoImage');
     const macroText = $('#macroLogoText');
@@ -1194,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getRecommendation() {
-    const resolvedLogos = [getResolvedLogo('ribbon'), getResolvedLogo('sticker')].filter(
+    const resolvedLogos = [getPreviewLogo('ribbon'), getPreviewLogo('sticker')].filter(
       (asset) => asset?.logo
     );
     const ratios = resolvedLogos.map((asset) => Number(asset.logo.ratio) || 1);
@@ -1245,6 +1758,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function render() {
     // The existing upload pipeline writes the legacy common aliases.
     syncCommonContentFromLegacyAliases();
+    const previewLogoDemo = ['ribbon', 'sticker'].some((product) =>
+      isDemoLogoPreview(product),
+    );
+    document.body.dataset.previewDemo = String(
+      isDemoPreviewActive() || previewLogoDemo,
+    );
+    document.body.dataset.previewLogoDemo = String(previewLogoDemo);
     updateShowcaseContent();
     const printMode =
       state.print === '#b69249' ? 'gold' :
@@ -1374,7 +1894,6 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#fileCardName').textContent = file.name;
     $('#fileCardMeta').textContent = meta;
     $('#fileCardQuality').textContent = quality;
-    $('#continueUpload').disabled = false;
   }
 
   function isNonePaint(value) {
@@ -1476,6 +1995,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     recolorAsset(state.content.logo.common);
+    recolorAsset(demoLogoAsset);
     ['ribbon', 'sticker'].forEach((product) => {
       const override = state.content.logo[product];
       if (override.mode === 'override') recolorAsset(override.value);
@@ -1647,16 +2167,29 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#cropZoom').value = 100;
     resetCropFrame();
 
+    cropModalOrigin =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : $('#dropZone');
     $('#cropModal').classList.add('open');
     $('#cropModal').setAttribute('aria-hidden', 'false');
+    setPrintGuidesEditing(true);
 
-    requestAnimationFrame(drawCropCanvas);
+    requestAnimationFrame(() => {
+      drawCropCanvas();
+      $('#cropCancel').focus({preventScroll: true});
+    });
   }
 
-  function closeCropModal() {
+  function closeCropModal({restoreFocus = true} = {}) {
     $('#cropModal').classList.remove('open');
     $('#cropModal').setAttribute('aria-hidden', 'true');
     cropState.target = 'common';
+    if (restoreFocus) {
+      (cropModalOrigin || $('#dropZone'))?.focus({preventScroll: true});
+    }
+    cropModalOrigin = null;
+    setPrintGuidesEditing(false);
   }
 
   function resetCropFrame() {
@@ -1966,6 +2499,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#cropApply').addEventListener('click', () => cropSelectionToImage(false));
     $('#cropUseAll').addEventListener('click', () => cropSelectionToImage(true));
     $('#cropCancel').addEventListener('click', closeCropModal);
+    $('#cropModal').addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeCropModal();
+        return;
+      }
+      trapDialogFocus(event, $('#cropModal'));
+    });
 
     window.addEventListener('resize', () => {
       if ($('#cropModal').classList.contains('open')) drawCropCanvas();
@@ -2070,7 +2611,11 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('active', +button.dataset.value === state.stickerSize)
     );
 
-    if ($('#textInput')) $('#textInput').value = state.content.text.common;
+    if ($('#textInput')) {
+      $('#textInput').value = isDemoPreviewActive()
+        ? ''
+        : state.content.text.common;
+    }
     if ($('#fontSelect')) $('#fontSelect').value = state.font;
     if ($('#fontSize')) $('#fontSize').value = state.fontSize;
     if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
@@ -2080,6 +2625,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
     if ($('#logoScale')) $('#logoScale').value = Math.round(state.logoScale * 100);
     if ($('#logoOffsetX')) $('#logoOffsetX').value = state.logoOffsetX;
+    syncPrintGuideState();
   }
 
   colors.forEach(([name, color], index) => {
@@ -2096,6 +2642,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#ribbonSwatches').appendChild(button);
+  });
+
+  const printGuideEditingSelector = [
+    '#textInput',
+    '#fontSelect',
+    '#panel-settings button',
+    '#panel-settings input',
+    '[data-mobile-products-safe-zone]',
+    '#mobileTextEditor button',
+    '#mobileTextEditor input',
+    '#mobileLogoEditor button',
+    '#cropModal button',
+    '#cropModal input'
+  ].join(',');
+  const isPrintGuideEditor = (element) =>
+    element instanceof Element &&
+    Boolean(element.closest(printGuideEditingSelector));
+
+  document.addEventListener('focusin', (event) => {
+    if (isPrintGuideEditor(event.target)) setPrintGuidesEditing(true);
+  });
+  document.addEventListener('focusout', () => {
+    requestAnimationFrame(() => {
+      if (!isPrintGuideEditor(document.activeElement)) {
+        setPrintGuidesEditing(false);
+      }
+    });
+  });
+
+  $('#printGuidesToggle').addEventListener('change', (event) => {
+    state.showPrintGuides = event.target.checked;
+    syncPrintGuideState();
+    saveState();
   });
 
   $$('.nav-item').forEach((button) =>
@@ -2202,6 +2781,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restoreFocus) mobileTextEditorOrigin?.focus();
     mobileTextEditorProduct = null;
     mobileTextEditorOrigin = null;
+    setPrintGuidesEditing(false);
   };
 
   const openMobileTextEditor = (product) => {
@@ -2217,6 +2797,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileTextEditorChoices.hidden = false;
     mobileTextOverrideForm.hidden = true;
     mobileTextEditor.hidden = false;
+    setPrintGuidesEditing(true);
     $('#editCommonText').focus();
   };
 
@@ -2301,6 +2882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (restoreFocus) mobileLogoEditorOrigin?.focus();
     mobileLogoEditorProduct = null;
     mobileLogoEditorOrigin = null;
+    setPrintGuidesEditing(false);
   };
 
   const openMobileLogoEditor = (product) => {
@@ -2313,6 +2895,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#clearProductLogoOverride').hidden =
       state.content.logo[product].mode !== 'override';
     mobileLogoEditor.hidden = false;
+    setPrintGuidesEditing(true);
     $('#editCommonLogo').focus();
   };
 
@@ -2407,6 +2990,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const dropZone = $('#dropZone');
+  dropZone.addEventListener('keydown', (event) => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    $('#logoInput').click();
+  });
   ['dragenter', 'dragover'].forEach((type) =>
     dropZone.addEventListener(type, (event) => {
       event.preventDefault();
@@ -2425,7 +3013,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#textInput').addEventListener('input', (event) => {
     hasUsedCommonTextEditor = true;
+    state.commonTextAuthored = true;
+    clearDemoLogo();
     setCommonText(event.target.value);
+    updateFirstStepAvailability();
   });
 
   $('#textInput').addEventListener('change', returnToMobilePreview);
@@ -2442,8 +3033,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#repeatMm').addEventListener('input', (event) => {
-    state.repeatMm = Math.max(40, +event.target.value || 100);
+    state.repeatMm = Math.min(
+      MAX_RIBBON_REPEAT_MM,
+      Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
+    );
     render();
+  });
+
+  $$('[data-apply-ribbon-repeat]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const repeatMm = Number(button.dataset.repeatMm);
+      if (
+        !Number.isFinite(repeatMm) ||
+        repeatMm < MIN_RIBBON_REPEAT_MM ||
+        repeatMm > MAX_RIBBON_REPEAT_MM
+      ) return;
+      state.repeatMm = repeatMm;
+      syncControls();
+      render();
+      requestAnimationFrame(() => {
+        (state.panel === 'upload' ? $('#continueUpload') : $('#repeatMm'))
+          ?.focus({preventScroll: true});
+      });
+    });
   });
 
   $('#meters').addEventListener('input', (event) => {
@@ -2486,6 +3098,57 @@ document.addEventListener('DOMContentLoaded', () => {
     setProductSelection({ribbon: true, sticker: true});
   });
 
+  function closeOrderModal({restoreFocus = true} = {}) {
+    $('#orderModal').classList.remove('open');
+    $('#orderModal').setAttribute('aria-hidden', 'true');
+    if (restoreFocus) {
+      orderModalOrigin?.focus({preventScroll: true});
+    }
+    orderModalOrigin = null;
+  }
+
+  function buildOrderRequestText() {
+    const price = calculatePrice();
+    const ribbonText = getResolvedText('ribbon').trim() || 'без надписи';
+    const stickerText = getResolvedText('sticker').trim() || 'без надписи';
+    const ribbonLogo = getResolvedLogo('ribbon')?.logo ? 'да' : 'нет';
+    const stickerLogo = getResolvedLogo('sticker')?.logo ? 'да' : 'нет';
+    const customerName = $('#customerName').value.trim();
+    const customerPhone = $('#customerPhone').value.trim();
+    const customerTelegram = $('#customerTelegram').value.trim();
+    const customerComment = $('#customerComment').value.trim();
+
+    return [
+      'Заявка — Печатает Максим',
+      '',
+      `Имя: ${customerName}`,
+      `Телефон: ${customerPhone || 'не указан'}`,
+      `Telegram: ${customerTelegram || 'не указан'}`,
+      `Комментарий: ${customerComment || 'не указан'}`,
+      '',
+      'Состав заказа:',
+      state.meters > 0
+        ? `- Лента ${state.width} мм: ${state.meters} м, шаг ${state.repeatMm} мм`
+        : '- Лента: не выбрана',
+      state.stickerQty > 0
+        ? `- Стикеры Ø${state.stickerSize} мм: ${state.stickerQty} шт.`
+        : '- Стикеры: не выбраны',
+      `- Цвет ленты: ${state.ribbon}`,
+      `- Цвет печати: ${state.print}`,
+      `- Надпись на ленте: ${ribbonText}`,
+      `- Надпись на стикере: ${stickerText}`,
+      `- Логотип на ленте: ${ribbonLogo}`,
+      `- Логотип на стикере: ${stickerLogo}`,
+      `- Предварительная стоимость: ${
+        price.unavailable
+          ? 'требуется индивидуальный расчёт'
+          : `${price.amount.toLocaleString('ru-RU')} ₽`
+      }`,
+      '',
+      'Файл сформирован локально в Studio проекта «Печатает Максим».',
+    ].join('\n');
+  }
+
   $('#openOrder').addEventListener('click', () => {
     const price = calculatePrice();
     const artworkValid = document.body.dataset.artworkValid === 'true';
@@ -2502,13 +3165,55 @@ document.addEventListener('DOMContentLoaded', () => {
     ]
       .filter(Boolean)
       .join(' · ');
+    orderModalOrigin = document.activeElement;
+    $('#orderFormStatus').textContent = '';
+    $('#orderFormStatus').classList.remove('is-error');
     $('#orderModal').classList.add('open');
     $('#orderModal').setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() =>
+      $('#customerName').focus({preventScroll: true}),
+    );
   });
 
-  $('#closeOrder').addEventListener('click', () => {
-    $('#orderModal').classList.remove('open');
-    $('#orderModal').setAttribute('aria-hidden', 'true');
+  $('#closeOrder').addEventListener('click', closeOrderModal);
+
+  $('#orderModal').addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeOrderModal();
+      return;
+    }
+    trapDialogFocus(event, $('#orderModal'));
+  });
+
+  $('#orderForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const status = $('#orderFormStatus');
+    const customerName = $('#customerName').value.trim();
+    const hasContact =
+      Boolean($('#customerPhone').value.trim()) ||
+      Boolean($('#customerTelegram').value.trim());
+
+    if (!customerName) {
+      status.textContent = 'Укажите имя.';
+      status.classList.add('is-error');
+      $('#customerName').focus();
+      return;
+    }
+    if (!hasContact) {
+      status.textContent = 'Укажите телефон или Telegram.';
+      status.classList.add('is-error');
+      $('#customerPhone').focus();
+      return;
+    }
+
+    downloadTextFile(
+      'zayavka-studio-pechataet-maksim.txt',
+      buildOrderRequestText(),
+    );
+    status.textContent =
+      'Заявка скачана. Прямая отправка Максиму пока не подключена.';
+    status.classList.remove('is-error');
   });
 
   $('#resetProject').addEventListener('click', () => {
@@ -2518,8 +3223,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initCropInteractions();
   restoreState();
+  hasUsedCommonTextEditor =
+    state.commonTextAuthored ||
+    (Boolean(state.content.text.common.trim()) &&
+      state.content.text.common.trim().toLowerCase() !== DEMO_TEXT);
+  state.commonTextAuthored = hasUsedCommonTextEditor;
+  const restoredCommonLogo = state.content.logo.common;
+  const restoredCommonLogoIsDefault =
+    restoredCommonLogo?.logoType === 'svg' &&
+    restoredCommonLogo.logoSvgSource === DEFAULT_LOGO_SVG;
+  hasCompletedCommonLogoUpload =
+    state.commonLogoUploaded ||
+    Boolean(restoredCommonLogo && !restoredCommonLogoIsDefault);
+  state.commonLogoUploaded = hasCompletedCommonLogoUpload;
+  if (state.commonTextAuthored && restoredCommonLogoIsDefault) clearDemoLogo();
   loadDefaultLogo();
   syncControls();
+  updateFirstStepAvailability();
   render();
   updateShowcaseContent();
   updateProductShowcase();

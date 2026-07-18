@@ -9,13 +9,16 @@
     maxHeight,
     centerX,
     centerY,
+    scaleToFitWidth = true,
   }) {
     if (!text) return {fits: true, fontSize: preferredSize, bbox: null};
     const widthAtPreferred = metrics.widthPerSize * preferredSize;
     const heightAtPreferred = metrics.heightPerSize * preferredSize;
     const scale = Math.min(
       1,
-      maxWidth / Math.max(widthAtPreferred, 1e-7),
+      scaleToFitWidth
+        ? maxWidth / Math.max(widthAtPreferred, 1e-7)
+        : 1,
       maxHeight / Math.max(heightAtPreferred, 1e-7),
     );
     const fontSize = Math.max(MIN_PRINT_FONT_SIZE, preferredSize * scale);
@@ -79,6 +82,7 @@
         maxHeight: bounds.height,
         centerX: bounds.x + logoWidth + gap + textWidth / 2,
         centerY,
+        scaleToFitWidth: false,
       });
     } else if (hasLogo) {
       const source = logo.ratio >= 1
@@ -101,6 +105,7 @@
         maxHeight: bounds.height,
         centerX: bounds.x + bounds.width / 2,
         centerY,
+        scaleToFitWidth: false,
       });
     }
 
@@ -129,30 +134,47 @@
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
 
     if (hasLogo && hasText) {
-      const logoCenterY = circle.cy - 42;
-      const logoCircle = {
-        cx: circle.cx,
-        cy: logoCenterY,
-        radius: Math.min(circle.radius * 0.58, circle.radius - 42),
-      };
+      const maxContentWidth = circle.radius * 1.72;
+      const maxLogoHeight = circle.radius * 0.64;
+      const maxTextHeight = circle.radius * 0.28;
+      const gap = circle.radius * 0.06;
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
-      logoBox = geometry.fitRectToCircle(source, logoCircle, logoScale, 0);
-      const maxTextHeight = circle.radius * 0.25;
-      const textCenterY = circle.cy + 70;
-      const outerDy = Math.abs(textCenterY - circle.cy) + maxTextHeight / 2;
-      const chordWidth =
-        Math.sqrt(Math.max(0, circle.radius ** 2 - outerDy ** 2)) * 2;
+      logoBox = geometry.fitRectToBounds(
+        source,
+        {
+          x: circle.cx - maxContentWidth / 2,
+          y: circle.cy - maxLogoHeight / 2,
+          width: maxContentWidth,
+          height: maxLogoHeight,
+        },
+        logoScale,
+      );
       textResult = fitTextToArea({
         text,
         metrics: textMetrics,
         preferredSize: preferredFontSize,
-        maxWidth: chordWidth,
+        maxWidth: maxContentWidth,
         maxHeight: maxTextHeight,
         centerX: circle.cx,
-        centerY: textCenterY,
+        centerY: circle.cy,
       });
+      const textHeight = textResult.height || 0;
+      const stackHeight = logoBox.height + gap + textHeight;
+      const stackTop = circle.cy - stackHeight / 2;
+      logoBox = {
+        ...logoBox,
+        x: circle.cx - logoBox.width / 2,
+        y: stackTop,
+      };
+      if (textResult.bbox) {
+        textResult.bbox = {
+          ...textResult.bbox,
+          x: circle.cx - textResult.bbox.width / 2,
+          y: stackTop + logoBox.height + gap,
+        };
+      }
     } else if (hasLogo) {
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}

@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/mobile-products.css">
 </head>
-<body>
+<body data-active-panel="upload">
 <header class="topbar">
   <a class="brand studio-brand-lockup" href="./" aria-label="Печатает Максим — Студия лент и стикеров">
       <img class="studio-ribbon-m" src="assets/images/pechataet-maksim-ribbon-m.png" alt="">
@@ -51,6 +51,18 @@
         <div class="mobile-products-sample mobile-products-ribbon" data-mobile-product-sample="ribbon">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
+          <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
+            <div class="ribbon-overflow-head">
+              <span>Полная надпись</span>
+              <strong data-ribbon-overflow-measure></strong>
+            </div>
+            <div class="ribbon-overflow-full" data-ribbon-overflow-full role="img" aria-label="Полный макет надписи на ленте">
+              <img data-ribbon-overflow-logo alt="" hidden>
+              <span data-ribbon-overflow-text></span>
+            </div>
+            <p data-ribbon-overflow-message aria-live="polite"></p>
+            <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
+          </section>
         </div>
         <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker">
           <span class="mobile-products-sample-label">Стикер 25 мм</span>
@@ -64,7 +76,7 @@
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
-      <label class="upload upload-large" id="dropZone">
+      <label class="upload upload-large" id="dropZone" role="button" tabindex="0" aria-controls="logoInput">
         <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg" hidden>
         <span class="upload-icon">↑</span>
         <strong>Загрузить логотип</strong>
@@ -98,7 +110,7 @@
         </div>
 
         <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" value="ленты по любви" placeholder="Введите текст">
+        <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
 
         <label for="fontSelect">Шрифт</label>
         <select class="input" id="fontSelect">
@@ -157,11 +169,19 @@
       </div>
 
       <div class="two-cols">
-        <div><label>Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
-        <div><label>Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
+        <div><label for="fontSize">Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
+        <div><label for="repeatMm">Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
       </div>
       <p class="artwork-validation" id="artworkValidation" role="status" hidden></p>
 <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
+
+      <label class="print-guide-toggle" for="printGuidesToggle">
+        <span>
+          <strong>Поля печати</strong>
+          <small>Показывать безопасную область</small>
+        </span>
+        <input id="printGuidesToggle" type="checkbox" role="switch" aria-label="Показать поля печати">
+      </label>
 
       
       <div class="transform-card">
@@ -169,9 +189,9 @@
           <strong>Положение логотипа</strong>
           <button class="mini-button" id="resetTransform" type="button">Сбросить</button>
         </div>
-        <label>Масштаб</label>
+        <label for="logoScale">Масштаб</label>
         <input id="logoScale" type="range" min="50" max="180" value="100">
-        <label>Смещение по горизонтали</label>
+        <label for="logoOffsetX">Смещение по горизонтали</label>
         <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
       </div>
 
@@ -212,7 +232,7 @@
       </div>
       <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>В заказе должен остаться хотя бы один продукт.</p>
 
-      <label>Метраж ленты</label>
+      <label for="meters">Метраж ленты</label>
       <select class="input" id="meters">
         <option value="0" disabled>0 м</option>
         <option value="10">10 м</option>
@@ -222,7 +242,7 @@
         <option value="200">200 м</option>
       </select>
 
-      <label>Количество стикеров</label>
+      <label for="stickerQty">Количество стикеров</label>
       <select class="input" id="stickerQty">
         <option value="0" disabled>0 шт.</option>
         <option value="50">50 шт.</option>
@@ -309,6 +329,19 @@
           </article>
         </div>
         </div>
+
+        <section class="ribbon-overflow-card ribbon-overflow-card-desktop" data-ribbon-overflow-card hidden>
+          <div class="ribbon-overflow-head">
+            <span>Полная надпись</span>
+            <strong data-ribbon-overflow-measure></strong>
+          </div>
+          <div class="ribbon-overflow-full" data-ribbon-overflow-full role="img" aria-label="Полный макет надписи на ленте">
+            <img data-ribbon-overflow-logo alt="" hidden>
+            <span data-ribbon-overflow-text></span>
+          </div>
+          <p data-ribbon-overflow-message aria-live="polite"></p>
+          <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
+        </section>
 
         <div class="kit-table">
           <div class="table-shadow"></div>
@@ -411,15 +444,15 @@
 </div>
 
 
-<div class="crop-modal" id="cropModal" aria-hidden="true">
+<div class="crop-modal" id="cropModal" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle" aria-hidden="true">
   <div class="crop-dialog">
     <div class="crop-head">
       <div>
         <p class="eyebrow">Подготовка изображения</p>
-        <h2>Выделите логотип</h2>
+        <h2 id="cropModalTitle">Выделите логотип</h2>
         <p>Оставьте внутри рамки только нужный логотип или надпись.</p>
       </div>
-      <button class="close" id="cropCancel" type="button">×</button>
+      <button class="close" id="cropCancel" type="button" aria-label="Закрыть подготовку изображения">×</button>
     </div>
 
     <div class="crop-stage" id="cropStage">
@@ -442,19 +475,21 @@
   </div>
 </div>
 
-<div class="modal" id="orderModal" aria-hidden="true">
-  <div class="modal-card">
+<div class="modal" id="orderModal" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle" aria-hidden="true">
+  <form class="modal-card" id="orderForm">
     <div class="modal-head">
-      <div><p class="eyebrow">Заявка</p><h2>Отправить фирменный комплект</h2></div>
-      <button class="close" id="closeOrder">×</button>
+      <div><p class="eyebrow">Заявка</p><h2 id="orderModalTitle">Сформировать заявку</h2></div>
+      <button class="close" id="closeOrder" type="button" aria-label="Закрыть заявку">×</button>
     </div>
     <div class="summary" id="orderSummary"></div>
-    <label>Имя</label><input class="input" id="customerName" placeholder="Как к вам обращаться">
-    <label>Телефон</label><input class="input" id="customerPhone" placeholder="+7">
-    <label>Telegram</label><input class="input" id="customerTelegram" placeholder="@username">
-    <label>Комментарий</label><textarea class="input" id="customerComment" placeholder="Срок, доставка, пожелания"></textarea>
-    <button class="button primary wide" id="downloadOrder">Сформировать заявку</button>
-  </div>
+    <label for="customerName">Имя</label><input class="input" id="customerName" name="customerName" autocomplete="name" placeholder="Как к вам обращаться" required>
+    <label for="customerPhone">Телефон</label><input class="input" id="customerPhone" name="customerPhone" autocomplete="tel" inputmode="tel" placeholder="+7">
+    <label for="customerTelegram">Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" placeholder="@username">
+    <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" placeholder="Срок, доставка, пожелания"></textarea>
+    <p class="order-form-help">Заявка сохранится на вашем устройстве. Прямая отправка Максиму будет подключена отдельным этапом.</p>
+    <p class="order-form-status" id="orderFormStatus" role="status" aria-live="polite"></p>
+    <button class="button primary wide" id="downloadOrder" type="submit">Скачать заявку</button>
+  </form>
 </div>
 
 <div class="mobile-text-editor" id="mobileTextEditor" hidden>
