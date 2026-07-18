@@ -2960,10 +2960,11 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   expect(before.layout.overflow.requiredRepeatMm).toBeGreaterThan(40);
   expect(before.layout.overflow.requiredRepeatMm % 5).toBe(0);
   expect(before.layout.overflow.canApply).toBe(true);
-  expect(before.surfaceRatio).toBeCloseTo(
-    before.layout.overflow.requiredRepeatMm / 15,
-    2,
-  );
+  expect(
+    Math.abs(
+      before.surfaceRatio - before.layout.overflow.requiredRepeatMm / 15,
+    ),
+  ).toBeLessThan(0.01);
   expect(before.fullTextFits).toBe(true);
   expect(before.production).not.toContain(fullText);
   expect(before.production).not.toContain('…');

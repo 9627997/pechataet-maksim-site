@@ -305,6 +305,18 @@
             : layout.previewFontSizeRatio;
           textPart.text.style.fontSize =
             `${fontSizeRatio * surfaceHeight}px`;
+          if (surface === stickerSurface && hasStickerText && layout.textBox) {
+            const paintedTextHeight =
+              textPart.text.getBoundingClientRect().height;
+            const safeZoneHeight =
+              textPart.zone.getBoundingClientRect().height;
+            if (paintedTextHeight > safeZoneHeight) {
+              const box = layout.textBox;
+              textPart.zone.style.top =
+                `${(box.y + box.height / 2) * surfaceHeight - paintedTextHeight / 2}px`;
+              textPart.zone.style.height = `${paintedTextHeight}px`;
+            }
+          }
         }
       };
       applyLayout(
