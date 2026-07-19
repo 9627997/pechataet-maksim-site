@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.baseURI
   ).href;
   let pdfJsPromise = null;
+  let pdfJsWorkerObjectUrl = null;
 
   const state = {
     panel: 'upload',
@@ -2546,9 +2547,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getPdfJs() {
     if (!pdfJsPromise) {
-      pdfJsPromise = import(PDFJS_MODULE_URL).then((pdfjs) => {
-        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-        return pdfjs;
+      pdfJsPromise = Promise.all([
+        fetch(PDFJS_MODULE_URL),
+        fetch(PDFJS_WORKER_URL)
+      ]).then(async ([moduleResponse, workerResponse]) => {
+        if (!moduleResponse.ok || !workerResponse.ok) {
+          throw new Error('PDF.js assets are unavailable');
+        }
+
+        const [moduleSource, workerSource] = await Promise.all([
+          moduleResponse.text(),
+          workerResponse.text()
+        ]);
+        const moduleObjectUrl = URL.createObjectURL(
+          new Blob([moduleSource], {type: 'text/javascript'})
+        );
+        pdfJsWorkerObjectUrl = URL.createObjectURL(
+          new Blob([workerSource], {type: 'text/javascript'})
+        );
+
+        try {
+          const pdfjs = await import(moduleObjectUrl);
+          pdfjs.GlobalWorkerOptions.workerSrc = pdfJsWorkerObjectUrl;
+          return pdfjs;
+        } finally {
+          URL.revokeObjectURL(moduleObjectUrl);
+        }
       });
     }
     return pdfJsPromise;
@@ -2609,6 +2633,10 @@ document.addEventListener('DOMContentLoaded', () => {
       page.cleanup();
     } catch {
       pdfJsPromise = null;
+      if (pdfJsWorkerObjectUrl) {
+        URL.revokeObjectURL(pdfJsWorkerObjectUrl);
+        pdfJsWorkerObjectUrl = null;
+      }
       showFileCard(
         file,
         'PDF',
