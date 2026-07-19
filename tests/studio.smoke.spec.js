@@ -165,6 +165,41 @@ const jpegUpload = {
   ),
 };
 
+const createPdfUpload = () => {
+  const content =
+    'q\n1 1 1 rg\n0 0 300 120 re f\n0 0 0 rg\n30 30 240 60 re f\nQ\n';
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 120] /Resources << >> /Contents 4 0 R >>',
+    `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}endstream`,
+  ];
+  let source = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(source));
+    source += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = Buffer.byteLength(source);
+  source += `xref\n0 ${objects.length + 1}\n`;
+  source += '0000000000 65535 f \n';
+  source += offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`)
+    .join('');
+  source +=
+    `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n` +
+    `startxref\n${xrefOffset}\n%%EOF\n`;
+
+  return {
+    name: 'test-logo.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(source),
+  };
+};
+
 test('Studio opens without console errors or horizontal scrolling', async ({
   page,
 }, testInfo) => {
@@ -225,6 +260,26 @@ test('fresh first step marks the demo and keeps customer content honest', async 
     'true',
   );
   await expect(page.locator('#continueUpload')).toBeDisabled();
+  await expect(page.locator('#continueUploadHelp')).toHaveText(
+    'Введите название или загрузите логотип',
+  );
+  await expect(page.locator('#continueUploadHelp')).toBeVisible();
+  await expect(page.locator('#panel-upload #fontSelect')).toHaveCount(0);
+  await expect(page.locator('#panel-settings #fontSelect')).toHaveCount(1);
+  await expect(page.locator('#dropZone')).toContainText('PDF');
+  await expect(page.locator('#logoInput')).toHaveAttribute(
+    'accept',
+    /application\/pdf/,
+  );
+  await expect(page.locator('.format-list')).toHaveCount(0);
+  await expect(page.locator('.help-note')).toHaveCount(0);
+  if (testInfo.project.name === 'mobile') {
+    const creationMethodIsVisible = await textInput.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+    });
+    expect(creationMethodIsVisible).toBe(true);
+  }
   await expectShowcaseCaptionClear(page);
 
   const demoText =
@@ -243,6 +298,7 @@ test('fresh first step marks the demo and keeps customer content honest', async 
     'true',
   );
   await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('#continueUploadHelp')).toBeHidden();
   await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
     'hidden',
     '',
@@ -2243,6 +2299,7 @@ test('mobile previews stay synchronized with Studio state', async ({
   await expect(ribbonText).toHaveText(await readRibbonPreviewText(page));
   await expect(stickerText).toHaveText('новая длинная надпись для упаковки');
 
+  await page.locator('.nav-item[data-panel="settings"]').click();
   await page.locator('#fontSelect').selectOption('Georgia');
   await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
   await expect(stickerText).toHaveCSS('font-family', 'Georgia');
@@ -2250,7 +2307,6 @@ test('mobile previews stay synchronized with Studio state', async ({
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(stickerLogo).toBeVisible();
 
-  await page.locator('.nav-item[data-panel="settings"]').click();
   await page.locator('#printChoice button[data-value="#b69249"]').click();
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
   await expect(stickerText).toHaveCSS('color', 'rgb(182, 146, 73)');
@@ -2537,6 +2593,33 @@ test('JPEG upload opens an accessible crop dialog and completes tracing', async 
   await expect(page.locator('#fileCardMeta')).toContainText('JPG · выделено');
   await expect(page.locator('#traceStatus')).toBeVisible();
   await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('PDF upload renders its first page and completes tracing', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  await page.locator('#logoInput').setInputFiles(createPdfUpload());
+  const cropDialog = page.getByRole('dialog', {
+    name: 'Выделите логотип',
+  });
+  await expect(cropDialog).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.pdf');
+  await expect(page.locator('#fileCardMeta')).toContainText('PDF');
+  await expect(page.locator('#fileCardMeta')).toContainText('1 страница');
+
+  await page.locator('#cropUseAll').click();
+  await expect(cropDialog).toBeHidden();
+  await expect(page.locator('#fileCardMeta')).toContainText('PDF · выделено');
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect
+    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
+    .toMatch(/^data:image\/svg\+xml;base64,/);
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });

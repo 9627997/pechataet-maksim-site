@@ -33,7 +33,8 @@ textarea.input{min-height:100px;resize:vertical}
 .print-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;border:1px solid #bbb}
 .black{background:#171717}.gold{background:#b69249}.silver{background:#c6c8cd}.white{background:#fff}
 .upload{display:block;border:1.5px dashed #aaa;border-radius:14px;background:#faf9f7;text-align:center;padding:17px;cursor:pointer}
-.upload strong,.upload span{display:block}.upload span,.file-status{font-size:11px;color:var(--muted)}
+.upload strong,.upload span,.upload small{display:block}.upload span,.file-status{font-size:11px;color:var(--muted)}
+.upload small{margin-top:4px;color:var(--muted);font-size:9px}
 .file-status{margin-top:7px}.two-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .button{border:0;border-radius:12px;padding:11px 14px;font-weight:800;cursor:pointer}
 .primary{background:var(--accent);color:#fff}.ghost{background:#eeeae4}.magic{background:#171717;color:#fff}.wide{width:100%;margin-top:15px}
@@ -84,8 +85,6 @@ textarea.input{min-height:100px;resize:vertical}
 .panel-copy{font-size:12px;line-height:1.55;color:var(--muted);margin:-8px 0 14px}
 .upload-large{padding:28px 16px}
 .upload-icon{display:grid!important;place-items:center;width:42px;height:42px;margin:0 auto 10px;border-radius:50%;background:#171717;color:#fff;font-size:22px}
-.format-list{display:flex;gap:7px;margin-top:10px}
-.format-list span{font-size:10px;font-weight:800;background:#eeeae3;border-radius:999px;padding:6px 9px}
 .file-card{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#faf9f7}
 .file-card[hidden]{display:none}
 .file-card-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#dff3e4;color:#16713a;font-weight:900}
@@ -236,6 +235,32 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .upload-text-head strong{font-size:12px}
 .upload-text-head span{font-size:10px;color:var(--muted);margin-top:2px}
 .upload-text-card label{margin-top:9px}
+.first-step-requirement{
+  margin:14px 0 -6px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
+  text-align:center;
+}
+.first-step-requirement[hidden]{display:none}
+
+@media(max-width:700px){
+  body[data-active-panel="upload"] .sidebar{
+    display:flex;
+    flex-direction:column;
+  }
+  body[data-active-panel="upload"] .main-nav{order:0}
+  body[data-active-panel="upload"] #panel-upload{order:1}
+  body[data-active-panel="upload"] .mobile-products-panel{
+    order:2;
+    margin-top:18px;
+  }
+  body[data-active-panel="upload"] .upload-text-card{margin-top:0}
+  body[data-active-panel="upload"] .upload-large{
+    margin-top:12px;
+    padding:18px 16px;
+  }
+}
 
 /* Combined logo + text composition in secondary scenes */
 .macro-logo{display:flex!important;align-items:center;justify-content:center;gap:42px;padding:24px}

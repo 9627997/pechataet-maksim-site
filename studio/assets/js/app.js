@@ -19,6 +19,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEMO_TEXT = 'ленты по любви';
   const MIN_RIBBON_REPEAT_MM = 40;
   const MAX_RIBBON_REPEAT_MM = 250;
+  const PDF_RENDER_MAX_SIDE = 1600;
+  const PDFJS_MODULE_URL = new URL(
+    'assets/vendor/pdfjs/pdf.min.mjs',
+    document.baseURI
+  ).href;
+  const PDFJS_WORKER_URL = new URL(
+    'assets/vendor/pdfjs/pdf.worker.min.mjs',
+    document.baseURI
+  ).href;
+  const PDFJS_STANDARD_FONTS_URL = new URL(
+    'assets/vendor/pdfjs/standard_fonts/',
+    document.baseURI
+  ).href;
+  const PDFJS_ICC_URL = new URL(
+    'assets/vendor/pdfjs/iccs/',
+    document.baseURI
+  ).href;
+  const PDFJS_WASM_URL = new URL(
+    'assets/vendor/pdfjs/wasm/',
+    document.baseURI
+  ).href;
+  let pdfJsPromise = null;
 
   const state = {
     panel: 'upload',
@@ -694,7 +716,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateFirstStepAvailability() {
     const ready = isFirstStepReady();
     const continueButton = $('#continueUpload');
-    if (continueButton) continueButton.disabled = !ready;
+    const continueHelp = $('#continueUploadHelp');
+    if (continueButton) {
+      continueButton.disabled = !ready;
+      if (ready) {
+        continueButton.removeAttribute('aria-describedby');
+      } else {
+        continueButton.setAttribute('aria-describedby', 'continueUploadHelp');
+      }
+    }
+    if (continueHelp) continueHelp.hidden = ready;
 
     $$('.nav-item').forEach((button) => {
       if (button.dataset.panel === 'upload') return;
@@ -2513,6 +2544,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function getPdfJs() {
+    if (!pdfJsPromise) {
+      pdfJsPromise = import(PDFJS_MODULE_URL).then((pdfjs) => {
+        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        return pdfjs;
+      });
+    }
+    return pdfJsPromise;
+  }
+
+  function imageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = dataUrl;
+    });
+  }
+
+  async function loadPdfFile(file, target) {
+    let loadingTask = null;
+    try {
+      showFileCard(file, 'PDF · подготовка первой страницы', 'Подождите несколько секунд');
+      const pdfjs = await getPdfJs();
+      const data = new Uint8Array(await file.arrayBuffer());
+      loadingTask = pdfjs.getDocument({
+        data,
+        enableXfa: false,
+        iccUrl: PDFJS_ICC_URL,
+        isEvalSupported: false,
+        maxImageSize: 24_000_000,
+        standardFontDataUrl: PDFJS_STANDARD_FONTS_URL,
+        useSystemFonts: true,
+        wasmUrl: PDFJS_WASM_URL
+      });
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const baseViewport = page.getViewport({scale: 1});
+      const renderScale = Math.min(
+        3,
+        PDF_RENDER_MAX_SIDE / Math.max(baseViewport.width, baseViewport.height)
+      );
+      const viewport = page.getViewport({scale: renderScale});
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.ceil(viewport.width));
+      canvas.height = Math.max(1, Math.ceil(viewport.height));
+      const context = canvas.getContext('2d', {alpha: false});
+
+      await page.render({
+        canvasContext: context,
+        viewport,
+        background: '#ffffff'
+      }).promise;
+
+      const renderedDataUrl = canvas.toDataURL('image/png');
+      const image = await imageFromDataUrl(renderedDataUrl);
+      showFileCard(
+        file,
+        pdf.numPages > 1 ? `PDF · страница 1 из ${pdf.numPages}` : 'PDF · 1 страница',
+        'Выберите область логотипа'
+      );
+      openCropModal(file, image, renderedDataUrl, target);
+      page.cleanup();
+    } catch {
+      pdfJsPromise = null;
+      showFileCard(
+        file,
+        'PDF',
+        'Не удалось прочитать PDF. Сохраните первую страницу как PNG или SVG.',
+        true
+      );
+    } finally {
+      if (loadingTask) await loadingTask.destroy();
+    }
+  }
+
   function loadFile(file, target = 'common') {
     if (!file) return;
     const logoTarget = normalizeLogoTarget(target);
@@ -2550,6 +2657,11 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       reader.readAsText(file);
+      return;
+    }
+
+    if (ext === 'pdf') {
+      loadPdfFile(file, logoTarget);
       return;
     }
 
@@ -2591,7 +2703,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    alert('Поддерживаются SVG, PNG и JPEG');
+    alert('Поддерживаются SVG, PNG, JPEG и PDF');
   }
 
   function syncControls() {

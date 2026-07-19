@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260718.1">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260718.1">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260719.1">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260719.1">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -76,14 +76,23 @@
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
+      <div class="upload-text-card">
+        <div class="upload-text-head">
+          <strong>Введите название</strong>
+          <span>Надпись можно использовать отдельно или вместе с логотипом</span>
+        </div>
+
+        <label for="textInput">Текст на ленте и стикере</label>
+        <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
+      </div>
+
       <label class="upload upload-large" id="dropZone" role="button" tabindex="0" aria-controls="logoInput">
-        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg" hidden>
+        <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg,application/pdf,.pdf" hidden>
         <span class="upload-icon">↑</span>
         <strong>Загрузить логотип</strong>
-        <span>SVG, PNG или JPEG</span>
+        <span>SVG, PNG, JPEG или PDF</span>
+        <small>Для PDF используем первую страницу</small>
       </label>
-
-      <div class="format-list"><span>SVG</span><span>PNG</span><span>JPEG</span></div>
 
       <div class="file-card" id="fileCard" hidden>
         <div class="file-card-icon" id="fileCardIcon">✓</div>
@@ -98,36 +107,13 @@
         <div class="trace-status-icon">✓</div>
         <div>
           <strong>Макет автоматически подготовлен</strong>
-          <p>Для предпросмотра изображение переведено в одноцветный вектор. Перед производством мы вручную проверим контуры и качество печати.</p>
+          <p>Изображение переведено в одноцветный макет. Перед производством мы проверим контуры и качество печати.</p>
           <small id="traceDetails"></small>
         </div>
       </div>
 
-      <div class="upload-text-card">
-        <div class="upload-text-head">
-          <strong>Или введите название</strong>
-          <span>Надпись можно использовать отдельно или вместе с логотипом</span>
-        </div>
-
-        <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
-
-        <label for="fontSelect">Шрифт</label>
-        <select class="input" id="fontSelect">
-          <option value="Manrope">Manrope — современный</option>
-          <option value="PT Serif">PT Serif — классический</option>
-          <option value="Arial">Arial — нейтральный</option>
-          <option value="Georgia">Georgia — элегантный</option>
-          <option value="Times New Roman">Times New Roman — традиционный</option>
-        </select>
-      </div>
-
-      <div class="help-note">
-        <strong>Нет векторного файла? Не проблема.</strong>
-        <p>JPEG и PNG автоматически переводятся в одноцветный макет. Перед производством Максим вручную проверит контуры.</p>
-      </div>
-
-      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" disabled>Далее: настроить</button>
+      <p class="first-step-requirement" id="continueUploadHelp">Введите название или загрузите логотип</p>
+      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" aria-describedby="continueUploadHelp" disabled>Далее: настроить</button>
     </section>
 
     <section class="panel" id="panel-bundle">
@@ -143,6 +129,15 @@
 
     <section class="panel" id="panel-settings">
       <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
+
+      <label for="fontSelect">Шрифт надписи</label>
+      <select class="input" id="fontSelect">
+        <option value="Manrope">Manrope — современный</option>
+        <option value="PT Serif">PT Serif — классический</option>
+        <option value="Arial">Arial — нейтральный</option>
+        <option value="Georgia">Georgia — элегантный</option>
+        <option value="Times New Roman">Times New Roman — традиционный</option>
+      </select>
 
       <label>Ширина ленты</label>
       <div class="segmented" id="widthChoice">
@@ -535,9 +530,9 @@
   </section>
 </div>
 
-<script src="assets/js/geometry.js?v=20260718.1"></script>
-<script src="assets/js/layout.js?v=20260718.1"></script>
-<script src="assets/js/app.js?v=20260718.1"></script>
-<script src="assets/js/mobile-products.js?v=20260718.1"></script>
+<script src="assets/js/geometry.js?v=20260719.1"></script>
+<script src="assets/js/layout.js?v=20260719.1"></script>
+<script src="assets/js/app.js?v=20260719.1"></script>
+<script src="assets/js/mobile-products.js?v=20260719.1"></script>
 </body>
 </html>

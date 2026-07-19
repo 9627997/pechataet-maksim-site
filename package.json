@@ -18,6 +18,7 @@
     "eslint": "latest",
     "globals": "latest",
     "http-server": "latest",
+    "pdfjs-dist": "6.1.200",
     "prettier": "latest"
   }
 }
