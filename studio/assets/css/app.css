@@ -245,16 +245,6 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .first-step-requirement[hidden]{display:none}
 
 @media(max-width:700px){
-  body[data-active-panel="upload"] .sidebar{
-    display:flex;
-    flex-direction:column;
-  }
-  body[data-active-panel="upload"] .main-nav{order:0}
-  body[data-active-panel="upload"] #panel-upload{order:1}
-  body[data-active-panel="upload"] .mobile-products-panel{
-    order:2;
-    margin-top:18px;
-  }
   body[data-active-panel="upload"] .upload-text-card{margin-top:0}
   body[data-active-panel="upload"] .upload-large{
     margin-top:12px;

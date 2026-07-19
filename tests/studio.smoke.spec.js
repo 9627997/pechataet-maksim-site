@@ -274,11 +274,16 @@ test('fresh first step marks the demo and keeps customer content honest', async 
   await expect(page.locator('.format-list')).toHaveCount(0);
   await expect(page.locator('.help-note')).toHaveCount(0);
   if (testInfo.project.name === 'mobile') {
-    const creationMethodIsVisible = await textInput.evaluate((element) => {
-      const bounds = element.getBoundingClientRect();
-      return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+    const previewIsAboveCreation = await page.evaluate(() => {
+      const preview = document
+        .querySelector('.mobile-products-panel')
+        .getBoundingClientRect();
+      const creation = document
+        .querySelector('#panel-upload')
+        .getBoundingClientRect();
+      return preview.top < creation.top && preview.bottom <= window.innerHeight;
     });
-    expect(creationMethodIsVisible).toBe(true);
+    expect(previewIsAboveCreation).toBe(true);
   }
   await expectShowcaseCaptionClear(page);
 
@@ -2602,6 +2607,13 @@ test('PDF upload renders its first page and completes tracing', async ({
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  for (const asset of ['pdf.min.js', 'pdf.worker.min.js']) {
+    const response = await page.request.get(
+      `/studio/assets/vendor/pdfjs/${asset}`,
+    );
+    expect(response.ok()).toBe(true);
+    expect(response.headers()['content-type']).toContain('javascript');
+  }
 
   await page.locator('#logoInput').setInputFiles(createPdfUpload());
   const cropDialog = page.getByRole('dialog', {

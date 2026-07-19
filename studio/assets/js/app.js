@@ -21,11 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const MAX_RIBBON_REPEAT_MM = 250;
   const PDF_RENDER_MAX_SIDE = 1600;
   const PDFJS_MODULE_URL = new URL(
-    'assets/vendor/pdfjs/pdf.min.mjs',
+    'assets/vendor/pdfjs/pdf.min.js',
     document.baseURI
   ).href;
   const PDFJS_WORKER_URL = new URL(
-    'assets/vendor/pdfjs/pdf.worker.min.mjs',
+    'assets/vendor/pdfjs/pdf.worker.min.js',
     document.baseURI
   ).href;
   const PDFJS_STANDARD_FONTS_URL = new URL(
@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.baseURI
   ).href;
   let pdfJsPromise = null;
-  let pdfJsWorkerObjectUrl = null;
 
   const state = {
     panel: 'upload',
@@ -2547,32 +2546,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getPdfJs() {
     if (!pdfJsPromise) {
-      pdfJsPromise = Promise.all([
-        fetch(PDFJS_MODULE_URL),
-        fetch(PDFJS_WORKER_URL)
-      ]).then(async ([moduleResponse, workerResponse]) => {
-        if (!moduleResponse.ok || !workerResponse.ok) {
-          throw new Error('PDF.js assets are unavailable');
-        }
-
-        const [moduleSource, workerSource] = await Promise.all([
-          moduleResponse.text(),
-          workerResponse.text()
-        ]);
-        const moduleObjectUrl = URL.createObjectURL(
-          new Blob([moduleSource], {type: 'text/javascript'})
-        );
-        pdfJsWorkerObjectUrl = URL.createObjectURL(
-          new Blob([workerSource], {type: 'text/javascript'})
-        );
-
-        try {
-          const pdfjs = await import(moduleObjectUrl);
-          pdfjs.GlobalWorkerOptions.workerSrc = pdfJsWorkerObjectUrl;
-          return pdfjs;
-        } finally {
-          URL.revokeObjectURL(moduleObjectUrl);
-        }
+      pdfJsPromise = import(PDFJS_MODULE_URL).then((pdfjs) => {
+        pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        return pdfjs;
       });
     }
     return pdfJsPromise;
@@ -2633,10 +2609,6 @@ document.addEventListener('DOMContentLoaded', () => {
       page.cleanup();
     } catch {
       pdfJsPromise = null;
-      if (pdfJsWorkerObjectUrl) {
-        URL.revokeObjectURL(pdfJsWorkerObjectUrl);
-        pdfJsWorkerObjectUrl = null;
-      }
       showFileCard(
         file,
         'PDF',
