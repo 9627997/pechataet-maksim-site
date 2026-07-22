@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEMO_TEXT = 'ленты по любви';
   const MIN_RIBBON_REPEAT_MM = 40;
   const MAX_RIBBON_REPEAT_MM = 250;
+  const GOLDEN_RATIO = 1.618;
+  const REPEAT_ROUNDING_MM = 5;
+  const PRINT_MARGIN_MM = 2.5;
   const PDF_RENDER_MAX_SIDE = 1600;
   const PDFJS_MODULE_URL = new URL(
     'assets/vendor/pdfjs/pdf.min.js',
@@ -69,7 +72,25 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     font: 'Manrope',
     fontSize: 32,
+    productStyles: {
+      ribbon: {
+        font: 'Manrope',
+        print: '#171717',
+        fontSize: 32,
+        logoScale: 1,
+        logoOffsetX: 0
+      },
+      sticker: {
+        font: 'Manrope',
+        print: '#171717',
+        fontSize: 32,
+        logoScale: 1,
+        logoOffsetX: 0
+      }
+    },
+    activeSettingsProduct: 'ribbon',
     repeatMm: 100,
+    repeatMode: 'auto',
     bundle: 'bundle',
     stickerSize: 40,
     stickerBg: '#ffffff',
@@ -81,6 +102,55 @@ document.addEventListener('DOMContentLoaded', () => {
     lastMeters: 100,
     lastStickerQty: 100
   };
+
+  const FONT_OPTIONS = [
+    'Manrope',
+    'PT Serif',
+    'Arial',
+    'Georgia',
+    'Times New Roman'
+  ];
+  const PRINT_OPTIONS = ['#171717', '#b69249', '#c6c8cd', '#ffffff'];
+
+  function normalizeProductStyle(value, fallback = state) {
+    const font = FONT_OPTIONS.includes(value?.font)
+      ? value.font
+      : FONT_OPTIONS.includes(fallback.font) ? fallback.font : 'Manrope';
+    const print = PRINT_OPTIONS.includes(value?.print)
+      ? value.print
+      : PRINT_OPTIONS.includes(fallback.print) ? fallback.print : '#171717';
+    return {
+      font,
+      print,
+      fontSize: Math.min(64, Math.max(16, Number(value?.fontSize ?? fallback.fontSize) || 32)),
+      logoScale: Math.min(1.8, Math.max(0.5, Number(value?.logoScale ?? fallback.logoScale) || 1)),
+      logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0))
+    };
+  }
+
+  function getProductStyle(product) {
+    return state.productStyles[product === 'sticker' ? 'sticker' : 'ribbon'];
+  }
+
+  function syncLegacyStyleAliases(product = state.activeSettingsProduct) {
+    const style = getProductStyle(product);
+    state.font = style.font;
+    state.print = style.print;
+    state.fontSize = style.fontSize;
+    state.logoScale = style.logoScale;
+    state.logoOffsetX = style.logoOffsetX;
+  }
+
+  function getPaintedLogo(product, asset) {
+    if (!asset?.logo) return asset;
+    const style = getProductStyle(product);
+    const data = asset.logoSvgSource
+      ? recolorSvgSource(asset.logoSvgSource, style.print)
+      : asset.logo.data;
+    return data
+      ? {...asset, logo: {...asset.logo, data}}
+      : asset;
+  }
   let hasUsedCommonTextEditor = false;
   let hasUsedCommonLogoEditor = false;
   let hasCompletedCommonLogoUpload = false;
@@ -133,13 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
     <path class="cls-1" d="m21.63,29.96c-1.76,0-3.19,1.43-3.19,3.19s1.43,3.19,3.19,3.19,3.19-1.43,3.19-3.19-1.43-3.19-3.19-3.19Zm0,4.41c-.67,0-1.22-.55-1.22-1.22s.55-1.22,1.22-1.22,1.22.55,1.22,1.22-.55,1.22-1.22,1.22Z"/>
   </g>
 </svg>`;
-
-  const colors = [
-    ['Молочный', '#f3eadc'], ['Белый', '#ffffff'], ['Пудровый', '#e5c5c4'],
-    ['Красный', '#b7202d'], ['Бордовый', '#6b1f2d'], ['Изумрудный', '#0c6a4f'],
-    ['Оливковый', '#6f754e'], ['Голубой', '#86b9ca'], ['Синий', '#274d83'],
-    ['Лавандовый', '#9b8db5'], ['Серый', '#8e8d89'], ['Чёрный', '#171717']
-  ];
 
   function svgEl(tag, attrs = {}) {
     const node = document.createElementNS(NS, tag);
@@ -471,6 +534,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
       Object.assign(state, restored);
+      state.activeSettingsProduct =
+        restored.activeSettingsProduct === 'sticker' ? 'sticker' : 'ribbon';
+      state.productStyles = {
+        ribbon: normalizeProductStyle(restored.productStyles?.ribbon, restored),
+        sticker: normalizeProductStyle(restored.productStyles?.sticker, restored)
+      };
+      syncLegacyStyleAliases();
       state.showPrintGuides = restored.showPrintGuides === true;
       if (![25, 30, 40, 50].includes(Number(state.stickerSize))) {
         state.stickerSize = 40;
@@ -482,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
           Number(state.repeatMm) || 100,
         ),
       );
+      state.repeatMode = restored.repeatMode === 'manual' ? 'manual' : 'auto';
 
       const legacyDemoTexts = [
         'привет',
@@ -574,10 +645,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $$('.dynamic-showcase-text').forEach((el) => {
       const product = el.closest('[data-product-type]')?.dataset.productType;
-      const textValue = getResolvedText(product === 'sticker' ? 'sticker' : 'ribbon').trim();
+      const normalizedProduct = product === 'sticker' ? 'sticker' : 'ribbon';
+      const textValue = getResolvedText(normalizedProduct).trim();
       el.textContent = textValue;
       el.hidden = !textValue;
-      el.style.fontFamily = state.font;
+      el.style.fontFamily = getProductStyle(normalizedProduct).font;
     });
 
     if (onUpload) {
@@ -635,7 +707,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } else {
       $$('.dynamic-showcase-text').forEach((el) => {
-        el.style.color = state.print;
+        const product =
+          el.closest('[data-product-type]')?.dataset.productType === 'sticker'
+            ? 'sticker'
+            : 'ribbon';
+        el.style.color = getProductStyle(product).print;
       });
 
       $$('.dynamic-ribbon').forEach((el) => {
@@ -648,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
           img.closest('[data-product-type]')?.dataset.productType === 'sticker'
             ? 'sticker'
             : 'ribbon';
-        const asset = getPreviewLogo(product);
+        const asset = getPaintedLogo(product, getPreviewLogo(product));
         if (asset?.logo?.data) {
           img.src = asset.logo.data;
           img.hidden = false;
@@ -693,6 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id === 'order') setPrintGuidesEditing(false);
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
+    if (id === 'settings') setActiveSettingsProduct(state.activeSettingsProduct);
     updateProductShowcase();
   }
 
@@ -781,18 +858,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function drawText(parent, x, y, size, value, anchor = 'middle') {
+  function drawText(parent, x, y, size, value, product, anchor = 'middle') {
     if (!value) return;
+    const style = getProductStyle(product);
 
     const text = svgEl('text', {
       x,
       y,
       'text-anchor': anchor,
       'dominant-baseline': 'middle',
-      'font-family': state.font,
+      'font-family': style.font,
       'font-size': size,
       'font-weight': '700',
-      fill: state.print
+      fill: style.print
     });
 
     text.textContent = value;
@@ -800,15 +878,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return text;
   }
 
-  function measureTextBox(text, size = 100) {
-    textMeasureContext.font = `700 ${size}px ${state.font}`;
+  function measureTextBox(text, size = 100, product = 'ribbon') {
+    textMeasureContext.font = `700 ${size}px ${getProductStyle(product).font}`;
     const metrics = textMeasureContext.measureText(text || '');
     const ascent = metrics.actualBoundingBoxAscent || size * 0.8;
     const descent = metrics.actualBoundingBoxDescent || size * 0.2;
     return {width: metrics.width, height: ascent + descent};
   }
 
-  function getTextMetrics(text) {
+  function getTextMetrics(text, product = 'ribbon') {
+    const style = getProductStyle(product);
     if (!textMeasurementSvg) {
       textMeasurementSvg = svgEl('svg', {
         width: 1,
@@ -827,7 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sample = svgEl('text', {
       x: 0,
       y: 100,
-      'font-family': state.font,
+      'font-family': style.font,
       'font-size': 100,
       'font-weight': '700',
     });
@@ -836,7 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bbox = sample.getBBox();
     const measured = bbox.width && bbox.height
       ? {width: bbox.width, height: bbox.height}
-      : measureTextBox(text, 100);
+      : measureTextBox(text, 100, product);
     return {
       widthPerSize: measured.width / 100,
       heightPerSize: measured.height / 100,
@@ -862,8 +941,9 @@ document.addEventListener('DOMContentLoaded', () => {
     repeatMm,
     text,
     resolvedLogo,
-    textMetrics = getTextMetrics(text),
+    textMetrics = getTextMetrics(text, 'ribbon'),
   ) {
+    const style = getProductStyle('ribbon');
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
     const repeatWidth = Math.max(360, repeatMm * 6.2);
@@ -883,10 +963,10 @@ document.addEventListener('DOMContentLoaded', () => {
         : null,
       text,
       textMetrics,
-      logoScale: state.logoScale,
-      logoOffsetX: state.logoOffsetX,
+      logoScale: style.logoScale,
+      logoOffsetX: style.logoOffsetX,
       preferredFontSize:
-        (state.width === 20 ? 39 : 31) * (state.fontSize / 32),
+        (state.width === 20 ? 39 : 31) * (style.fontSize / 32),
     });
     return {
       ...layout,
@@ -894,6 +974,121 @@ document.addEventListener('DOMContentLoaded', () => {
       printable,
       repeatMm,
     };
+  }
+
+  function getNaturalRibbonContentWidthMm(
+    text,
+    resolvedLogo,
+    textMetrics = getTextMetrics(text, 'ribbon'),
+  ) {
+    const style = getProductStyle('ribbon');
+    const hasLogo = Boolean(resolvedLogo?.logo);
+    const hasText = Boolean(text);
+    const outerHeight = state.width === 15 ? 76 : 100;
+    const printableHeightMm = Math.max(0, state.width - PRINT_MARGIN_MM * 2);
+    const printableHeightUnits =
+      (printableHeightMm / state.width) * outerHeight;
+    const preferredFontSize =
+      (state.width === 20 ? 39 : 31) * (style.fontSize / 32);
+    const fittedFontSize = hasText
+      ? Math.min(
+          preferredFontSize,
+          printableHeightUnits / Math.max(textMetrics.heightPerSize, 1e-7),
+        )
+      : 0;
+    const textWidthMm = hasText
+      ? textMetrics.widthPerSize * fittedFontSize * (state.width / outerHeight)
+      : 0;
+    const logoRatio = Number(resolvedLogo?.logo?.ratio) || 1;
+    const effectiveLogoScale = Math.min(1, Math.max(0, style.logoScale));
+    const logoWidthMm = hasLogo
+      ? printableHeightMm * logoRatio * effectiveLogoScale
+      : 0;
+    const internalGapMm =
+      hasLogo && hasText
+        ? Math.max(
+            PRINT_MARGIN_MM,
+            Math.min(8, (logoWidthMm + textWidthMm) * 0.04),
+          )
+        : 0;
+
+    return {
+      widthMm: logoWidthMm + textWidthMm + internalGapMm,
+      logoWidthMm,
+      textWidthMm,
+      internalGapMm,
+      source:
+        hasLogo && hasText
+          ? 'composition'
+          : hasLogo
+            ? 'logo'
+            : hasText
+              ? 'text'
+              : 'empty',
+    };
+  }
+
+  function calculateAutomaticRibbonRepeat() {
+    const text = getResolvedText('ribbon').trim();
+    const resolvedLogo = getPreviewLogo('ribbon');
+    const textMetrics = getTextMetrics(text, 'ribbon');
+    const content = getNaturalRibbonContentWidthMm(
+      text,
+      resolvedLogo,
+      textMetrics,
+    );
+    const goldenGapMm = content.widthMm / GOLDEN_RATIO;
+    const desiredRepeatMm = content.widthMm + goldenGapMm;
+    let repeatMm =
+      Math.ceil(
+        Math.max(MIN_RIBBON_REPEAT_MM, desiredRepeatMm) / REPEAT_ROUNDING_MM,
+      ) * REPEAT_ROUNDING_MM;
+    repeatMm = Math.min(MAX_RIBBON_REPEAT_MM, repeatMm);
+
+    while (
+      repeatMm < MAX_RIBBON_REPEAT_MM &&
+      !calculateRibbonLayout(
+        repeatMm,
+        text,
+        resolvedLogo,
+        textMetrics,
+      ).valid
+    ) {
+      repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        repeatMm + REPEAT_ROUNDING_MM,
+      );
+    }
+
+    return {...content, repeatMm, goldenGapMm, desiredRepeatMm};
+  }
+
+  function updateRibbonRepeat() {
+    const automatic = calculateAutomaticRibbonRepeat();
+    if (state.repeatMode === 'auto') state.repeatMm = automatic.repeatMm;
+
+    const actualGapMm = Math.max(0, state.repeatMm - automatic.widthMm);
+    document.body.dataset.ribbonRepeatMode = state.repeatMode;
+    document.body.dataset.ribbonRepeatSource = automatic.source;
+    document.body.dataset.ribbonContentWidthMm = automatic.widthMm.toFixed(2);
+    document.body.dataset.ribbonGoldenGapMm = automatic.goldenGapMm.toFixed(2);
+    document.body.dataset.ribbonRepeatGapMm = actualGapMm.toFixed(2);
+    document.body.dataset.ribbonRepeatMm = String(state.repeatMm);
+
+    const input = $('#repeatMm');
+    const mode = $('#repeatMode');
+    const hint = $('#repeatHint');
+    if (input) input.value = state.repeatMm;
+    if (mode) {
+      mode.textContent =
+        state.repeatMode === 'auto' ? 'Автоматически' : 'Задан вручную';
+    }
+    if (hint) {
+      hint.textContent =
+        automatic.source === 'empty'
+          ? 'Минимальный шаг до добавления логотипа или надписи.'
+          : `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина композиции ÷ 1,618.`;
+    }
   }
 
   function getClippedRibbonPreview(text, resolvedLogo) {
@@ -1010,8 +1205,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderRibbon() {
     const resolvedLogo = getResolvedLogo('ribbon');
     const previewLogo = getPreviewLogo('ribbon');
+    const paintedResolvedLogo = getPaintedLogo('ribbon', resolvedLogo);
+    const paintedPreviewLogo = getPaintedLogo('ribbon', previewLogo);
     const resolvedText = getResolvedText('ribbon').trim();
-    const textMetrics = getTextMetrics(resolvedText);
+    const textMetrics = getTextMetrics(resolvedText, 'ribbon');
     const ribbonLayout = addRibbonOverflow(
       calculateRibbonLayout(
         state.repeatMm,
@@ -1084,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (ribbonLayout.logoBox) {
-        drawLogoBox(content, resolvedLogo, {
+        drawLogoBox(content, paintedResolvedLogo, {
           ...ribbonLayout.logoBox,
           x: startX + ribbonLayout.logoBox.x,
         });
@@ -1096,6 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ribbonLayout.textBox.y + ribbonLayout.textBox.height / 2,
           ribbonLayout.fontSize,
           resolvedText,
+          'ribbon',
         );
         text.dataset.effectiveFontSize = String(ribbonLayout.fontSize);
       }
@@ -1109,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'data-preview-overlay': '',
         });
         if (previewLayout.logoBox) {
-          drawLogoBox(previewContent, previewLogo, {
+          drawLogoBox(previewContent, paintedPreviewLogo, {
             ...previewLayout.logoBox,
             x: startX + previewLayout.logoBox.x,
           });
@@ -1130,6 +1328,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewTextBox.y + previewTextBox.height / 2,
             previewFontSize,
             previewText,
+            'ribbon',
           );
         }
         cell.appendChild(previewContent);
@@ -1139,6 +1338,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderSticker() {
+    const style = getProductStyle('sticker');
     if ($('#stickerBg')) $('#stickerBg').setAttribute('fill', state.stickerBg);
 
     const layer = $('#stickerContent');
@@ -1147,6 +1347,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resolvedLogo = getResolvedLogo('sticker');
     const previewLogo = getPreviewLogo('sticker');
+    const paintedResolvedLogo = getPaintedLogo('sticker', resolvedLogo);
+    const paintedPreviewLogo = getPaintedLogo('sticker', previewLogo);
     const resolvedText = getResolvedText('sticker');
     const hasText = Boolean(resolvedText.trim());
     const printable = getStickerPrintableGeometry({
@@ -1170,11 +1372,11 @@ document.addEventListener('DOMContentLoaded', () => {
         circle: printable.circle,
         logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
         text: hasText ? resolvedText : '',
-        textMetrics: getTextMetrics(resolvedText),
-        logoScale: state.logoScale,
+        textMetrics: getTextMetrics(resolvedText, 'sticker'),
+        logoScale: style.logoScale,
         preferredFontSize: hasLogo && hasText
-          ? stickerPreferred.combined * (state.fontSize / 32)
-          : stickerPreferred.textOnly * (state.fontSize / 32),
+          ? stickerPreferred.combined * (style.fontSize / 32)
+          : stickerPreferred.textOnly * (style.fontSize / 32),
       });
     };
     const stickerLayout = getLayout(resolvedLogo);
@@ -1196,7 +1398,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'data-production-content': '',
     });
     if (stickerLayout.logoBox) {
-      drawLogoBox(productionContent, resolvedLogo, stickerLayout.logoBox);
+      drawLogoBox(productionContent, paintedResolvedLogo, stickerLayout.logoBox);
     }
     if (stickerLayout.valid && stickerLayout.textBox) {
       const text = drawText(
@@ -1205,6 +1407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stickerLayout.textBox.y + stickerLayout.textBox.height / 2,
         stickerLayout.fontSize,
         resolvedText,
+        'sticker',
       );
       text.dataset.effectiveFontSize = String(stickerLayout.fontSize);
     }
@@ -1214,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', () => {
       layer.dataset.demoLogoPreview = 'true';
       const previewContent = svgEl('g', {'data-preview-overlay': ''});
       if (previewLayout.logoBox) {
-        drawLogoBox(previewContent, previewLogo, previewLayout.logoBox);
+        drawLogoBox(previewContent, paintedPreviewLogo, previewLayout.logoBox);
       }
       if (previewLayout.valid && previewLayout.textBox) {
         drawText(
@@ -1223,6 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
           previewLayout.textBox.y + previewLayout.textBox.height / 2,
           previewLayout.fontSize,
           resolvedText,
+          'sticker',
         );
       }
       layer.appendChild(previewContent);
@@ -1331,6 +1535,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateRibbonOverflowCards(layout) {
+    const style = getProductStyle('ribbon');
     const overflow = layout?.overflow;
     const visible = Boolean(overflow && state.bundle !== 'sticker');
     const requiredRepeatMm = overflow?.requiredRepeatMm || null;
@@ -1361,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const measure = card.querySelector('[data-ribbon-overflow-measure]');
       const message = card.querySelector('[data-ribbon-overflow-message]');
       const button = card.querySelector('[data-apply-ribbon-repeat]');
-      const resolvedLogo = getPreviewLogo('ribbon');
+      const resolvedLogo = getPaintedLogo('ribbon', getPreviewLogo('ribbon'));
       const fullText = getResolvedText('ribbon').trim();
 
       card.dataset.canApply = String(Boolean(overflow.canApply));
@@ -1392,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', () => {
       surface.style.minHeight =
         requiredRepeatMm > MAX_RIBBON_REPEAT_MM ? '18px' : '';
       surface.style.backgroundColor = state.ribbon;
-      surface.style.color = state.print;
+      surface.style.color = style.print;
       surface.dataset.repeatMm = String(requiredRepeatMm);
       surface.dataset.ribbonWidthMm = String(state.width);
       surface.dataset.layout = JSON.stringify(fullLayout);
@@ -1426,10 +1631,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `${(textBox.y + textBox.height / 2) * 100}%`;
           text.style.width = `${textBox.width * 100}%`;
           text.style.height = `${textBox.height * 100}%`;
-          text.style.fontFamily = state.font;
+          text.style.fontFamily = style.font;
           text.style.fontSize =
             `${fullLayout.fontSizeRatio * surfaceHeight}px`;
-          text.style.color = state.print;
+          text.style.color = style.print;
         }
       }
     });
@@ -1590,7 +1795,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return Math.min(max, Math.max(min, value));
   }
 
-  function getSceneScale(sceneName, asset) {
+  function getSceneScale(sceneName, asset, product) {
     if (!asset?.logo) return 1;
 
     const ratio = Number(asset.logo.ratio) || 1;
@@ -1616,7 +1821,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else fit = 0.88;
     }
 
-    return clamp(state.logoScale * fit, 0.35, 1.55);
+    return clamp(getProductStyle(product).logoScale * fit, 0.35, 1.55);
   }
 
   function updateMockupScenes() {
@@ -1634,8 +1839,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ribbonTextValue = getResolvedText('ribbon');
     const stickerTextValue = getResolvedText('sticker');
-    const ribbonLogo = getPreviewLogo('ribbon');
-    const stickerLogo = getPreviewLogo('sticker');
+    const ribbonLogo = getPaintedLogo('ribbon', getPreviewLogo('ribbon'));
+    const stickerLogo = getPaintedLogo('sticker', getPreviewLogo('sticker'));
+    const ribbonStyle = getProductStyle('ribbon');
+    const stickerStyle = getProductStyle('sticker');
 
     const macroImage = $('#macroLogoImage');
     const macroText = $('#macroLogoText');
@@ -1661,24 +1868,24 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLogoElements([macroImage, boxRibbonImage], ribbonLogo);
     updateLogoElements([macroStickerImage, boxStickerImage], stickerLogo);
 
-    const updateTextElements = (elements, value) => {
+    const updateTextElements = (elements, value, style) => {
       const hasText = Boolean(value.trim());
       elements.forEach((text) => {
         if (!text) return;
         text.hidden = !hasText;
         text.textContent = value;
-        text.style.color = state.print;
-        text.style.fontFamily = state.font;
+        text.style.color = style.print;
+        text.style.fontFamily = style.font;
       });
     };
-    updateTextElements([macroText, boxRibbonText], ribbonTextValue);
-    updateTextElements([macroStickerText, boxStickerText], stickerTextValue);
+    updateTextElements([macroText, boxRibbonText], ribbonTextValue, ribbonStyle);
+    updateTextElements([macroStickerText, boxStickerText], stickerTextValue, stickerStyle);
 
     if (macroImage) {
-      macroImage.style.transform = `translateX(${state.logoOffsetX}px) scale(${getSceneScale('macro', ribbonLogo)})`;
+      macroImage.style.transform = `translateX(${ribbonStyle.logoOffsetX}px) scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
     }
     if (macroStickerImage) {
-      macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo), 1)})`;
+      macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo, 'sticker'), 1)})`;
     }
 
     const updateCompositionState = (elements, value, asset) => {
@@ -1702,10 +1909,10 @@ document.addEventListener('DOMContentLoaded', () => {
       stickerLogo
     );
     if (boxRibbonImage) {
-      boxRibbonImage.style.transform = `translateX(${state.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon', ribbonLogo)})`;
+      boxRibbonImage.style.transform = `translateX(${ribbonStyle.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
     }
     if (boxStickerImage) {
-      boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo)})`;
+      boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo, 'sticker')})`;
     }
   }
 
@@ -1782,13 +1989,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const rec = getRecommendation();
     if ($('#recWidth')) $('#recWidth').textContent = rec.width + ' мм';
     if ($('#recSticker')) $('#recSticker').textContent = 'Ø' + rec.stickerSize + ' мм';
-    if ($('#recRepeat')) $('#recRepeat').textContent = rec.repeatMm + ' мм';
+    if ($('#recRepeat')) $('#recRepeat').textContent = `Авто · ${state.repeatMm} мм`;
     if ($('#recommendReason')) $('#recommendReason').textContent = rec.reason;
   }
 
   function render() {
     // The existing upload pipeline writes the legacy common aliases.
     syncCommonContentFromLegacyAliases();
+    updateRibbonRepeat();
     const previewLogoDemo = ['ribbon', 'sticker'].some((product) =>
       isDemoLogoPreview(product),
     );
@@ -1797,11 +2005,15 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     document.body.dataset.previewLogoDemo = String(previewLogoDemo);
     updateShowcaseContent();
-    const printMode =
-      state.print === '#b69249' ? 'gold' :
-      state.print === '#c6c8cd' ? 'silver' :
-      state.print === '#ffffff' ? 'white' : 'black';
-    document.body.dataset.print = printMode;
+    const printMode = (product) => {
+      const print = getProductStyle(product).print;
+      return print === '#b69249' ? 'gold' :
+        print === '#c6c8cd' ? 'silver' :
+        print === '#ffffff' ? 'white' : 'black';
+    };
+    document.body.dataset.ribbonPrint = printMode('ribbon');
+    document.body.dataset.stickerPrint = printMode('sticker');
+    document.body.dataset.studioProductStyles = JSON.stringify(state.productStyles);
 
     updateRecommendationCard();
     renderRibbon();
@@ -2033,13 +2245,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     syncLegacyContentAliasesFromContent();
 
-    // Clear cached sources so every scene receives its resolved monochrome SVG.
-    ['#macroLogoImage', '#macroStickerImage', '#boxRibbonImage', '#boxStickerImage'].forEach(
-      (selector) => {
-        const image = $(selector);
-        if (image) image.removeAttribute('src');
-      }
-    );
   }
 
   function hasTransparency(imageData) {
@@ -2707,12 +2912,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function syncControls() {
+    const style = getProductStyle(state.activeSettingsProduct);
     $$('#widthChoice button').forEach((button) =>
       button.classList.toggle('active', +button.dataset.value === state.width)
-    );
-
-    $$('#printChoice button').forEach((button) =>
-      button.classList.toggle('active', button.dataset.value === state.print)
     );
 
     $$('#bundleChoice button').forEach((button) =>
@@ -2728,37 +2930,46 @@ document.addEventListener('DOMContentLoaded', () => {
         ? ''
         : state.content.text.common;
     }
-    if ($('#fontSelect')) $('#fontSelect').value = state.font;
-    if ($('#fontSize')) $('#fontSize').value = state.fontSize;
+    if ($('#fontSelect')) $('#fontSelect').value = style.font;
+    if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
+    if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
+    if ($('#fontSize')) $('#fontSize').value = style.fontSize;
     if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
     if ($('#meters')) $('#meters').disabled = state.meters === 0;
     if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
-    if ($('#logoScale')) $('#logoScale').value = Math.round(state.logoScale * 100);
-    if ($('#logoOffsetX')) $('#logoOffsetX').value = state.logoOffsetX;
+    if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
+    if ($('#logoOffsetX')) $('#logoOffsetX').value = style.logoOffsetX;
     syncPrintGuideState();
   }
 
-  colors.forEach(([name, color], index) => {
-    const button = document.createElement('button');
-    button.className = 'swatch' + (index === 0 ? ' active' : '');
-    button.title = name;
-    button.style.background = color;
-
-    button.addEventListener('click', () => {
-      $$('.swatch').forEach((item) => item.classList.remove('active'));
-      button.classList.add('active');
-      state.ribbon = color;
-      render();
+  function setActiveSettingsProduct(product, {focusControls = false} = {}) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.activeSettingsProduct = product;
+    syncLegacyStyleAliases(product);
+    document.body.dataset.activeSettingsProduct = product;
+    $$('[data-settings-product]').forEach((section) => {
+      section.hidden = section.dataset.settingsProduct !== product;
     });
-
-    $('#ribbonSwatches').appendChild(button);
-  });
+    $$('[data-mobile-product-sample]').forEach((sample) => {
+      const active = sample.dataset.mobileProductSample === product;
+      sample.classList.toggle('is-settings-active', active);
+      sample.setAttribute('aria-pressed', String(active));
+    });
+    if ($('#activeSettingsTitle')) {
+      $('#activeSettingsTitle').textContent =
+        product === 'ribbon' ? 'Лента' : 'Стикер';
+    }
+    syncControls();
+    if (focusControls) $('#fontSelect')?.focus({preventScroll: true});
+  }
 
   const printGuideEditingSelector = [
     '#textInput',
     '#fontSelect',
+    '#printColorSelect',
+    '#ribbonColorSelect',
     '#panel-settings button',
     '#panel-settings input',
     '[data-mobile-products-safe-zone]',
@@ -2809,16 +3020,6 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   );
 
-  $$('#printChoice button').forEach((button) =>
-    button.addEventListener('click', () => {
-      activate('#printChoice', button);
-      state.print = button.dataset.value;
-      refreshSvgColor();
-      render();
-      updateShowcaseContent();
-    })
-  );
-
   $$('#bundleChoice button').forEach((button) =>
     button.addEventListener('click', () => {
       activate('#bundleChoice', button);
@@ -2830,10 +3031,19 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   document.addEventListener('studio:product-selection-change', (event) => {
-    setProductSelection({
-      ribbon: Boolean(event.detail?.ribbon),
-      sticker: Boolean(event.detail?.sticker)
-    });
+    const ribbon = Boolean(event.detail?.ribbon);
+    const sticker = Boolean(event.detail?.sticker);
+    setProductSelection({ribbon, sticker});
+    if (
+      (state.activeSettingsProduct === 'ribbon' && !ribbon) ||
+      (state.activeSettingsProduct === 'sticker' && !sticker)
+    ) {
+      setActiveSettingsProduct(ribbon ? 'ribbon' : 'sticker');
+    }
+  });
+
+  document.addEventListener('studio:settings-product-change', (event) => {
+    setActiveSettingsProduct(event.detail?.product);
   });
 
   document.addEventListener('studio:content-edit-request', (event) => {
@@ -3134,17 +3344,33 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#textInput').addEventListener('change', returnToMobilePreview);
 
   $('#fontSelect').addEventListener('change', (event) => {
-    state.font = event.target.value;
+    getProductStyle(state.activeSettingsProduct).font = event.target.value;
+    syncLegacyStyleAliases();
     render();
     updateShowcaseContent();
   });
 
+  $('#printColorSelect').addEventListener('change', (event) => {
+    getProductStyle(state.activeSettingsProduct).print = event.target.value;
+    syncLegacyStyleAliases();
+    refreshSvgColor();
+    render();
+    updateShowcaseContent();
+  });
+
+  $('#ribbonColorSelect').addEventListener('change', (event) => {
+    state.ribbon = event.target.value;
+    render();
+  });
+
   $('#fontSize').addEventListener('input', (event) => {
-    state.fontSize = +event.target.value;
+    getProductStyle(state.activeSettingsProduct).fontSize = +event.target.value;
+    syncLegacyStyleAliases();
     render();
   });
 
   $('#repeatMm').addEventListener('input', (event) => {
+    state.repeatMode = 'manual';
     state.repeatMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
       Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
@@ -3160,6 +3386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         repeatMm < MIN_RIBBON_REPEAT_MM ||
         repeatMm > MAX_RIBBON_REPEAT_MM
       ) return;
+      state.repeatMode = 'manual';
       state.repeatMm = repeatMm;
       syncControls();
       render();
@@ -3183,18 +3410,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#logoScale').addEventListener('input', (event) => {
-    state.logoScale = +event.target.value / 100;
+    getProductStyle(state.activeSettingsProduct).logoScale =
+      +event.target.value / 100;
+    syncLegacyStyleAliases();
     render();
   });
 
   $('#logoOffsetX').addEventListener('input', (event) => {
-    state.logoOffsetX = +event.target.value;
+    getProductStyle(state.activeSettingsProduct).logoOffsetX =
+      +event.target.value;
+    syncLegacyStyleAliases();
     render();
   });
 
   $('#resetTransform').addEventListener('click', () => {
-    state.logoScale = 1;
-    state.logoOffsetX = 0;
+    const style = getProductStyle(state.activeSettingsProduct);
+    style.logoScale = 1;
+    style.logoOffsetX = 0;
+    syncLegacyStyleAliases();
     syncControls();
     render();
   });
@@ -3202,11 +3435,15 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#makeBeautiful').addEventListener('click', () => {
     const rec = getRecommendation();
     state.width = rec.width;
-    state.repeatMm = rec.repeatMm;
-    state.fontSize = rec.width === 20 ? 34 : 28;
+    state.repeatMode = 'auto';
     state.stickerSize = rec.stickerSize;
-    state.logoScale = rec.logoScale;
-    state.logoOffsetX = 0;
+    state.productStyles.ribbon.fontSize = rec.width === 20 ? 34 : 28;
+    state.productStyles.ribbon.logoScale = rec.logoScale;
+    state.productStyles.ribbon.logoOffsetX = 0;
+    state.productStyles.sticker.fontSize = 32;
+    state.productStyles.sticker.logoScale = rec.logoScale;
+    state.productStyles.sticker.logoOffsetX = 0;
+    syncLegacyStyleAliases();
     setProductSelection({ribbon: true, sticker: true});
   });
 
@@ -3246,7 +3483,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `- Стикеры Ø${state.stickerSize} мм: ${state.stickerQty} шт.`
         : '- Стикеры: не выбраны',
       `- Цвет ленты: ${state.ribbon}`,
-      `- Цвет печати: ${state.print}`,
+      `- Цвет печати на ленте: ${getProductStyle('ribbon').print}`,
+      `- Цвет печати на стикере: ${getProductStyle('sticker').print}`,
       `- Надпись на ленте: ${ribbonText}`,
       `- Надпись на стикере: ${stickerText}`,
       `- Логотип на ленте: ${ribbonLogo}`,
@@ -3350,7 +3588,7 @@ document.addEventListener('DOMContentLoaded', () => {
   state.commonLogoUploaded = hasCompletedCommonLogoUpload;
   if (state.commonTextAuthored && restoredCommonLogoIsDefault) clearDemoLogo();
   loadDefaultLogo();
-  syncControls();
+  setActiveSettingsProduct(state.activeSettingsProduct);
   updateFirstStepAvailability();
   render();
   updateShowcaseContent();

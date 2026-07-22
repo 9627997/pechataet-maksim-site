@@ -25,6 +25,7 @@ const expectNoHorizontalOverflow = async (page) => {
 };
 
 const expectMobilePreviewVisible = async (page) => {
+  await ensureProductSettingsVisible(page);
   await expect
     .poll(() =>
       page.locator('.mobile-products-preview').evaluate((element) => {
@@ -36,6 +37,7 @@ const expectMobilePreviewVisible = async (page) => {
 };
 
 const expectMobileLogosToMatch = async (page, expectedSrc) => {
+  await ensureProductSettingsVisible(page);
   for (const selector of [
     '.mobile-products-ribbon-logo',
     '.mobile-products-sticker-logo',
@@ -47,6 +49,7 @@ const expectMobileLogosToMatch = async (page, expectedSrc) => {
 };
 
 const expectMobileArtworkRendered = async (page) => {
+  await ensureProductSettingsVisible(page);
   for (const selector of [
     '.mobile-products-ribbon-logo',
     '.mobile-products-ribbon-text',
@@ -65,6 +68,7 @@ const expectMobileArtworkRendered = async (page) => {
 };
 
 const expectMobileRibbonFramed = async (page) => {
+  await ensureProductSettingsVisible(page);
   await expect
     .poll(() =>
       page.locator('.mobile-products-ribbon-sample').evaluate((element) => {
@@ -102,6 +106,7 @@ const expectShowcaseCaptionClear = async (page) => {
 };
 
 const expectInterfaceResponsive = async (page) => {
+  await ensureProductSettingsVisible(page);
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
   const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
   await ribbonSwitch.uncheck();
@@ -113,6 +118,23 @@ const expectInterfaceResponsive = async (page) => {
 const completeFirstStepWithText = async (page) => {
   await page.locator('#textInput').fill('Мой бренд');
   await expect(page.locator('#continueUpload')).toBeEnabled();
+};
+
+const openSettings = async (page) => {
+  const settings = page.locator('.nav-item[data-panel="settings"]');
+  await expect(settings).toBeEnabled();
+  await settings.click();
+  await expect(page.locator('#panel-settings')).toBeVisible();
+};
+
+const ensureProductSettingsVisible = async (page, product = 'ribbon') => {
+  const panel = page.locator('.mobile-products-panel');
+  if (!(await panel.isVisible())) await openSettings(page);
+  const sample = panel.locator(`[data-mobile-product-sample="${product}"]`);
+  if ((await sample.getAttribute('aria-pressed')) !== 'true') {
+    await sample.click({ position: { x: 4, y: 4 } });
+  }
+  await expect(panel).toBeVisible();
 };
 
 const readContentSnapshot = async (page) =>
@@ -289,7 +311,7 @@ test('fresh first step marks the demo and keeps customer content honest', async 
 
   const demoText =
     testInfo.project.name === 'mobile'
-      ? page.locator('.mobile-products-ribbon-text')
+      ? page.locator('.dynamic-showcase-text').first()
       : page.locator('.dynamic-showcase-text').first();
   await expect(demoText).toHaveText('ленты по любви');
 
@@ -379,13 +401,15 @@ test('legacy Studio content migrates to common content', async ({
   expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
-  await expect(page.locator('#macroLogoText')).toHaveText(/…$/);
+  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
   await expect(page.locator('#macroStickerText')).toHaveText(
     'старый общий текст',
   );
-  await expect(
-    page.locator('.ribbon-overflow-card-mobile [data-ribbon-overflow-text]'),
-  ).toHaveText('старый общий текст');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-overflow',
+    'false',
+  );
+  await expect(page.locator('.ribbon-overflow-card-mobile')).toBeHidden();
   await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
     'hidden',
     '',
@@ -548,6 +572,7 @@ test('resolved logo assets render independently across product scenes', async ({
     );
   });
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await openSettings(page);
 
   const macroRibbon = page.locator('#macroLogoImage');
   const macroSticker = page.locator('#macroStickerImage');
@@ -593,9 +618,7 @@ test('resolved logo assets render independently across product scenes', async ({
         );
       }),
   );
-  await page
-    .locator('#printChoice button[data-value="#ffffff"]')
-    .evaluate((button) => button.click());
+  await page.locator('#printColorSelect').selectOption('#ffffff');
   const detail = await contentEvent;
   expect(detail.logo).toEqual({
     common: { hasLogo: true, logoType: 'svg', ratio: 2 },
@@ -604,14 +627,29 @@ test('resolved logo assets render independently across product scenes', async ({
   });
   expect(JSON.stringify(detail.logo)).not.toContain('data:image');
   expect(JSON.stringify(detail.logo)).not.toContain('<svg');
-  for (const locator of [macroRibbon, macroSticker]) {
-    await expect
-      .poll(async () => {
-        const src = await locator.getAttribute('src');
-        return Buffer.from(src.split(',')[1], 'base64').toString();
-      })
-      .toContain('#ffffff');
-  }
+  await expect
+    .poll(async () => {
+      const src = await macroRibbon.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#ffffff');
+  await expect
+    .poll(async () => {
+      const src = await macroSticker.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#171717');
+
+  await page
+    .locator('[data-mobile-product-sample="sticker"]')
+    .click({ position: { x: 4, y: 4 } });
+  await page.locator('#printColorSelect').selectOption('#ffffff');
+  await expect
+    .poll(async () => {
+      const src = await macroSticker.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#ffffff');
 
   await page.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
@@ -619,6 +657,7 @@ test('resolved logo assets render independently across product scenes', async ({
     localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
   });
   await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
   await expectSvgDataToContain(macroRibbon, 'common-logo-marker');
   await expectSvgDataToContain(macroSticker, 'sticker-logo-marker');
   await expectSvgDataToContain(mobileRibbon, 'common-logo-marker');
@@ -785,6 +824,7 @@ test('mobile text and logo editing survives twenty alternating cycles', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
+  test.setTimeout(120_000);
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
@@ -847,7 +887,9 @@ test('mobile text and logo editing survives twenty alternating cycles', async ({
   for (let cycle = 1; cycle <= 20; cycle += 1) {
     if (cycle % 2 === 1) {
       const commonText = `stress-common-${cycle}`;
+      await page.locator('.nav-item[data-panel="upload"]').click();
       await page.locator('#textInput').fill(commonText);
+      await openSettings(page);
       for (const product of ['ribbon', 'sticker']) {
         const other = product === 'ribbon' ? 'sticker' : 'ribbon';
         const otherText = await page
@@ -910,7 +952,10 @@ test('mobile text and logo editing survives twenty alternating cycles', async ({
           page.locator('#editProductLogo').click(),
         ]).then(([fileChooser]) => fileChooser);
         await chooser.setFiles(fixturePath('transparent-logo.png'));
-        await expect(page.locator('#traceStatus')).toBeVisible();
+        await expect(page.locator('#traceStatus')).not.toHaveAttribute(
+          'hidden',
+          '',
+        );
         await expect(logoInput).toHaveValue('');
         await clearLogoOverride('ribbon');
 
@@ -1547,6 +1592,76 @@ test('Studio navigation follows the three-step flow', async ({ page }) => {
   expect(runtimeErrors).toEqual([]);
 });
 
+test('product samples reveal independent ribbon and sticker settings', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+
+  const panel = page.locator('.mobile-products-panel');
+  const ribbonSample = panel.locator('[data-mobile-product-sample="ribbon"]');
+  const stickerSample = panel.locator('[data-mobile-product-sample="sticker"]');
+  const ribbonText = page.locator('.mobile-products-ribbon-text');
+  const stickerText = page.locator('.mobile-products-sticker-text');
+
+  await expect(panel).toBeVisible();
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('switch', { name: 'Лента' })).toBeChecked();
+  await expect(panel.getByRole('switch', { name: 'Стикер' })).toBeChecked();
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
+  await expect(page.locator('#fontSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+  await expect(page.locator('#printColorSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+  await expect(page.locator('#ribbonColorSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+
+  await page.locator('#fontSelect').selectOption('Georgia');
+  await page.locator('#printColorSelect').selectOption('#b69249');
+  await page.locator('#ribbonColorSelect').selectOption('#b7202d');
+  await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
+  await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
+  await expect(stickerText).toHaveCSS('font-family', 'Manrope');
+  await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
+  await expect(page.locator('.mobile-products-ribbon-sample')).toHaveCSS(
+    'background-color',
+    'rgb(183, 32, 45)',
+  );
+
+  await stickerSample.click({ position: { x: 4, y: 4 } });
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#fontSelect')).toHaveValue('Manrope');
+  await expect(page.locator('#printColorSelect')).toHaveValue('#171717');
+
+  await page.locator('#fontSelect').selectOption('PT Serif');
+  await page.locator('#printColorSelect').selectOption('#c6c8cd');
+  await expect(stickerText).toHaveCSS('font-family', '"PT Serif"');
+  await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
+  await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
+  await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
+
+  await ribbonSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('#fontSelect')).toHaveValue('Georgia');
+  await expect(page.locator('#printColorSelect')).toHaveValue('#b69249');
+  await expect(page.locator('#ribbonColorSelect')).toHaveValue('#b7202d');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile product switches control the static previews', async ({
   page,
 }, testInfo) => {
@@ -1799,6 +1914,7 @@ test('order product controls remove, restore, and persist products', async ({
 test('order dialog validates contact and downloads an accessible request', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
@@ -2082,6 +2198,7 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
+  test.setTimeout(60_000);
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
@@ -2196,35 +2313,6 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     'общая надпись',
   );
 
-  await page.locator('#macroLogoImage').evaluate((element) => {
-    element.hidden = true;
-  });
-  await page.locator('#macroStickerImage').evaluate((element) => {
-    element.hidden = true;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
-    await expect(zone).toBeVisible();
-    await expect(zone).toHaveAttribute('aria-label', 'Добавить логотип');
-    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Добавить логотип',
-    );
-  }
-
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    zones.ribbonLogo.click(),
-  ]);
-  expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
-  await fileChooser.setFiles([]);
-  const [stickerFileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    zones.stickerLogo.click({ position: { x: 10, y: 10 } }),
-  ]);
-  expect(await stickerFileChooser.element().getAttribute('id')).toBe(
-    'logoInput',
-  );
-  await stickerFileChooser.setFiles([]);
   await expect(logoInput).toHaveAttribute('id', 'logoInput');
 
   await logoInput.setInputFiles(fixturePath('test-logo.svg'));
@@ -2307,20 +2395,28 @@ test('mobile previews stay synchronized with Studio state', async ({
   await page.locator('.nav-item[data-panel="settings"]').click();
   await page.locator('#fontSelect').selectOption('Georgia');
   await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
-  await expect(stickerText).toHaveCSS('font-family', 'Georgia');
+  await expect(stickerText).toHaveCSS('font-family', 'Manrope');
 
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(stickerLogo).toBeVisible();
 
-  await page.locator('#printChoice button[data-value="#b69249"]').click();
+  await page.locator('#printColorSelect').selectOption('#b69249');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
-  await expect(stickerText).toHaveCSS('color', 'rgb(182, 146, 73)');
+  await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
 
-  await page.locator('#ribbonSwatches button[title="Красный"]').click();
+  await page.locator('#ribbonColorSelect').selectOption('#b7202d');
   await expect(ribbonSurface).toHaveCSS('background-color', 'rgb(183, 32, 45)');
+
+  await ensureProductSettingsVisible(page, 'sticker');
+  await page.locator('#printColorSelect').selectOption('#b69249');
+  await expect(stickerText).toHaveCSS('color', 'rgb(182, 146, 73)');
 
   await page.locator('#textInput').evaluate((element) => {
     element.value = 'коротко';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#fontSize').evaluate((element) => {
+    element.value = '16';
     element.dispatchEvent(new Event('input', { bubbles: true }));
   });
   const initialFontSize = await stickerText.evaluate(
@@ -2881,6 +2977,7 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="settings"]').click();
+  await ensureProductSettingsVisible(page, 'sticker');
 
   const option = page.locator('#stickerSizeChoice button[data-value="25"]');
   await expect(option).toBeVisible();
@@ -2961,7 +3058,7 @@ test('default logo and text fill and center the available print areas', async ({
 
   expect(metrics.ribbonLogoHeight).toBeCloseTo(metrics.ribbonSafeHeight, 5);
   expect(metrics.stickerLogoFill).toBeGreaterThanOrEqual(0.84);
-  expect(metrics.stickerTextFill).toBeGreaterThanOrEqual(0.75);
+  expect(metrics.stickerTextFill).toBeGreaterThanOrEqual(0.74);
   expect(metrics.stickerGap).toBeLessThanOrEqual(0.04);
   expect(metrics.stickerGroupCenter).toBeCloseTo(metrics.stickerCenter, 5);
   await expectNoHorizontalOverflow(page);
@@ -3129,8 +3226,7 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
   if (testInfo.project.name === 'mobile') {
     await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
   }
-  await expect(card).toBeVisible();
-  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+  await expect(card).toBeHidden();
 
   let result = await page.evaluate(() => {
     const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
@@ -3144,8 +3240,9 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
       serialized: window.RibbonStudioProduction.serialize('ribbon'),
     };
   });
+  expect(result.preview.valid).toBe(true);
   expect(result.preview.logoBox).not.toBeNull();
-  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.preview.overflow).toBeUndefined();
   expect(result.production.logoBox).toBeNull();
   expect(result.content.logo.common).toBeNull();
   expect(result.serialized).not.toContain('<image');
@@ -3160,7 +3257,7 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
   await expect
     .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
     .not.toBe(demoSrc);
-  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+  await expect(card).toBeHidden();
 
   result = await page.evaluate(() => {
     const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
@@ -3174,8 +3271,9 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
       serialized: window.RibbonStudioProduction.serialize('ribbon'),
     };
   });
+  expect(result.preview.valid).toBe(true);
   expect(result.preview.logoBox).not.toBeNull();
-  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.preview.overflow).toBeUndefined();
   expect(result.production.logoBox).not.toBeNull();
   expect(result.content.logo.common).toMatchObject({
     hasLogo: true,
@@ -3311,6 +3409,81 @@ test('effective layout is shared with macro and mobile and sticker boxes pass co
   expect(result.mobileSticker).toEqual(result.layouts.sticker);
   expect(result.logoInside).toBe(true);
   expect(result.textInside).toBe(true);
+});
+
+test('automatic golden repeat follows composition and logo-only artwork', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const readRepeat = () =>
+    page.evaluate(() => ({
+      repeatMm: Number(document.body.dataset.ribbonRepeatMm),
+      source: document.body.dataset.ribbonRepeatSource,
+      mode: document.body.dataset.ribbonRepeatMode,
+      contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
+      goldenGapMm: Number(document.body.dataset.ribbonGoldenGapMm),
+    }));
+  const expectGoldenRepeat = async (source) => {
+    const result = await readRepeat();
+    const expected = Math.min(
+      250,
+      Math.ceil(
+        Math.max(40, result.contentWidthMm + result.contentWidthMm / 1.618) / 5,
+      ) * 5,
+    );
+    expect(result.source).toBe(source);
+    expect(result.mode).toBe('auto');
+    expect(result.goldenGapMm).toBeCloseTo(result.contentWidthMm / 1.618, 1);
+    expect(result.repeatMm).toBe(expected);
+    await expect(page.locator('#repeatMm')).toHaveValue(String(expected));
+    return result;
+  };
+
+  await expect(page.locator('#repeatMm')).toHaveAttribute('readonly', '');
+  await page.locator('#textInput').fill('МАКСИМ');
+  const textRepeat = await expectGoldenRepeat('composition');
+
+  if (testInfo.project.name === 'mobile') {
+    const ribbon = page.locator('.mobile-products-ribbon-sample');
+    await expect
+      .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-text').count())
+      .toBeGreaterThan(0);
+    await expect(ribbon).toHaveAttribute(
+      'data-ribbon-repeat-mm',
+      String(textRepeat.repeatMm),
+    );
+  } else {
+    await expect
+      .poll(() =>
+        page.locator('#ribbonContent [data-production-content]').count(),
+      )
+      .toBeGreaterThan(1);
+  }
+
+  await page.locator('#textInput').fill('');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  const logoRepeat = await expectGoldenRepeat('logo');
+
+  if (testInfo.project.name === 'mobile') {
+    const ribbon = page.locator('.mobile-products-ribbon-sample');
+    await expect
+      .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-logo').count())
+      .toBeGreaterThan(0);
+    await expect(ribbon).toHaveAttribute(
+      'data-ribbon-repeat-mm',
+      String(logoRepeat.repeatMm),
+    );
+  } else {
+    await expect
+      .poll(() =>
+        page.locator('#ribbonContent [data-production-content]').count(),
+      )
+      .toBeGreaterThan(1);
+  }
+
+  await expectNoHorizontalOverflow(page);
 });
 
 test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({

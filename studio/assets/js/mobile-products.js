@@ -73,13 +73,20 @@
 
     const ribbonLogo = createLogoZone('ribbon');
     const ribbonText = createTextZone('ribbon');
+    const ribbonTrack = document.createElement('div');
+    const ribbonInteractionCell = document.createElement('div');
     const stickerContent = document.createElement('div');
     const stickerLogo = createLogoZone('sticker');
     const stickerText = createTextZone('sticker');
 
     stickerContent.className = 'mobile-products-sticker-content';
     stickerContent.dataset.mobileProductsSafeZone = 'sticker-content';
-    ribbonSurface.append(ribbonLogo.zone, ribbonText.zone, ribbonGuide);
+    ribbonTrack.className = 'mobile-products-ribbon-repeat-track';
+    ribbonTrack.setAttribute('aria-hidden', 'true');
+    ribbonInteractionCell.className =
+      'mobile-products-ribbon-interaction-cell';
+    ribbonInteractionCell.append(ribbonLogo.zone, ribbonText.zone, ribbonGuide);
+    ribbonSurface.append(ribbonTrack, ribbonInteractionCell);
     stickerContent.append(stickerLogo.zone, stickerText.zone);
     stickerSurface.append(stickerContent, stickerGuide);
 
@@ -137,7 +144,94 @@
       }
     };
 
+    const renderRibbonRepeats = ({
+      layout,
+      repeatMm,
+      ribbonWidth,
+      logoSrc,
+      textValue,
+      hasLogo,
+      hasText,
+      font,
+      print,
+    }) => {
+      if (!layout) return;
+      const surfaceBounds = ribbonSurface.getBoundingClientRect();
+      if (surfaceBounds.width <= 0 || surfaceBounds.height <= 0) return;
+
+      const repeatWidth = (repeatMm / ribbonWidth) * surfaceBounds.height;
+      const centerLeft = (surfaceBounds.width - repeatWidth) / 2;
+      ribbonInteractionCell.style.left = `${centerLeft}px`;
+      ribbonInteractionCell.style.width = `${repeatWidth}px`;
+      ribbonTrack.replaceChildren();
+
+      let firstLeft = centerLeft;
+      while (firstLeft > 0) firstLeft -= repeatWidth;
+
+      const textBox = layout.valid ? layout.textBox : layout.previewTextBox;
+      const visibleText = layout.valid ? textValue : layout.previewText || '';
+      const fontSizeRatio = layout.valid
+        ? layout.fontSizeRatio
+        : layout.previewFontSizeRatio;
+      let repeatCount = 0;
+
+      for (
+        let left = firstLeft;
+        left < surfaceBounds.width;
+        left += repeatWidth
+      ) {
+        repeatCount += 1;
+        if (Math.abs(left - centerLeft) < 0.5) continue;
+
+        const cell = document.createElement('span');
+        cell.className = 'mobile-products-ribbon-repeat-cell';
+        cell.style.left = `${left}px`;
+        cell.style.width = `${repeatWidth}px`;
+
+        if (hasLogo && logoSrc && layout.logoBox) {
+          const image = document.createElement('img');
+          const box = layout.logoBox;
+          image.className = 'mobile-products-ribbon-repeat-logo';
+          image.alt = '';
+          image.src = logoSrc;
+          image.style.left = `${(box.x + box.width / 2) * 100}%`;
+          image.style.top = `${(box.y + box.height / 2) * 100}%`;
+          image.style.width = `${box.width * 100}%`;
+          image.style.height = `${box.height * 100}%`;
+          cell.appendChild(image);
+        }
+
+        if (hasText && visibleText && textBox) {
+          const text = document.createElement('span');
+          text.className = 'mobile-products-ribbon-repeat-text';
+          text.textContent = visibleText;
+          text.style.left = `${(textBox.x + textBox.width / 2) * 100}%`;
+          text.style.top = `${(textBox.y + textBox.height / 2) * 100}%`;
+          text.style.width = `${textBox.width * 100}%`;
+          text.style.height = `${textBox.height * 100}%`;
+          text.style.color = print;
+          text.style.fontFamily = font;
+          text.style.fontSize = `${fontSizeRatio * surfaceBounds.height}px`;
+          cell.appendChild(text);
+        }
+
+        ribbonTrack.appendChild(cell);
+      }
+
+      ribbonSurface.dataset.ribbonRepeatCount = String(repeatCount);
+      ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
+      ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
+    };
+
     const syncStudioState = () => {
+      let productStyles = {};
+      try {
+        productStyles = JSON.parse(
+          document.body.dataset.studioProductStyles || '{}',
+        );
+      } catch {
+        productStyles = {};
+      }
       const commonText = document.querySelector('#textInput')?.value || '';
       const ribbonTextValue =
         contentTextState?.ribbon?.resolved ?? commonText;
@@ -145,7 +239,17 @@
         contentTextState?.sticker?.resolved ?? commonText;
       const ribbonTextValueTrimmed = ribbonTextValue.trim();
       const stickerTextValueTrimmed = stickerTextValue.trim();
-      const font = document.querySelector('#fontSelect')?.value || 'Manrope';
+      const fallbackFont = document.querySelector('#fontSelect')?.value || 'Manrope';
+      const fallbackPrint =
+        document.querySelector('#printColorSelect')?.value || '#171717';
+      const ribbonStyle = {
+        font: productStyles.ribbon?.font || fallbackFont,
+        print: productStyles.ribbon?.print || fallbackPrint,
+      };
+      const stickerStyle = {
+        font: productStyles.sticker?.font || fallbackFont,
+        print: productStyles.sticker?.print || fallbackPrint,
+      };
       const ribbonWidth =
         Number(document.querySelector('#widthChoice button.active')?.dataset.value) ||
         15;
@@ -154,8 +258,6 @@
           document.querySelector('#stickerSizeChoice button.active')?.dataset.value,
         ) || 40;
       const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
-      const print =
-        document.querySelector('#printChoice button.active')?.dataset.value || '#171717';
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
@@ -195,11 +297,11 @@
         contentLogoState?.sticker?.mode || 'inherit',
       );
 
-      const updateText = ({ zone, text, action }, value, hasText, mode) => {
+      const updateText = ({ zone, text, action }, value, hasText, mode, style) => {
         text.textContent = value;
         text.hidden = !hasText;
-        text.style.color = print;
-        text.style.fontFamily = font;
+        text.style.color = style.print;
+        text.style.fontFamily = style.font;
         const label = hasText ? 'Изменить надпись' : 'Добавить надпись';
         zone.dataset.empty = String(!hasText);
         zone.dataset.contentMode = mode;
@@ -211,12 +313,14 @@
         ribbonTextValueTrimmed,
         hasRibbonText,
         contentTextState?.ribbon?.mode || 'inherit',
+        ribbonStyle,
       );
       updateText(
         stickerText,
         stickerTextValueTrimmed,
         hasStickerText,
         contentTextState?.sticker?.mode || 'inherit',
+        stickerStyle,
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
@@ -331,6 +435,17 @@
         stickerText,
         effectiveLayouts?.sticker,
       );
+      renderRibbonRepeats({
+        layout: effectiveLayouts?.ribbon,
+        repeatMm,
+        ribbonWidth,
+        logoSrc: ribbonLogoSrc,
+        textValue: ribbonTextValueTrimmed,
+        hasLogo: hasRibbonLogo,
+        hasText: hasRibbonText,
+        font: ribbonStyle.font,
+        print: ribbonStyle.print,
+      });
 
       const mode =
         hasStickerLogo && hasStickerText
@@ -373,6 +488,23 @@
             ),
           }),
         );
+      });
+    });
+
+    const requestProductSettings = (sample) => {
+      document.dispatchEvent(
+        new CustomEvent('studio:settings-product-change', {
+          detail: {product: sample.dataset.mobileProductSample},
+        }),
+      );
+    };
+
+    samples.forEach((sample) => {
+      sample.addEventListener('click', () => requestProductSettings(sample));
+      sample.addEventListener('keydown', (event) => {
+        if (event.target !== sample || !['Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        requestProductSettings(sample);
       });
     });
 

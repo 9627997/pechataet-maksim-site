@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260719.3">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260719.3">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260722.1">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260722.1">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -33,7 +33,7 @@
       <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
 
-    <section class="mobile-products-panel" aria-label="Предпросмотр продуктов">
+    <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
           <span>Лента</span>
@@ -48,7 +48,7 @@
       </div>
 
       <div class="mobile-products-preview">
-        <div class="mobile-products-sample mobile-products-ribbon" data-mobile-product-sample="ribbon">
+        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
           <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
@@ -64,14 +64,13 @@
             <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
           </section>
         </div>
-        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker">
-          <span class="mobile-products-sample-label">Стикер 25 мм</span>
+        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Настроить стикер">
+          <span class="mobile-products-sample-label">Стикер 40 мм</span>
           <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
         </div>
       </div>
     </section>
 
-    
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
@@ -129,9 +128,15 @@
 
     <section class="panel" id="panel-settings">
       <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
+      <p class="panel-copy">Выберите образец, чтобы открыть его индивидуальные настройки.</p>
+
+      <div class="settings-context-head" aria-live="polite">
+        <span>Индивидуальные настройки</span>
+        <strong id="activeSettingsTitle">Лента</strong>
+      </div>
 
       <label for="fontSelect">Шрифт надписи</label>
-      <select class="input" id="fontSelect">
+      <select class="input settings-select" id="fontSelect">
         <option value="Manrope">Manrope — современный</option>
         <option value="PT Serif">PT Serif — классический</option>
         <option value="Arial">Arial — нейтральный</option>
@@ -139,34 +144,57 @@
         <option value="Times New Roman">Times New Roman — традиционный</option>
       </select>
 
-      <label>Ширина ленты</label>
-      <div class="segmented" id="widthChoice">
-        <button class="active" data-value="15">15 мм</button>
-        <button data-value="20">20 мм</button>
+      <label for="printColorSelect">Цвет печати</label>
+      <select class="input settings-select" id="printColorSelect">
+        <option value="#171717">Чёрный</option>
+        <option value="#b69249">Золото</option>
+        <option value="#c6c8cd">Серебро</option>
+        <option value="#ffffff">Белый</option>
+      </select>
+
+      <div class="settings-product-fields" data-settings-product="ribbon">
+        <label>Ширина ленты</label>
+        <div class="segmented" id="widthChoice">
+          <button class="active" data-value="15">15 мм</button>
+          <button data-value="20">20 мм</button>
+        </div>
+
+        <label for="ribbonColorSelect">Цвет ленты</label>
+        <select class="input settings-select" id="ribbonColorSelect">
+          <option value="#f3eadc">Молочный</option>
+          <option value="#ffffff">Белый</option>
+          <option value="#e5c5c4">Пудровый</option>
+          <option value="#b7202d">Красный</option>
+          <option value="#6b1f2d">Бордовый</option>
+          <option value="#0c6a4f">Изумрудный</option>
+          <option value="#6f754e">Оливковый</option>
+          <option value="#86b9ca">Голубой</option>
+          <option value="#274d83">Синий</option>
+          <option value="#9b8db5">Лавандовый</option>
+          <option value="#8e8d89">Серый</option>
+          <option value="#171717">Чёрный</option>
+        </select>
+
+        <div class="repeat-control-head">
+          <label for="repeatMm">Шаг повтора, мм</label>
+          <span id="repeatMode">Автоматически</span>
+        </div>
+        <input class="input" id="repeatMm" type="number" min="40" max="250" value="100" aria-describedby="repeatHint" readonly>
+        <small class="repeat-hint" id="repeatHint">Свободный интервал рассчитывается по золотой пропорции.</small>
       </div>
 
-      <label>Цвет ленты</label>
-      <div class="swatches" id="ribbonSwatches"></div>
-
-      <label>Цвет печати</label>
-      <div class="print-options" id="printChoice">
-        <button class="active" data-value="#171717"><i class="print-dot black"></i>Чёрный</button>
-        <button data-value="#b69249"><i class="print-dot gold"></i>Золото</button>
-        <button data-value="#c6c8cd"><i class="print-dot silver"></i>Серебро</button>
-        <button data-value="#ffffff"><i class="print-dot white"></i>Белый</button>
-      </div>
-<label>Размер круглого стикера</label>
-      <div class="segmented" id="stickerSizeChoice">
-        <button data-value="25">25 мм</button>
-        <button data-value="30">30 мм</button>
-        <button class="active" data-value="40">40 мм</button>
-        <button data-value="50">50 мм</button>
+      <div class="settings-product-fields" data-settings-product="sticker" hidden>
+        <label>Размер круглого стикера</label>
+        <div class="segmented" id="stickerSizeChoice">
+          <button data-value="25">25 мм</button>
+          <button data-value="30">30 мм</button>
+          <button class="active" data-value="40">40 мм</button>
+          <button data-value="50">50 мм</button>
+        </div>
       </div>
 
-      <div class="two-cols">
-        <div><label for="fontSize">Размер текста</label><input id="fontSize" type="range" min="16" max="64" value="32"></div>
-        <div><label for="repeatMm">Шаг, мм</label><input class="input" id="repeatMm" type="number" min="40" max="250" value="100"></div>
-      </div>
+      <label for="fontSize">Размер текста</label>
+      <input class="settings-range" id="fontSize" type="range" min="16" max="64" value="32">
       <p class="artwork-validation" id="artworkValidation" role="status" hidden></p>
 <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
@@ -530,9 +558,9 @@
   </section>
 </div>
 
-<script src="assets/js/geometry.js?v=20260719.3"></script>
-<script src="assets/js/layout.js?v=20260719.3"></script>
-<script src="assets/js/app.js?v=20260719.3"></script>
-<script src="assets/js/mobile-products.js?v=20260719.3"></script>
+<script src="assets/js/geometry.js?v=20260722.1"></script>
+<script src="assets/js/layout.js?v=20260722.1"></script>
+<script src="assets/js/app.js?v=20260722.1"></script>
+<script src="assets/js/mobile-products.js?v=20260722.1"></script>
 </body>
 </html>
