@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEMO_TEXT = 'ленты по любви';
   const MIN_RIBBON_REPEAT_MM = 40;
   const MAX_RIBBON_REPEAT_MM = 250;
+  const GOLDEN_RATIO = 1.618;
+  const REPEAT_ROUNDING_MM = 5;
+  const PRINT_MARGIN_MM = 2.5;
   const PDF_RENDER_MAX_SIDE = 1600;
   const PDFJS_MODULE_URL = new URL(
     'assets/vendor/pdfjs/pdf.min.js',
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     activeSettingsProduct: 'ribbon',
     repeatMm: 100,
+    repeatMode: 'auto',
     bundle: 'bundle',
     stickerSize: 40,
     stickerBg: '#ffffff',
@@ -548,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
           Number(state.repeatMm) || 100,
         ),
       );
+      state.repeatMode = restored.repeatMode === 'manual' ? 'manual' : 'auto';
 
       const legacyDemoTexts = [
         'привет',
@@ -969,6 +974,121 @@ document.addEventListener('DOMContentLoaded', () => {
       printable,
       repeatMm,
     };
+  }
+
+  function getNaturalRibbonContentWidthMm(
+    text,
+    resolvedLogo,
+    textMetrics = getTextMetrics(text, 'ribbon'),
+  ) {
+    const style = getProductStyle('ribbon');
+    const hasLogo = Boolean(resolvedLogo?.logo);
+    const hasText = Boolean(text);
+    const outerHeight = state.width === 15 ? 76 : 100;
+    const printableHeightMm = Math.max(0, state.width - PRINT_MARGIN_MM * 2);
+    const printableHeightUnits =
+      (printableHeightMm / state.width) * outerHeight;
+    const preferredFontSize =
+      (state.width === 20 ? 39 : 31) * (style.fontSize / 32);
+    const fittedFontSize = hasText
+      ? Math.min(
+          preferredFontSize,
+          printableHeightUnits / Math.max(textMetrics.heightPerSize, 1e-7),
+        )
+      : 0;
+    const textWidthMm = hasText
+      ? textMetrics.widthPerSize * fittedFontSize * (state.width / outerHeight)
+      : 0;
+    const logoRatio = Number(resolvedLogo?.logo?.ratio) || 1;
+    const effectiveLogoScale = Math.min(1, Math.max(0, style.logoScale));
+    const logoWidthMm = hasLogo
+      ? printableHeightMm * logoRatio * effectiveLogoScale
+      : 0;
+    const internalGapMm =
+      hasLogo && hasText
+        ? Math.max(
+            PRINT_MARGIN_MM,
+            Math.min(8, (logoWidthMm + textWidthMm) * 0.04),
+          )
+        : 0;
+
+    return {
+      widthMm: logoWidthMm + textWidthMm + internalGapMm,
+      logoWidthMm,
+      textWidthMm,
+      internalGapMm,
+      source:
+        hasLogo && hasText
+          ? 'composition'
+          : hasLogo
+            ? 'logo'
+            : hasText
+              ? 'text'
+              : 'empty',
+    };
+  }
+
+  function calculateAutomaticRibbonRepeat() {
+    const text = getResolvedText('ribbon').trim();
+    const resolvedLogo = getPreviewLogo('ribbon');
+    const textMetrics = getTextMetrics(text, 'ribbon');
+    const content = getNaturalRibbonContentWidthMm(
+      text,
+      resolvedLogo,
+      textMetrics,
+    );
+    const goldenGapMm = content.widthMm / GOLDEN_RATIO;
+    const desiredRepeatMm = content.widthMm + goldenGapMm;
+    let repeatMm =
+      Math.ceil(
+        Math.max(MIN_RIBBON_REPEAT_MM, desiredRepeatMm) / REPEAT_ROUNDING_MM,
+      ) * REPEAT_ROUNDING_MM;
+    repeatMm = Math.min(MAX_RIBBON_REPEAT_MM, repeatMm);
+
+    while (
+      repeatMm < MAX_RIBBON_REPEAT_MM &&
+      !calculateRibbonLayout(
+        repeatMm,
+        text,
+        resolvedLogo,
+        textMetrics,
+      ).valid
+    ) {
+      repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        repeatMm + REPEAT_ROUNDING_MM,
+      );
+    }
+
+    return {...content, repeatMm, goldenGapMm, desiredRepeatMm};
+  }
+
+  function updateRibbonRepeat() {
+    const automatic = calculateAutomaticRibbonRepeat();
+    if (state.repeatMode === 'auto') state.repeatMm = automatic.repeatMm;
+
+    const actualGapMm = Math.max(0, state.repeatMm - automatic.widthMm);
+    document.body.dataset.ribbonRepeatMode = state.repeatMode;
+    document.body.dataset.ribbonRepeatSource = automatic.source;
+    document.body.dataset.ribbonContentWidthMm = automatic.widthMm.toFixed(2);
+    document.body.dataset.ribbonGoldenGapMm = automatic.goldenGapMm.toFixed(2);
+    document.body.dataset.ribbonRepeatGapMm = actualGapMm.toFixed(2);
+    document.body.dataset.ribbonRepeatMm = String(state.repeatMm);
+
+    const input = $('#repeatMm');
+    const mode = $('#repeatMode');
+    const hint = $('#repeatHint');
+    if (input) input.value = state.repeatMm;
+    if (mode) {
+      mode.textContent =
+        state.repeatMode === 'auto' ? 'Автоматически' : 'Задан вручную';
+    }
+    if (hint) {
+      hint.textContent =
+        automatic.source === 'empty'
+          ? 'Минимальный шаг до добавления логотипа или надписи.'
+          : `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина композиции ÷ 1,618.`;
+    }
   }
 
   function getClippedRibbonPreview(text, resolvedLogo) {
@@ -1869,13 +1989,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const rec = getRecommendation();
     if ($('#recWidth')) $('#recWidth').textContent = rec.width + ' мм';
     if ($('#recSticker')) $('#recSticker').textContent = 'Ø' + rec.stickerSize + ' мм';
-    if ($('#recRepeat')) $('#recRepeat').textContent = rec.repeatMm + ' мм';
+    if ($('#recRepeat')) $('#recRepeat').textContent = `Авто · ${state.repeatMm} мм`;
     if ($('#recommendReason')) $('#recommendReason').textContent = rec.reason;
   }
 
   function render() {
     // The existing upload pipeline writes the legacy common aliases.
     syncCommonContentFromLegacyAliases();
+    updateRibbonRepeat();
     const previewLogoDemo = ['ribbon', 'sticker'].some((product) =>
       isDemoLogoPreview(product),
     );
@@ -3249,6 +3370,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#repeatMm').addEventListener('input', (event) => {
+    state.repeatMode = 'manual';
     state.repeatMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
       Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
@@ -3264,6 +3386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         repeatMm < MIN_RIBBON_REPEAT_MM ||
         repeatMm > MAX_RIBBON_REPEAT_MM
       ) return;
+      state.repeatMode = 'manual';
       state.repeatMm = repeatMm;
       syncControls();
       render();
@@ -3312,7 +3435,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#makeBeautiful').addEventListener('click', () => {
     const rec = getRecommendation();
     state.width = rec.width;
-    state.repeatMm = rec.repeatMm;
+    state.repeatMode = 'auto';
     state.stickerSize = rec.stickerSize;
     state.productStyles.ribbon.fontSize = rec.width === 20 ? 34 : 28;
     state.productStyles.ribbon.logoScale = rec.logoScale;

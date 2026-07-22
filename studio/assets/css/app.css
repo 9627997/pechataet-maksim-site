@@ -162,6 +162,11 @@ textarea.input{min-height:100px;resize:vertical}
   background:#171717;
   color:#fff;
 }
+.repeat-control-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:12px}
+.repeat-control-head label{margin:0}
+.repeat-control-head span{color:#2f7d49;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+#repeatMm[readonly]{color:#171717;background:#f1ede7;cursor:default}
+.repeat-hint{display:block;margin-top:6px;color:var(--muted);font-size:10px;line-height:1.45}
 .settings-context-head span{font-size:10px;color:#d6d0c8}
 .settings-context-head strong{font-size:13px}
 .settings-select{min-height:44px;cursor:pointer}

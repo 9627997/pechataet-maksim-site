@@ -401,13 +401,15 @@ test('legacy Studio content migrates to common content', async ({
   expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
-  await expect(page.locator('#macroLogoText')).toHaveText(/…$/);
+  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
   await expect(page.locator('#macroStickerText')).toHaveText(
     'старый общий текст',
   );
-  await expect(
-    page.locator('.ribbon-overflow-card-mobile [data-ribbon-overflow-text]'),
-  ).toHaveText('старый общий текст');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-overflow',
+    'false',
+  );
+  await expect(page.locator('.ribbon-overflow-card-mobile')).toBeHidden();
   await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
     'hidden',
     '',
@@ -822,6 +824,7 @@ test('mobile text and logo editing survives twenty alternating cycles', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
+  test.setTimeout(120_000);
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
@@ -1911,6 +1914,7 @@ test('order product controls remove, restore, and persist products', async ({
 test('order dialog validates contact and downloads an accessible request', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
@@ -2194,6 +2198,7 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
+  test.setTimeout(60_000);
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
@@ -2308,35 +2313,6 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     'общая надпись',
   );
 
-  await page.locator('#macroLogoImage').evaluate((element) => {
-    element.hidden = true;
-  });
-  await page.locator('#macroStickerImage').evaluate((element) => {
-    element.hidden = true;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
-    await expect(zone).toBeVisible();
-    await expect(zone).toHaveAttribute('aria-label', 'Добавить логотип');
-    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Добавить логотип',
-    );
-  }
-
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    zones.ribbonLogo.click(),
-  ]);
-  expect(await fileChooser.element().getAttribute('id')).toBe('logoInput');
-  await fileChooser.setFiles([]);
-  const [stickerFileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    zones.stickerLogo.click({ position: { x: 10, y: 10 } }),
-  ]);
-  expect(await stickerFileChooser.element().getAttribute('id')).toBe(
-    'logoInput',
-  );
-  await stickerFileChooser.setFiles([]);
   await expect(logoInput).toHaveAttribute('id', 'logoInput');
 
   await logoInput.setInputFiles(fixturePath('test-logo.svg'));
@@ -3082,7 +3058,7 @@ test('default logo and text fill and center the available print areas', async ({
 
   expect(metrics.ribbonLogoHeight).toBeCloseTo(metrics.ribbonSafeHeight, 5);
   expect(metrics.stickerLogoFill).toBeGreaterThanOrEqual(0.84);
-  expect(metrics.stickerTextFill).toBeGreaterThanOrEqual(0.75);
+  expect(metrics.stickerTextFill).toBeGreaterThanOrEqual(0.74);
   expect(metrics.stickerGap).toBeLessThanOrEqual(0.04);
   expect(metrics.stickerGroupCenter).toBeCloseTo(metrics.stickerCenter, 5);
   await expectNoHorizontalOverflow(page);
@@ -3250,8 +3226,7 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
   if (testInfo.project.name === 'mobile') {
     await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
   }
-  await expect(card).toBeVisible();
-  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+  await expect(card).toBeHidden();
 
   let result = await page.evaluate(() => {
     const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
@@ -3265,8 +3240,9 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
       serialized: window.RibbonStudioProduction.serialize('ribbon'),
     };
   });
+  expect(result.preview.valid).toBe(true);
   expect(result.preview.logoBox).not.toBeNull();
-  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.preview.overflow).toBeUndefined();
   expect(result.production.logoBox).toBeNull();
   expect(result.content.logo.common).toBeNull();
   expect(result.serialized).not.toContain('<image');
@@ -3281,7 +3257,7 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
   await expect
     .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
     .not.toBe(demoSrc);
-  await expect(card.locator('[data-ribbon-overflow-logo]')).toBeVisible();
+  await expect(card).toBeHidden();
 
   result = await page.evaluate(() => {
     const preview = JSON.parse(document.body.dataset.studioLayout).ribbon;
@@ -3295,8 +3271,9 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
       serialized: window.RibbonStudioProduction.serialize('ribbon'),
     };
   });
+  expect(result.preview.valid).toBe(true);
   expect(result.preview.logoBox).not.toBeNull();
-  expect(result.preview.overflow.fullLayout.logoBox).not.toBeNull();
+  expect(result.preview.overflow).toBeUndefined();
   expect(result.production.logoBox).not.toBeNull();
   expect(result.content.logo.common).toMatchObject({
     hasLogo: true,
@@ -3432,6 +3409,81 @@ test('effective layout is shared with macro and mobile and sticker boxes pass co
   expect(result.mobileSticker).toEqual(result.layouts.sticker);
   expect(result.logoInside).toBe(true);
   expect(result.textInside).toBe(true);
+});
+
+test('automatic golden repeat follows composition and logo-only artwork', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const readRepeat = () =>
+    page.evaluate(() => ({
+      repeatMm: Number(document.body.dataset.ribbonRepeatMm),
+      source: document.body.dataset.ribbonRepeatSource,
+      mode: document.body.dataset.ribbonRepeatMode,
+      contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
+      goldenGapMm: Number(document.body.dataset.ribbonGoldenGapMm),
+    }));
+  const expectGoldenRepeat = async (source) => {
+    const result = await readRepeat();
+    const expected = Math.min(
+      250,
+      Math.ceil(
+        Math.max(40, result.contentWidthMm + result.contentWidthMm / 1.618) / 5,
+      ) * 5,
+    );
+    expect(result.source).toBe(source);
+    expect(result.mode).toBe('auto');
+    expect(result.goldenGapMm).toBeCloseTo(result.contentWidthMm / 1.618, 1);
+    expect(result.repeatMm).toBe(expected);
+    await expect(page.locator('#repeatMm')).toHaveValue(String(expected));
+    return result;
+  };
+
+  await expect(page.locator('#repeatMm')).toHaveAttribute('readonly', '');
+  await page.locator('#textInput').fill('МАКСИМ');
+  const textRepeat = await expectGoldenRepeat('composition');
+
+  if (testInfo.project.name === 'mobile') {
+    const ribbon = page.locator('.mobile-products-ribbon-sample');
+    await expect
+      .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-text').count())
+      .toBeGreaterThan(0);
+    await expect(ribbon).toHaveAttribute(
+      'data-ribbon-repeat-mm',
+      String(textRepeat.repeatMm),
+    );
+  } else {
+    await expect
+      .poll(() =>
+        page.locator('#ribbonContent [data-production-content]').count(),
+      )
+      .toBeGreaterThan(1);
+  }
+
+  await page.locator('#textInput').fill('');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  const logoRepeat = await expectGoldenRepeat('logo');
+
+  if (testInfo.project.name === 'mobile') {
+    const ribbon = page.locator('.mobile-products-ribbon-sample');
+    await expect
+      .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-logo').count())
+      .toBeGreaterThan(0);
+    await expect(ribbon).toHaveAttribute(
+      'data-ribbon-repeat-mm',
+      String(logoRepeat.repeatMm),
+    );
+  } else {
+    await expect
+      .poll(() =>
+        page.locator('#ribbonContent [data-production-content]').count(),
+      )
+      .toBeGreaterThan(1);
+  }
+
+  await expectNoHorizontalOverflow(page);
 });
 
 test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({

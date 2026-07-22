@@ -175,8 +175,12 @@
           <option value="#171717">Чёрный</option>
         </select>
 
-        <label for="repeatMm">Шаг повтора, мм</label>
-        <input class="input" id="repeatMm" type="number" min="40" max="250" value="100">
+        <div class="repeat-control-head">
+          <label for="repeatMm">Шаг повтора, мм</label>
+          <span id="repeatMode">Автоматически</span>
+        </div>
+        <input class="input" id="repeatMm" type="number" min="40" max="250" value="100" aria-describedby="repeatHint" readonly>
+        <small class="repeat-hint" id="repeatHint">Свободный интервал рассчитывается по золотой пропорции.</small>
       </div>
 
       <div class="settings-product-fields" data-settings-product="sticker" hidden>
