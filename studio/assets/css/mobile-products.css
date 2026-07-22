@@ -138,9 +138,9 @@
     outline: 3px solid rgba(46, 109, 246, 0.65);
     outline-offset: 2px;
   }
+}
 
-  .mobile-products-panel {
-    display: block;
+.mobile-products-panel {
     width: 100%;
     margin: 0 0 18px;
     padding: 16px;
@@ -226,10 +226,31 @@
     outline-offset: 2px;
   }
 
-  .mobile-products-preview {
+.mobile-products-preview {
     display: grid;
     gap: 18px;
     min-width: 0;
+  }
+
+  .mobile-products-sample {
+    min-width: 0;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .mobile-products-sample:focus-visible {
+    outline: 3px solid rgba(216, 50, 61, 0.6);
+    outline-offset: 4px;
+  }
+
+  .mobile-products-sample.is-settings-active .mobile-products-sample-label {
+    color: #171717;
+  }
+
+  .mobile-products-ribbon.is-settings-active .mobile-products-ribbon-sample,
+  .mobile-products-sticker.is-settings-active .mobile-products-sticker-sample {
+    outline: 3px solid #d8323d;
+    outline-offset: 3px;
   }
 
   .mobile-products-sample[hidden] {
@@ -540,6 +561,16 @@
     text-align: center;
     white-space: normal;
     overflow-wrap: break-word;
+  }
+@media (max-width: 700px) {
+  .mobile-products-panel {
+    display: block;
+  }
+}
+
+@media (min-width: 701px) {
+  body[data-active-panel='settings'] .mobile-products-panel {
+    display: block;
   }
 }
 

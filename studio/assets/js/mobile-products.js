@@ -138,6 +138,14 @@
     };
 
     const syncStudioState = () => {
+      let productStyles = {};
+      try {
+        productStyles = JSON.parse(
+          document.body.dataset.studioProductStyles || '{}',
+        );
+      } catch {
+        productStyles = {};
+      }
       const commonText = document.querySelector('#textInput')?.value || '';
       const ribbonTextValue =
         contentTextState?.ribbon?.resolved ?? commonText;
@@ -145,7 +153,17 @@
         contentTextState?.sticker?.resolved ?? commonText;
       const ribbonTextValueTrimmed = ribbonTextValue.trim();
       const stickerTextValueTrimmed = stickerTextValue.trim();
-      const font = document.querySelector('#fontSelect')?.value || 'Manrope';
+      const fallbackFont = document.querySelector('#fontSelect')?.value || 'Manrope';
+      const fallbackPrint =
+        document.querySelector('#printColorSelect')?.value || '#171717';
+      const ribbonStyle = {
+        font: productStyles.ribbon?.font || fallbackFont,
+        print: productStyles.ribbon?.print || fallbackPrint,
+      };
+      const stickerStyle = {
+        font: productStyles.sticker?.font || fallbackFont,
+        print: productStyles.sticker?.print || fallbackPrint,
+      };
       const ribbonWidth =
         Number(document.querySelector('#widthChoice button.active')?.dataset.value) ||
         15;
@@ -154,8 +172,6 @@
           document.querySelector('#stickerSizeChoice button.active')?.dataset.value,
         ) || 40;
       const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
-      const print =
-        document.querySelector('#printChoice button.active')?.dataset.value || '#171717';
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
@@ -195,11 +211,11 @@
         contentLogoState?.sticker?.mode || 'inherit',
       );
 
-      const updateText = ({ zone, text, action }, value, hasText, mode) => {
+      const updateText = ({ zone, text, action }, value, hasText, mode, style) => {
         text.textContent = value;
         text.hidden = !hasText;
-        text.style.color = print;
-        text.style.fontFamily = font;
+        text.style.color = style.print;
+        text.style.fontFamily = style.font;
         const label = hasText ? 'Изменить надпись' : 'Добавить надпись';
         zone.dataset.empty = String(!hasText);
         zone.dataset.contentMode = mode;
@@ -211,12 +227,14 @@
         ribbonTextValueTrimmed,
         hasRibbonText,
         contentTextState?.ribbon?.mode || 'inherit',
+        ribbonStyle,
       );
       updateText(
         stickerText,
         stickerTextValueTrimmed,
         hasStickerText,
         contentTextState?.sticker?.mode || 'inherit',
+        stickerStyle,
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
@@ -373,6 +391,23 @@
             ),
           }),
         );
+      });
+    });
+
+    const requestProductSettings = (sample) => {
+      document.dispatchEvent(
+        new CustomEvent('studio:settings-product-change', {
+          detail: {product: sample.dataset.mobileProductSample},
+        }),
+      );
+    };
+
+    samples.forEach((sample) => {
+      sample.addEventListener('click', () => requestProductSettings(sample));
+      sample.addEventListener('keydown', (event) => {
+        if (event.target !== sample || !['Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        requestProductSettings(sample);
       });
     });
 

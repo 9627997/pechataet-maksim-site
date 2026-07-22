@@ -151,6 +151,22 @@ textarea.input{min-height:100px;resize:vertical}
 .transform-head strong{font-size:12px}
 .mini-button{border:0;background:#ece8e1;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer}
 .transform-card input[type=range]{width:100%}
+.settings-context-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:18px 0 4px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#171717;
+  color:#fff;
+}
+.settings-context-head span{font-size:10px;color:#d6d0c8}
+.settings-context-head strong{font-size:13px}
+.settings-select{min-height:44px;cursor:pointer}
+.settings-product-fields[hidden]{display:none}
+.settings-range{width:100%}
 
 .render-canvas{position:relative;background:linear-gradient(145deg,#efe9df,#f8f5ef);min-height:650px}
 body:not([data-active-panel="order"]) #ribbonContent [data-demo-logo-preview="true"] > [data-production-content],
@@ -436,18 +452,20 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 }
 
 /* Metallic print simulation for gold and silver */
-body[data-print="gold"] #ribbonContent,
-body[data-print="gold"] #stickerContent,
-body[data-print="gold"] .macro-logo,
-body[data-print="gold"] .box-ribbon-h,
-body[data-print="gold"] .box-sticker{
+body[data-ribbon-print="gold"] #ribbonContent,
+body[data-ribbon-print="gold"] .macro-logo:not(.macro-sticker-paper),
+body[data-ribbon-print="gold"] .box-ribbon-h,
+body[data-sticker-print="gold"] #stickerContent,
+body[data-sticker-print="gold"] .macro-sticker-paper,
+body[data-sticker-print="gold"] .box-sticker{
   filter:drop-shadow(0 1px 0 rgba(255,255,255,.55)) saturate(1.15);
 }
-body[data-print="silver"] #ribbonContent,
-body[data-print="silver"] #stickerContent,
-body[data-print="silver"] .macro-logo,
-body[data-print="silver"] .box-ribbon-h,
-body[data-print="silver"] .box-sticker{
+body[data-ribbon-print="silver"] #ribbonContent,
+body[data-ribbon-print="silver"] .macro-logo:not(.macro-sticker-paper),
+body[data-ribbon-print="silver"] .box-ribbon-h,
+body[data-sticker-print="silver"] #stickerContent,
+body[data-sticker-print="silver"] .macro-sticker-paper,
+body[data-sticker-print="silver"] .box-sticker{
   filter:drop-shadow(0 1px 0 rgba(255,255,255,.75)) contrast(1.08);
 }
 
