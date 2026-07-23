@@ -115,10 +115,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const FONT_OPTIONS = [
     'Manrope',
+    'Unbounded',
+    'Comfortaa',
+    'Play',
+    'Yeseva One',
+    'Commissioner',
+    'Dela Gothic One',
+    'Forum',
+    'IBM Plex Sans',
+    'PT Sans',
     'PT Serif',
-    'Arial',
-    'Georgia',
-    'Times New Roman'
+    'Pacifico',
+    'Playfair Display'
   ];
   const PRINT_OPTIONS = ['#171717', '#b69249', '#c6c8cd', '#ffffff'];
 
@@ -2095,6 +2103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // The existing upload pipeline writes the legacy common aliases.
     syncCommonContentFromLegacyAliases();
     updateRibbonRepeat();
+    syncFontPicker();
     const previewLogoDemo = ['ribbon', 'sticker'].some((product) =>
       isDemoLogoPreview(product),
     );
@@ -3061,7 +3070,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? ''
         : state.content.text.common;
     }
-    if ($('#fontSelect')) $('#fontSelect').value = style.font;
+    syncFontPicker();
     if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
     if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
     if ($('#fontSize')) $('#fontSize').value = style.fontSize;
@@ -3114,6 +3123,47 @@ document.addEventListener('DOMContentLoaded', () => {
     syncPrintGuideState();
   }
 
+  function getFontPickerSampleText() {
+    return getResolvedText(state.activeSettingsProduct).trim() || 'Ваша надпись';
+  }
+
+  function syncFontPicker() {
+    const style = getProductStyle(state.activeSettingsProduct);
+    const sampleText = getFontPickerSampleText();
+    const select = $('#fontSelect');
+    const preview = $('#fontPickerPreview');
+
+    if (select) select.value = style.font;
+    if (preview) {
+      preview.textContent = sampleText;
+      preview.style.fontFamily = style.font;
+    }
+
+    $$('.font-picker-option').forEach((option) => {
+      const selected = option.dataset.fontValue === style.font;
+      const sample = option.querySelector('[data-font-sample]');
+      option.setAttribute('aria-selected', String(selected));
+      if (sample) {
+        sample.textContent = sampleText;
+        sample.style.fontFamily = option.dataset.fontValue;
+      }
+    });
+  }
+
+  function setFontPickerOpen(open, {focusSelected = false} = {}) {
+    const trigger = $('#fontPickerTrigger');
+    const list = $('#fontPickerList');
+    if (!trigger || !list) return;
+
+    trigger.setAttribute('aria-expanded', String(open));
+    list.hidden = !open;
+    if (open && focusSelected) {
+      requestAnimationFrame(() =>
+        list.querySelector('[aria-selected="true"]')?.focus({preventScroll: true}),
+      );
+    }
+  }
+
   function setActiveSettingsProduct(product, {focusControls = false} = {}) {
     if (!['ribbon', 'sticker'].includes(product)) return;
     state.activeSettingsProduct = product;
@@ -3145,8 +3195,9 @@ document.addEventListener('DOMContentLoaded', () => {
       $('#layoutModeHelp').textContent =
         `Studio ${getProductStyle(product).layoutMode === 'auto' ? 'автоматически компонует' : 'сохраняет ручную композицию для'} ${product === 'ribbon' ? 'ленты' : 'стикера'}`;
     }
+    setFontPickerOpen(false);
     syncControls();
-    if (focusControls) $('#fontSelect')?.focus({preventScroll: true});
+    if (focusControls) $('#fontPickerTrigger')?.focus({preventScroll: true});
   }
 
   const printGuideEditingSelector = [
@@ -3552,10 +3603,64 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#textInput').addEventListener('change', returnToMobilePreview);
 
   $('#fontSelect').addEventListener('change', (event) => {
-    getProductStyle(state.activeSettingsProduct).font = event.target.value;
+    const font = FONT_OPTIONS.includes(event.target.value)
+      ? event.target.value
+      : 'Manrope';
+    getProductStyle(state.activeSettingsProduct).font = font;
     syncLegacyStyleAliases();
     render();
     updateShowcaseContent();
+    syncFontPicker();
+  });
+
+  $('#fontPickerTrigger').addEventListener('click', () => {
+    const open = $('#fontPickerTrigger').getAttribute('aria-expanded') !== 'true';
+    setFontPickerOpen(open, {focusSelected: open});
+  });
+
+  $$('.font-picker-option').forEach((option) => {
+    option.addEventListener('click', () => {
+      $('#fontSelect').value = option.dataset.fontValue;
+      $('#fontSelect').dispatchEvent(new Event('change', {bubbles: true}));
+      setFontPickerOpen(false);
+      $('#fontPickerTrigger').focus({preventScroll: true});
+    });
+  });
+
+  $('#fontPicker').addEventListener('keydown', (event) => {
+    const options = $$('.font-picker-option');
+    const currentIndex = options.indexOf(document.activeElement);
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setFontPickerOpen(false);
+      $('#fontPickerTrigger').focus({preventScroll: true});
+      return;
+    }
+
+    if (
+      document.activeElement === $('#fontPickerTrigger') &&
+      ['ArrowDown', 'Enter', ' '].includes(event.key)
+    ) {
+      event.preventDefault();
+      setFontPickerOpen(true, {focusSelected: true});
+      return;
+    }
+
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+        ? options.length - 1
+        : (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) %
+          options.length;
+    options[nextIndex]?.focus({preventScroll: true});
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('#fontPicker')) setFontPickerOpen(false);
   });
 
   $('#printColorSelect').addEventListener('change', (event) => {

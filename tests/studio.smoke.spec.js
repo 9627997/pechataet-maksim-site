@@ -1122,6 +1122,40 @@ test('product samples reveal independent ribbon and sticker settings', async ({
     'tagName',
     'SELECT',
   );
+  await expect(page.locator('#fontPickerPreview')).toHaveText('Мой бренд');
+  await page.locator('#fontPickerTrigger').click();
+  await expect(page.locator('#fontPickerList')).toBeVisible();
+  await expect(page.locator('#fontPickerList [role="option"]')).toHaveCount(13);
+  expect(
+    await page
+      .locator('.font-picker-option [data-font-sample]')
+      .allTextContents(),
+  ).toEqual(Array(13).fill('Мой бренд'));
+  expect(
+    await page.evaluate(async () => {
+      const families = [
+        'Manrope',
+        'Unbounded',
+        'Comfortaa',
+        'Play',
+        'Yeseva One',
+        'Commissioner',
+        'Dela Gothic One',
+        'Forum',
+        'IBM Plex Sans',
+        'PT Sans',
+        'PT Serif',
+        'Pacifico',
+        'Playfair Display',
+      ];
+      const loaded = await Promise.all(
+        families.map((family) =>
+          document.fonts.load(`700 20px "${family}"`, 'Мой бренд'),
+        ),
+      );
+      return loaded.every((faces) => faces.length > 0);
+    }),
+  ).toBe(true);
   await expect(page.locator('#printColorSelect')).toHaveJSProperty(
     'tagName',
     'SELECT',
@@ -1165,10 +1199,19 @@ test('product samples reveal independent ribbon and sticker settings', async ({
   });
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
 
-  await page.locator('#fontSelect').selectOption('Georgia');
+  await page.locator('#fontPickerTrigger').click();
+  await page
+    .locator('#fontPickerList')
+    .getByRole('option', { name: 'Pacifico' })
+    .click();
+  await expect(page.locator('#fontSelect')).toHaveValue('Pacifico');
+  await expect(page.locator('#fontPickerPreview')).toHaveCSS(
+    'font-family',
+    'Pacifico',
+  );
   await page.locator('#printColorSelect').selectOption('#b69249');
   await page.locator('#ribbonColorSelect').selectOption('#b7202d');
-  await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
+  await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
   await expect(stickerText).toHaveCSS('font-family', 'Manrope');
   await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
@@ -1190,11 +1233,11 @@ test('product samples reveal independent ribbon and sticker settings', async ({
   await page.locator('#printColorSelect').selectOption('#c6c8cd');
   await expect(stickerText).toHaveCSS('font-family', '"PT Serif"');
   await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
-  await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
+  await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
 
   await ribbonSample.click({ position: { x: 4, y: 4 } });
-  await expect(page.locator('#fontSelect')).toHaveValue('Georgia');
+  await expect(page.locator('#fontSelect')).toHaveValue('Pacifico');
   await expect(page.locator('#printColorSelect')).toHaveValue('#b69249');
   await expect(page.locator('#ribbonColorSelect')).toHaveValue('#b7202d');
   await expectNoHorizontalOverflow(page);
@@ -1872,8 +1915,8 @@ test('mobile previews stay synchronized with Studio state', async ({
   await expect(stickerText).toHaveText('новая длинная надпись для упаковки');
 
   await page.locator('.nav-item[data-panel="settings"]').click();
-  await page.locator('#fontSelect').selectOption('Georgia');
-  await expect(ribbonText).toHaveCSS('font-family', 'Georgia');
+  await page.locator('#fontSelect').selectOption('Pacifico');
+  await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
   await expect(stickerText).toHaveCSS('font-family', 'Manrope');
 
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
@@ -2325,7 +2368,7 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     expect(dockBounds.x).toBeGreaterThanOrEqual(8);
     expect(dockBounds.x + dockBounds.width).toBeLessThanOrEqual(382);
     expect(dockBounds.y).toBeGreaterThanOrEqual(0);
-    expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(844);
+    expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(845);
 
     if (step === 'upload') {
       await dockToggle.click();

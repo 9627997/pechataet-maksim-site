@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
   <title>Ribbon Studio v0.4.8 DEV — Печатает Максим</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260723.9">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260723.10">
   <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.9">
 </head>
 <body data-active-panel="upload">
@@ -162,14 +159,43 @@
         <strong id="activeSettingsTitle">Лента</strong>
       </div>
 
-      <label for="fontSelect" id="fontSelectLabel">Шрифт надписи на ленте</label>
-      <select class="input settings-select" id="fontSelect">
-        <option value="Manrope">Manrope — современный</option>
-        <option value="PT Serif">PT Serif — классический</option>
-        <option value="Arial">Arial — нейтральный</option>
-        <option value="Georgia">Georgia — элегантный</option>
-        <option value="Times New Roman">Times New Roman — традиционный</option>
-      </select>
+      <span class="settings-field-label" id="fontSelectLabel">Шрифт надписи на ленте</span>
+      <div class="font-picker" id="fontPicker">
+        <button class="font-picker-trigger" id="fontPickerTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="fontPickerList" aria-labelledby="fontSelectLabel fontPickerPreview">
+          <span class="font-picker-preview" id="fontPickerPreview">Ваша надпись</span>
+          <span class="font-picker-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="font-picker-list" id="fontPickerList" role="listbox" aria-labelledby="fontSelectLabel" hidden>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Manrope" aria-label="Manrope" aria-selected="true"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Unbounded" aria-label="Unbounded" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Comfortaa" aria-label="Comfortaa" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Play" aria-label="Play" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Yeseva One" aria-label="Yeseva One" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Commissioner" aria-label="Commissioner" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Dela Gothic One" aria-label="Dela Gothic One" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Forum" aria-label="Forum" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="IBM Plex Sans" aria-label="IBM Plex Sans" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="PT Sans" aria-label="PT Sans" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="PT Serif" aria-label="PT Serif" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Pacifico" aria-label="Pacifico" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+          <button class="font-picker-option" type="button" role="option" data-font-value="Playfair Display" aria-label="Playfair Display" aria-selected="false"><span data-font-sample>Ваша надпись</span></button>
+        </div>
+        <select class="font-picker-native" id="fontSelect" aria-hidden="true" tabindex="-1">
+          <option value="Manrope">Manrope</option>
+          <option value="Unbounded">Unbounded</option>
+          <option value="Comfortaa">Comfortaa</option>
+          <option value="Play">Play</option>
+          <option value="Yeseva One">Yeseva One</option>
+          <option value="Commissioner">Commissioner</option>
+          <option value="Dela Gothic One">Dela Gothic One</option>
+          <option value="Forum">Forum</option>
+          <option value="IBM Plex Sans">IBM Plex Sans</option>
+          <option value="PT Sans">PT Sans</option>
+          <option value="PT Serif">PT Serif</option>
+          <option value="Pacifico">Pacifico</option>
+          <option value="Playfair Display">Playfair Display</option>
+        </select>
+      </div>
 
       <label for="printColorSelect" id="printColorSelectLabel">Цвет печати на ленте</label>
       <select class="input settings-select" id="printColorSelect">
@@ -614,7 +640,7 @@
 
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
-<script src="assets/js/app.js?v=20260723.9"></script>
+<script src="assets/js/app.js?v=20260723.10"></script>
 <script src="assets/js/mobile-products.js?v=20260723.9"></script>
 </body>
 </html>
