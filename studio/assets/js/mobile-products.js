@@ -490,47 +490,75 @@
       ).textContent = `Стикер ${stickerSize} мм`;
       const applyLayout = (surface, logoPart, textPart, layout) => {
         if (!layout) return;
-        surface.dataset.layout = JSON.stringify(layout);
-        surface.dataset.layoutValid = String(layout.valid);
-        logoPart.zone.dataset.layoutBox = JSON.stringify(layout.logoBox);
-        textPart.zone.dataset.layoutBox = JSON.stringify(layout.textBox);
-        const surfaceHeight = surface.getBoundingClientRect().height;
-        if (surfaceHeight <= 0) return;
-
-        if (surface === stickerSurface) {
-          const place = (zone, box, minHeight = 0) => {
-            for (const property of ['left', 'top', 'width', 'height']) {
-              zone.style.removeProperty(property);
-            }
-            if (!box) return;
-            const height = Math.max(box.height * surfaceHeight, minHeight);
-            zone.style.left = `${box.x * 100}%`;
-            zone.style.top =
-              `${(box.y + box.height / 2) * surfaceHeight - height / 2}px`;
-            zone.style.width = `${box.width * 100}%`;
-            zone.style.height = `${height}px`;
-          };
-          place(
-            logoPart.zone,
-            hasStickerLogo ? layout.logoBox : null,
-          );
-          place(
-            textPart.zone,
-            hasStickerText ? layout.textBox : null,
-            10,
-          );
-        }
-        if (layout.logoBox) {
-          logoPart.image.style.width = '100%';
-          logoPart.image.style.height =
-            surface === stickerSurface
-              ? '100%'
-              : `${(layout.printable?.height || 1) * surfaceHeight}px`;
-        }
+        const sticker = surface === stickerSurface;
+        const hasProductLogo = sticker ? hasStickerLogo : hasRibbonLogo;
+        const hasProductText = sticker ? hasStickerText : hasRibbonText;
         const textBox = layout.valid
           ? layout.textBox
           : layout.previewTextBox;
-        const visibleText = Boolean(textBox);
+        surface.dataset.layout = JSON.stringify(layout);
+        surface.dataset.layoutValid = String(layout.valid);
+        logoPart.zone.dataset.layoutBox = JSON.stringify(layout.logoBox);
+        textPart.zone.dataset.layoutBox = JSON.stringify(textBox);
+        const surfaceHeight = surface.getBoundingClientRect().height;
+        if (surfaceHeight <= 0) return;
+        const positioningRoot = sticker ? surface : ribbonInteractionCell;
+        const rootBounds = positioningRoot.getBoundingClientRect();
+        if (rootBounds.width <= 0) return;
+
+        const place = (zone, box, minHeight = 0) => {
+          for (const property of ['left', 'top', 'width', 'height']) {
+            zone.style.removeProperty(property);
+          }
+          if (!box) return;
+          const height = Math.max(box.height * surfaceHeight, minHeight);
+          zone.style.left = `${box.x * rootBounds.width}px`;
+          zone.style.top =
+            `${(box.y + box.height / 2) * surfaceHeight - height / 2}px`;
+          zone.style.width = `${box.width * rootBounds.width}px`;
+          zone.style.height = `${height}px`;
+        };
+        const placePainted = (zone, box, width, height) => {
+          const printable = layout.printable || {
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+          };
+          const printableLeft = printable.x * rootBounds.width;
+          const printableTop = printable.y * surfaceHeight;
+          const printableWidth = printable.width * rootBounds.width;
+          const printableHeight = printable.height * surfaceHeight;
+          const scale = Math.min(
+            1,
+            printableWidth / Math.max(width, 1),
+            printableHeight / Math.max(height, 1),
+          );
+          const paintedWidth = width * scale;
+          const paintedHeight = height * scale;
+          const centerX = (box.x + box.width / 2) * rootBounds.width;
+          const centerY = (box.y + box.height / 2) * surfaceHeight;
+          const left = Math.min(
+            printableLeft + printableWidth - paintedWidth,
+            Math.max(printableLeft, centerX - paintedWidth / 2),
+          );
+          const top = Math.min(
+            printableTop + printableHeight - paintedHeight,
+            Math.max(printableTop, centerY - paintedHeight / 2),
+          );
+          zone.style.left = `${left}px`;
+          zone.style.top = `${top}px`;
+          zone.style.width = `${paintedWidth}px`;
+          zone.style.height = `${paintedHeight}px`;
+        };
+        place(logoPart.zone, hasProductLogo ? layout.logoBox : null);
+        place(textPart.zone, hasProductText ? textBox : null, sticker ? 10 : 0);
+
+        if (layout.logoBox) {
+          logoPart.image.style.width = '100%';
+          logoPart.image.style.height = '100%';
+        }
+        const visibleText = Boolean(textBox && hasProductText);
         textPart.text.hidden = !visibleText;
         if (visibleText) {
           if (!layout.valid && layout.previewText) {
@@ -541,7 +569,7 @@
             : layout.previewFontSizeRatio;
           textPart.text.style.fontSize =
             `${fontSizeRatio * surfaceHeight}px`;
-          if (surface === stickerSurface && hasStickerText && layout.textBox) {
+          if (sticker && layout.valid && layout.textBox) {
             const paintedTextHeight =
               textPart.text.getBoundingClientRect().height;
             const safeZoneHeight =
@@ -554,7 +582,44 @@
             }
           }
         }
+        if (!sticker) {
+          if (hasProductLogo && layout.logoBox) {
+            const ratio =
+              logoPart.image.naturalWidth > 0 &&
+              logoPart.image.naturalHeight > 0
+                ? logoPart.image.naturalWidth / logoPart.image.naturalHeight
+                : null;
+            if (ratio) {
+              const height = layout.logoBox.height * surfaceHeight;
+              placePainted(
+                logoPart.zone,
+                layout.logoBox,
+                height * ratio,
+                height,
+              );
+            }
+          }
+          if (visibleText) {
+            placePainted(
+              textPart.zone,
+              textBox,
+              Math.max(textPart.text.scrollWidth, 1),
+              Math.max(textPart.text.scrollHeight, 1),
+            );
+          }
+        }
       };
+      renderRibbonRepeats({
+        layout: effectiveLayouts?.ribbon,
+        repeatMm,
+        ribbonWidth,
+        logoSrc: ribbonLogoSrc,
+        textValue: ribbonTextValueTrimmed,
+        hasLogo: hasRibbonLogo,
+        hasText: hasRibbonText,
+        font: ribbonStyle.font,
+        print: ribbonStyle.print,
+      });
       applyLayout(
         ribbonSurface,
         ribbonLogo,
@@ -567,17 +632,6 @@
         stickerText,
         effectiveLayouts?.sticker,
       );
-      renderRibbonRepeats({
-        layout: effectiveLayouts?.ribbon,
-        repeatMm,
-        ribbonWidth,
-        logoSrc: ribbonLogoSrc,
-        textValue: ribbonTextValueTrimmed,
-        hasLogo: hasRibbonLogo,
-        hasText: hasRibbonText,
-        font: ribbonStyle.font,
-        print: ribbonStyle.print,
-      });
 
       const mode =
         hasStickerLogo && hasStickerText
@@ -620,8 +674,8 @@
       panel.classList.toggle('is-expanded', dockExpanded);
       dockToggle.setAttribute('aria-expanded', String(dockExpanded));
       dockToggle.querySelector('strong').textContent = dockExpanded
-        ? 'Свернуть предпросмотр'
-        : 'Развернуть предпросмотр';
+        ? 'Свернуть'
+        : 'Развернуть';
       requestAnimationFrame(() => {
         updateDockMetrics();
         scheduleStudioSync();
@@ -636,23 +690,11 @@
         return;
       }
 
-      if (nextFloating) {
-        const slotHeight = Math.max(
-          panelSlot.getBoundingClientRect().height,
-          panel.getBoundingClientRect().height,
-        );
-        panelSlot.style.setProperty(
-          '--mobile-products-slot-height',
-          `${slotHeight}px`,
-        );
-      }
-
       dockFloating = nextFloating;
       panelSlot.classList.toggle('is-floating', dockFloating);
       panel.classList.toggle('is-floating', dockFloating);
       document.body.classList.toggle('mobile-products-floating', dockFloating);
       if (!dockFloating) {
-        panelSlot.style.removeProperty('--mobile-products-slot-height');
         document.body.style.removeProperty('--mobile-products-dock-height');
         setDockExpanded(false);
       }

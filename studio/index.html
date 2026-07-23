@@ -6,7 +6,7 @@
   <meta name="description" content="Ribbon Studio — создание фирменного комплекта: лента и стикер с логотипом">
   <title>Ribbon Studio v0.4.8 DEV — Печатает Максим</title>
   <link rel="stylesheet" href="assets/css/app.css?v=20260723.10">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.9">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.10">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -32,16 +32,16 @@
 
     <div class="mobile-products-slot" id="mobileProductsSlot" data-hosted="false">
     <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
-      <button class="mobile-products-dock-toggle" id="mobileProductsDockToggle" type="button" aria-expanded="false" aria-controls="mobileProductsPreview">
-        <span aria-hidden="true"></span>
-        <strong>Развернуть предпросмотр</strong>
-      </button>
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
           <span>Лента</span>
           <input type="checkbox" role="switch" data-mobile-product="ribbon" checked>
           <span class="mobile-products-switch-control" aria-hidden="true"></span>
         </label>
+        <button class="mobile-products-dock-toggle" id="mobileProductsDockToggle" type="button" aria-expanded="false" aria-controls="mobileProductsPreview">
+          <span aria-hidden="true"></span>
+          <strong>Развернуть</strong>
+        </button>
         <label class="mobile-products-switch">
           <span>Стикер</span>
           <input type="checkbox" role="switch" data-mobile-product="sticker" checked>
@@ -641,6 +641,6 @@
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
 <script src="assets/js/app.js?v=20260723.10"></script>
-<script src="assets/js/mobile-products.js?v=20260723.9"></script>
+<script src="assets/js/mobile-products.js?v=20260723.10"></script>
 </body>
 </html>
