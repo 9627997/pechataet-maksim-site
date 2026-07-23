@@ -283,7 +283,7 @@ test('fresh first step marks the demo and keeps customer content honest', async 
   );
   await expect(page.locator('#continueUpload')).toBeDisabled();
   await expect(page.locator('#continueUploadHelp')).toHaveText(
-    'Введите название или загрузите логотип',
+    'Добавьте название или логотип, чтобы продолжить',
   );
   await expect(page.locator('#continueUploadHelp')).toBeVisible();
   await expect(page.locator('#panel-upload #fontSelect')).toHaveCount(0);
@@ -1592,6 +1592,56 @@ test('Studio navigation follows the three-step flow', async ({ page }) => {
   expect(runtimeErrors).toEqual([]);
 });
 
+test('Create step validates input and manages the common logo', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const counter = page.locator('#textInputCounter');
+  const continueUpload = page.locator('#continueUpload');
+  const textStatus = page.locator('[data-create-status="text"]');
+  const logoStatus = page.locator('[data-create-status="logo"]');
+
+  await expect(textInput).not.toHaveAttribute('maxlength');
+  await expect(counter).toHaveText('0 / 60');
+  await expect(textStatus).toContainText('не добавлено');
+  await expect(logoStatus).toContainText('не добавлен');
+
+  await page.locator('#logoInput').setInputFiles({
+    name: 'logo.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not a logo'),
+  });
+  await expect(page.locator('#uploadFeedback')).toContainText(
+    'Поддерживаются только SVG, PNG, JPEG и PDF',
+  );
+  await expect(page.locator('#fileCard')).toBeHidden();
+  await expect(continueUpload).toBeDisabled();
+
+  await textInput.fill('Мой бренд');
+  await expect(counter).toHaveText('9 / 60');
+  await expect(textStatus).toHaveClass(/is-complete/);
+  await expect(continueUpload).toBeEnabled();
+
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#uploadFeedback')).toBeHidden();
+  await expect(logoStatus).toHaveClass(/is-complete/);
+  await expect(page.locator('#fileCardActions')).toBeVisible();
+
+  await page.locator('#removeCommonLogo').click();
+  await expect(page.locator('#fileCard')).toBeHidden();
+  await expect(logoStatus).not.toHaveClass(/is-complete/);
+  await expect(continueUpload).toBeEnabled();
+
+  await textInput.fill('');
+  await expect(counter).toHaveText('0 / 60');
+  await expect(continueUpload).toBeDisabled();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('product samples reveal independent ribbon and sticker settings', async ({
   page,
 }) => {
@@ -2789,6 +2839,69 @@ test('mobile first reveal keeps artwork visible and switches paired with labels'
   await page.setViewportSize({ width: 700, height: 900 });
   await expect(panel).toBeVisible();
   await expectMobileRibbonFramed(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('smart mobile preview dock stays visible across all three steps', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+
+  const panel = page.locator('.mobile-products-panel');
+  const dockToggle = page.locator('#mobileProductsDockToggle');
+  const navigation = page.locator('.main-nav');
+
+  await expect(panel).not.toHaveClass(/is-floating/);
+  await expect(panel).toHaveAttribute('data-floating', 'false');
+
+  for (const step of ['upload', 'settings', 'order']) {
+    if (step !== 'upload') {
+      await navigation.locator(`[data-panel="${step}"]`).click();
+      await expect(page.locator(`#panel-${step}`)).toBeVisible();
+    }
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(panel).toHaveClass(/is-floating/);
+    await expect(panel).toHaveAttribute('data-floating', 'true');
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-active-panel',
+      step,
+    );
+    await expect(panel.getByRole('switch', { name: 'Лента' })).toBeVisible();
+    await expect(panel.getByRole('switch', { name: 'Стикер' })).toBeVisible();
+    await expect(
+      panel.locator('[data-mobile-product-sample="ribbon"]'),
+    ).toBeVisible();
+    await expect(
+      panel.locator('[data-mobile-product-sample="sticker"]'),
+    ).toBeVisible();
+
+    const dockBounds = await panel.boundingBox();
+    expect(dockBounds).not.toBeNull();
+    expect(dockBounds.x).toBeGreaterThanOrEqual(8);
+    expect(dockBounds.x + dockBounds.width).toBeLessThanOrEqual(382);
+    expect(dockBounds.y).toBeGreaterThanOrEqual(0);
+    expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(844);
+
+    if (step === 'upload') {
+      await dockToggle.click();
+      await expect(panel).toHaveClass(/is-expanded/);
+      await expect(dockToggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(dockToggle).toContainText('Свернуть');
+      await dockToggle.click();
+      await expect(panel).not.toHaveClass(/is-expanded/);
+      await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
+    }
+  }
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(panel).not.toHaveClass(/is-floating/);
+  await expect(panel).toHaveAttribute('data-floating', 'false');
+  await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
 

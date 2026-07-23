@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260722.1">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260722.1">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260723.2">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.2">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -33,7 +33,12 @@
       <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
 
+    <div class="mobile-products-slot" id="mobileProductsSlot">
     <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
+      <button class="mobile-products-dock-toggle" id="mobileProductsDockToggle" type="button" aria-expanded="false" aria-controls="mobileProductsPreview">
+        <span aria-hidden="true"></span>
+        <strong>Развернуть предпросмотр</strong>
+      </button>
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
           <span>Лента</span>
@@ -47,7 +52,7 @@
         </label>
       </div>
 
-      <div class="mobile-products-preview">
+      <div class="mobile-products-preview" id="mobileProductsPreview">
         <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
@@ -70,35 +75,51 @@
         </div>
       </div>
     </section>
+    </div>
 
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
-      <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
+      <p class="panel-copy">Добавьте название, логотип или оба элемента. Результат сразу появится на ленте и стикере.</p>
 
-      <div class="upload-text-card">
+      <div class="create-intro" aria-label="Как создать макет">
+        <strong>Достаточно одного варианта</strong>
+        <span>Название и логотип можно объединить на следующем шаге</span>
+      </div>
+
+      <div class="upload-text-card create-option">
         <div class="upload-text-head">
-          <strong>Введите название</strong>
+          <div><span class="create-option-number">01</span><strong>Введите название</strong></div>
           <span>Надпись можно использовать отдельно или вместе с логотипом</span>
         </div>
 
         <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
+        <input class="input" id="textInput" type="text" autocomplete="organization" placeholder="Например: ленты по любви" aria-describedby="textInputMeta">
+        <div class="text-input-meta" id="textInputMeta">
+          <span>Рекомендуем до 60 знаков</span>
+          <span id="textInputCounter" aria-live="polite">0 / 60</span>
+        </div>
       </div>
 
-      <label class="upload upload-large" id="dropZone" role="button" tabindex="0" aria-controls="logoInput">
+      <label class="upload upload-large create-option" id="dropZone" role="button" tabindex="0" aria-controls="logoInput" aria-describedby="uploadFormats">
         <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg,application/pdf,.pdf" hidden>
         <span class="upload-icon">↑</span>
-        <strong>Загрузить логотип</strong>
-        <span>SVG, PNG, JPEG или PDF</span>
-        <small>Для PDF используем первую страницу</small>
+        <strong><span class="create-option-number">02</span> Загрузить логотип</strong>
+        <span id="uploadFormats">SVG, PNG, JPEG или PDF · до 20 МБ</span>
+        <small>Перетащите файл сюда или нажмите · для PDF используем первую страницу</small>
       </label>
+
+      <p class="upload-feedback" id="uploadFeedback" role="alert" hidden></p>
 
       <div class="file-card" id="fileCard" hidden>
         <div class="file-card-icon" id="fileCardIcon">✓</div>
-        <div>
+        <div class="file-card-copy">
           <strong id="fileCardName">Файл загружен</strong>
           <span id="fileCardMeta"></span>
           <small id="fileCardQuality"></small>
+        </div>
+        <div class="file-card-actions" id="fileCardActions" hidden>
+          <button type="button" id="replaceCommonLogo">Заменить</button>
+          <button type="button" id="removeCommonLogo">Удалить</button>
         </div>
       </div>
 
@@ -111,7 +132,11 @@
         </div>
       </div>
 
-      <p class="first-step-requirement" id="continueUploadHelp">Введите название или загрузите логотип</p>
+      <div class="create-readiness" id="createReadiness" aria-live="polite">
+        <div data-create-status="text"><span aria-hidden="true">○</span><strong>Название</strong><small>не добавлено</small></div>
+        <div data-create-status="logo"><span aria-hidden="true">○</span><strong>Логотип</strong><small>не добавлен</small></div>
+      </div>
+      <p class="first-step-requirement" id="continueUploadHelp">Добавьте название или логотип, чтобы продолжить</p>
       <button class="button primary wide next-panel" id="continueUpload" data-next="settings" aria-describedby="continueUploadHelp" disabled>Далее: настроить</button>
     </section>
 
@@ -560,7 +585,7 @@
 
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
-<script src="assets/js/app.js?v=20260722.1"></script>
-<script src="assets/js/mobile-products.js?v=20260722.1"></script>
+<script src="assets/js/app.js?v=20260723.2"></script>
+<script src="assets/js/mobile-products.js?v=20260723.2"></script>
 </body>
 </html>
