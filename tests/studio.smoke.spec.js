@@ -1322,6 +1322,7 @@ test('selected product owns the visible settings and manual transforms', async (
   expect(intervalTextOffsetMm).toBeCloseTo(automaticTextOffsetMm, 1);
   await setRange('#logoScale', 60);
   await setRange('#logoOffsetY', 40);
+  await setRange('#textOffsetY', -25);
   await setRange('#fontSize', 40);
 
   let styles = await readStyles();
@@ -1330,6 +1331,7 @@ test('selected product owns the visible settings and manual transforms', async (
     logoScale: 0.6,
     logoOffsetY: 40,
     textOffsetX: 0,
+    textOffsetY: -25,
     fontSize: 40,
   });
   expect(styles.sticker.layoutMode).toBe('auto');
@@ -1345,6 +1347,61 @@ test('selected product owns the visible settings and manual transforms', async (
   expect(manualRibbon.logoBox.y).toBeGreaterThanOrEqual(
     manualRibbon.printable.y - 0.001,
   );
+
+  if (testInfo.project.name === 'mobile') {
+    const mobileGeometry = await panel
+      .locator('.mobile-products-ribbon-sample')
+      .evaluate((surface) => {
+        const interaction = surface.querySelector(
+          '.mobile-products-ribbon-interaction-cell',
+        );
+        const interactionBounds = interaction.getBoundingClientRect();
+        const normalize = (selector) => {
+          const bounds = surface
+            .querySelector(selector)
+            .getBoundingClientRect();
+          return {
+            x: (bounds.left - interactionBounds.left) / interactionBounds.width,
+            y: (bounds.top - interactionBounds.top) / interactionBounds.height,
+            width: bounds.width / interactionBounds.width,
+            height: bounds.height / interactionBounds.height,
+          };
+        };
+        const layout = JSON.parse(surface.dataset.layout);
+        return {
+          layout,
+          logo: normalize('[data-mobile-products-safe-zone="ribbon-logo"]'),
+          text: normalize('[data-mobile-products-safe-zone="ribbon-text"]'),
+          logoArtwork: normalize('.mobile-products-ribbon-logo'),
+          textArtwork: normalize('.mobile-products-ribbon-text'),
+        };
+      });
+
+    const center = (box, axis, size) => box[axis] + box[size] / 2;
+    for (const [mask, artwork, layoutBox] of [
+      [
+        mobileGeometry.logo,
+        mobileGeometry.logoArtwork,
+        mobileGeometry.layout.logoBox,
+      ],
+      [
+        mobileGeometry.text,
+        mobileGeometry.textArtwork,
+        mobileGeometry.layout.textBox,
+      ],
+    ]) {
+      expect(center(mask, 'x', 'width')).toBeCloseTo(
+        center(layoutBox, 'x', 'width'),
+        2,
+      );
+      expect(center(mask, 'y', 'height')).toBeCloseTo(
+        center(layoutBox, 'y', 'height'),
+        2,
+      );
+      expect(mask.width).toBeCloseTo(artwork.width, 2);
+      expect(mask.height).toBeCloseTo(artwork.height, 2);
+    }
+  }
 
   await stickerSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
@@ -1874,7 +1931,9 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   for (const zone of [zones.ribbonLogo, zones.ribbonText]) {
     await expect
       .poll(() =>
-        zone.evaluate((element) => element.getBoundingClientRect().height),
+        zone.evaluate((element) =>
+          Number.parseFloat(getComputedStyle(element, '::before').height),
+        ),
       )
       .toBeGreaterThanOrEqual(44);
   }
@@ -2364,11 +2423,32 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     ).toBeVisible();
 
     const dockBounds = await panel.boundingBox();
+    const slotBounds = await page.locator('#mobileProductsSlot').boundingBox();
     expect(dockBounds).not.toBeNull();
+    expect(slotBounds).not.toBeNull();
+    expect(slotBounds.height).toBeLessThanOrEqual(1.5);
     expect(dockBounds.x).toBeGreaterThanOrEqual(8);
     expect(dockBounds.x + dockBounds.width).toBeLessThanOrEqual(382);
     expect(dockBounds.y).toBeGreaterThanOrEqual(0);
     expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(845);
+
+    if (step === 'settings') {
+      const toolbarCenters = await panel
+        .locator('.mobile-products-switches')
+        .evaluate((toolbar) =>
+          [
+            toolbar.querySelector('.mobile-products-switch:first-child'),
+            toolbar.querySelector('.mobile-products-dock-toggle'),
+            toolbar.querySelector('.mobile-products-switch:last-child'),
+          ].map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.top + bounds.height / 2;
+          }),
+        );
+      expect(
+        Math.max(...toolbarCenters) - Math.min(...toolbarCenters),
+      ).toBeLessThanOrEqual(1);
+    }
 
     if (step === 'upload') {
       await dockToggle.click();
@@ -3065,6 +3145,26 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
         await ribbon.elementHandle(),
       );
     expect(repeatTextIsWhole).toBe(true);
+    const repeatOffsets = await ribbon.evaluate((surface) => {
+      const central = surface.querySelector(
+        '[data-mobile-products-safe-zone="ribbon-text"]',
+      );
+      const centralBounds = central.getBoundingClientRect();
+      const centralCenter = centralBounds.left + centralBounds.width / 2;
+      const repeatWidth = Number(surface.dataset.ribbonRepeatWidthPx);
+      return [
+        ...surface.querySelectorAll('.mobile-products-ribbon-repeat-text'),
+      ].map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return Math.abs(
+          (bounds.left + bounds.width / 2 - centralCenter) / repeatWidth,
+        );
+      });
+    });
+    expect(repeatOffsets.length).toBeGreaterThan(0);
+    for (const offset of repeatOffsets) {
+      expect(offset).toBeCloseTo(Math.round(offset), 2);
+    }
   } else {
     await expect
       .poll(() =>

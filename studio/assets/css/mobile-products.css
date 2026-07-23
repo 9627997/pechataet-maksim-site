@@ -160,14 +160,27 @@
   }
 
   .mobile-products-switches {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(86px, auto) minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
-    gap: 12px 24px;
+    gap: 8px;
     margin-bottom: 18px;
     padding-inline: 8px;
     box-sizing: border-box;
+  }
+
+  .mobile-products-switch:first-child {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .mobile-products-dock-toggle {
+    grid-column: 2;
+  }
+
+  .mobile-products-switch:last-child {
+    grid-column: 3;
+    justify-self: end;
   }
 
   .mobile-products-switch {
@@ -314,9 +327,7 @@
     top: 0;
     bottom: 0;
     z-index: 2;
-    display: grid;
-    grid-template-columns: minmax(0, 42%) minmax(0, 58%);
-    align-items: stretch;
+    display: block;
     min-width: 0;
   }
 
@@ -395,6 +406,26 @@
     border-left: 0;
   }
 
+  .mobile-products-ribbon-sample[data-mobile-products-mode='empty']
+    .mobile-products-ribbon-logo-zone,
+  .mobile-products-ribbon-sample[data-mobile-products-mode='empty']
+    .mobile-products-ribbon-text-zone {
+    top: 1px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mobile-products-ribbon-sample[data-mobile-products-mode='empty']
+    .mobile-products-ribbon-logo-zone {
+    left: calc(50% - 48px);
+  }
+
+  .mobile-products-ribbon-sample[data-mobile-products-mode='empty']
+    .mobile-products-ribbon-text-zone {
+    right: calc(50% - 48px);
+    left: auto;
+  }
+
   .mobile-products-sticker-sample {
     position: relative;
     display: grid;
@@ -436,9 +467,9 @@
     place-items: center;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     box-sizing: border-box;
-    padding: 5px 8px;
+    padding: 0;
   }
 
   .mobile-products-ribbon-logo-zone,
@@ -446,6 +477,23 @@
   .mobile-products-sticker-logo-zone,
   .mobile-products-sticker-text-zone {
     position: relative;
+  }
+
+  .mobile-products-ribbon-interaction-cell
+    .mobile-products-ribbon-logo-zone,
+  .mobile-products-ribbon-interaction-cell
+    .mobile-products-ribbon-text-zone {
+    position: absolute;
+  }
+
+  [data-mobile-products-safe-zone]::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    content: '';
+    transform: translate(-50%, -50%);
   }
 
   .mobile-products-sticker-logo-zone[data-empty='false'],
@@ -507,14 +555,23 @@
     transform: translate(-50%, -50%);
   }
 
+  .mobile-products-ribbon-interaction-cell .mobile-products-ribbon-logo {
+    width: 100%;
+    height: 100%;
+  }
+
   .mobile-products-ribbon-text-zone {
     border-left: 0;
   }
 
   .mobile-products-ribbon-text {
-    display: block;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    place-items: center;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     font-weight: 800;
     line-height: 1.1;
     letter-spacing: 0.02em;
@@ -632,7 +689,8 @@
   }
 
   .mobile-products-slot.is-floating {
-    height: var(--mobile-products-slot-height, auto);
+    height: 1px;
+    min-height: 1px;
   }
 
   .mobile-products-panel {
@@ -640,6 +698,11 @@
   }
 
   .mobile-products-panel:not([data-mode='settings'])
+    .mobile-products-switch {
+    display: none;
+  }
+
+  .mobile-products-panel:not([data-mode='settings']):not(.is-floating)
     .mobile-products-switches {
     display: none;
   }
@@ -702,8 +765,8 @@
   .mobile-products-panel.is-floating .mobile-products-dock-toggle {
     display: flex;
     width: 100%;
-    min-height: 28px;
-    margin: -3px 0 4px;
+    min-height: 34px;
+    margin: 0;
     padding: 2px 4px;
     align-items: center;
     justify-content: center;
@@ -730,10 +793,22 @@
   }
 
   .mobile-products-panel.is-floating .mobile-products-switches {
-    flex-wrap: nowrap;
-    gap: 8px 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(86px, auto) minmax(0, 1fr);
+    gap: 6px;
     margin-bottom: 7px;
-    padding-inline: 2px;
+    padding-inline: 0;
+  }
+
+  .mobile-products-panel.is-floating:not([data-mode='settings'])
+    .mobile-products-switches {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-products-panel.is-floating:not([data-mode='settings'])
+    .mobile-products-dock-toggle {
+    grid-column: 1;
+    width: min(150px, 100%);
+    justify-self: center;
   }
 
   .mobile-products-panel.is-floating .mobile-products-switch {
