@@ -1,12 +1,22 @@
 (() => {
   const setup = () => {
     const panel = document.querySelector('.mobile-products-panel');
+    const panelSlot = document.querySelector('#mobileProductsSlot');
+    const dockToggle = document.querySelector('#mobileProductsDockToggle');
     const ribbonLogoSource = document.querySelector('#macroLogoImage');
     const stickerLogoSource = document.querySelector('#macroStickerImage');
     const logoInput = document.querySelector('#logoInput');
     const textInput = document.querySelector('#textInput');
 
-    if (!panel || !ribbonLogoSource || !stickerLogoSource || !logoInput || !textInput)
+    if (
+      !panel ||
+      !panelSlot ||
+      !dockToggle ||
+      !ribbonLogoSource ||
+      !stickerLogoSource ||
+      !logoInput ||
+      !textInput
+    )
       return;
 
     const switches = [...panel.querySelectorAll('[data-mobile-product]')];
@@ -16,6 +26,9 @@
     let contentTextState = null;
     let contentLogoState = null;
     let effectiveLayouts = null;
+    let dockFrame = null;
+    let dockExpanded = false;
+    let dockFloating = false;
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -473,6 +486,108 @@
       });
     };
 
+    const mobileViewport = window.matchMedia('(max-width: 700px)');
+
+    const updateDockMetrics = () => {
+      if (!dockFloating) return;
+      document.body.style.setProperty(
+        '--mobile-products-dock-height',
+        `${panel.getBoundingClientRect().height}px`,
+      );
+    };
+
+    const setDockExpanded = (expanded) => {
+      dockExpanded = dockFloating && Boolean(expanded);
+      panel.classList.toggle('is-expanded', dockExpanded);
+      dockToggle.setAttribute('aria-expanded', String(dockExpanded));
+      dockToggle.querySelector('strong').textContent = dockExpanded
+        ? 'Свернуть предпросмотр'
+        : 'Развернуть предпросмотр';
+      requestAnimationFrame(() => {
+        updateDockMetrics();
+        scheduleStudioSync();
+      });
+    };
+
+    const setDockFloating = (floating) => {
+      const nextFloating = mobileViewport.matches && Boolean(floating);
+      panel.dataset.floating = String(nextFloating);
+      if (nextFloating === dockFloating) {
+        if (dockFloating) updateDockMetrics();
+        return;
+      }
+
+      if (nextFloating) {
+        const slotHeight = Math.max(
+          panelSlot.getBoundingClientRect().height,
+          panel.getBoundingClientRect().height,
+        );
+        panelSlot.style.setProperty(
+          '--mobile-products-slot-height',
+          `${slotHeight}px`,
+        );
+      }
+
+      dockFloating = nextFloating;
+      panelSlot.classList.toggle('is-floating', dockFloating);
+      panel.classList.toggle('is-floating', dockFloating);
+      document.body.classList.toggle('mobile-products-floating', dockFloating);
+      if (!dockFloating) {
+        panelSlot.style.removeProperty('--mobile-products-slot-height');
+        document.body.style.removeProperty('--mobile-products-dock-height');
+        setDockExpanded(false);
+      }
+
+      requestAnimationFrame(() => {
+        updateDockMetrics();
+        scheduleStudioSync();
+      });
+    };
+
+    const updateKeyboardState = () => {
+      const viewport = window.visualViewport;
+      const keyboardVisible = Boolean(
+        dockFloating &&
+          viewport &&
+          window.innerHeight - viewport.height > 140,
+      );
+      panel.classList.toggle('is-keyboard-compact', keyboardVisible);
+      if (keyboardVisible && dockExpanded) setDockExpanded(false);
+    };
+
+    const updateFloatingDock = () => {
+      dockFrame = null;
+      if (!mobileViewport.matches) {
+        setDockFloating(false);
+        panel.classList.remove('is-keyboard-compact');
+        return;
+      }
+
+      const slotTop = panelSlot.getBoundingClientRect().top;
+      const shouldFloat = dockFloating ? slotTop < 24 : slotTop <= 8;
+      setDockFloating(shouldFloat);
+      updateKeyboardState();
+    };
+
+    const scheduleDockUpdate = () => {
+      if (dockFrame !== null) return;
+      dockFrame = requestAnimationFrame(updateFloatingDock);
+    };
+
+    dockToggle.addEventListener('click', () => {
+      setDockExpanded(!dockExpanded);
+    });
+
+    window.addEventListener('scroll', scheduleDockUpdate, {passive: true});
+    window.addEventListener('resize', scheduleDockUpdate, {passive: true});
+    window.visualViewport?.addEventListener('resize', scheduleDockUpdate, {
+      passive: true,
+    });
+    window.visualViewport?.addEventListener('scroll', scheduleDockUpdate, {
+      passive: true,
+    });
+    mobileViewport.addEventListener('change', scheduleDockUpdate);
+
     switches.forEach((productSwitch) => {
       productSwitch.addEventListener('change', () => {
         if (!switches.some((item) => item.checked)) {
@@ -532,7 +647,10 @@
       attributeFilter: ['src', 'hidden'],
     });
 
-    const previewResizeObserver = new ResizeObserver(scheduleStudioSync);
+    const previewResizeObserver = new ResizeObserver(() => {
+      scheduleStudioSync();
+      if (dockFloating) scheduleDockUpdate();
+    });
     previewResizeObserver.observe(panel);
     previewResizeObserver.observe(ribbonSurface);
     previewResizeObserver.observe(stickerSurface);
@@ -547,6 +665,7 @@
     contentTextState = contentFallback?.text || null;
     contentLogoState = contentFallback?.logo || null;
     syncStudioState();
+    scheduleDockUpdate();
   };
 
   if (document.readyState === 'loading') {

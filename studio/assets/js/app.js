@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const GOLDEN_RATIO = 1.618;
   const REPEAT_ROUNDING_MM = 5;
   const PRINT_MARGIN_MM = 2.5;
+  const MAX_COMMON_TEXT_LENGTH = 60;
+  const MAX_LOGO_FILE_BYTES = 20 * 1024 * 1024;
   const PDF_RENDER_MAX_SIDE = 1600;
   const PDFJS_MODULE_URL = new URL(
     'assets/vendor/pdfjs/pdf.min.js',
@@ -402,6 +404,8 @@ document.addEventListener('DOMContentLoaded', () => {
       hasCompletedCommonLogoUpload = true;
       state.commonLogoUploaded = true;
       syncLegacyContentAliasesFromContent();
+      setFileCardActionsVisible(true);
+      showUploadFeedback('');
       updateFirstStepAvailability();
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
@@ -792,6 +796,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateFirstStepAvailability() {
     const ready = isFirstStepReady();
+    const textReady =
+      hasUsedCommonTextEditor && Boolean(state.content.text.common.trim());
+    const logoReady = hasCompletedCommonLogoUpload;
     const continueButton = $('#continueUpload');
     const continueHelp = $('#continueUploadHelp');
     if (continueButton) {
@@ -803,6 +810,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     if (continueHelp) continueHelp.hidden = ready;
+
+    const updateStatus = (kind, complete, completeLabel, emptyLabel) => {
+      const status = $(`[data-create-status="${kind}"]`);
+      if (!status) return;
+      status.classList.toggle('is-complete', complete);
+      status.querySelector('span').textContent = complete ? '✓' : '○';
+      status.querySelector('small').textContent = complete
+        ? completeLabel
+        : emptyLabel;
+    };
+    updateStatus('text', textReady, 'добавлено', 'не добавлено');
+    updateStatus('logo', logoReady, 'добавлен', 'не добавлен');
+
+    if ($('#textInputCounter')) {
+      const textLength = [...($('#textInput')?.value || '')].length;
+      $('#textInputCounter').textContent =
+        `${textLength} / ${MAX_COMMON_TEXT_LENGTH}`;
+      $('#textInputMeta')?.classList.toggle(
+        'is-over-limit',
+        textLength > MAX_COMMON_TEXT_LENGTH
+      );
+    }
 
     $$('.nav-item').forEach((button) => {
       if (button.dataset.panel === 'upload') return;
@@ -2139,6 +2168,29 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#fileCardQuality').textContent = quality;
   }
 
+  function setFileCardActionsVisible(visible) {
+    if ($('#fileCardActions')) $('#fileCardActions').hidden = !visible;
+  }
+
+  function showUploadFeedback(message) {
+    const feedback = $('#uploadFeedback');
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.hidden = !message;
+  }
+
+  function validateLogoFile(file) {
+    if (!file.size) return 'Файл пустой. Выберите другой логотип.';
+    if (file.size > MAX_LOGO_FILE_BYTES) {
+      return 'Файл больше 20 МБ. Уменьшите его или сохраните в SVG.';
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['svg', 'png', 'jpg', 'jpeg', 'pdf'].includes(ext)) {
+      return 'Поддерживаются только SVG, PNG, JPEG и PDF.';
+    }
+    return '';
+  }
+
   function isNonePaint(value) {
     if (!value) return false;
     const normalized = value.trim().toLowerCase();
@@ -2814,6 +2866,9 @@ document.addEventListener('DOMContentLoaded', () => {
       page.cleanup();
     } catch {
       pdfJsPromise = null;
+      showUploadFeedback(
+        'Не удалось прочитать PDF. Сохраните первую страницу как PNG или SVG.'
+      );
       showFileCard(
         file,
         'PDF',
@@ -2827,6 +2882,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadFile(file, target = 'common') {
     if (!file) return;
+    const validationMessage = validateLogoFile(file);
+    if (validationMessage) {
+      showUploadFeedback(validationMessage);
+      return;
+    }
+    showUploadFeedback('');
     const logoTarget = normalizeLogoTarget(target);
 
     const ext = file.name.split('.').pop().toLowerCase();
@@ -2838,7 +2899,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const svg = doc.documentElement;
 
         if (svg.nodeName.toLowerCase() !== 'svg') {
-          alert('Не удалось прочитать SVG');
+          showUploadFeedback('Не удалось прочитать SVG. Проверьте файл и попробуйте снова.');
           return;
         }
 
@@ -2893,6 +2954,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         image.onerror = () => {
+          showUploadFeedback('Не удалось прочитать изображение. Проверьте файл и попробуйте снова.');
           showFileCard(
             file,
             ext.toUpperCase(),
@@ -2908,7 +2970,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    alert('Поддерживаются SVG, PNG, JPEG и PDF');
+    showUploadFeedback('Поддерживаются только SVG, PNG, JPEG и PDF.');
   }
 
   function syncControls() {
@@ -3320,18 +3382,40 @@ document.addEventListener('DOMContentLoaded', () => {
   ['dragenter', 'dragover'].forEach((type) =>
     dropZone.addEventListener(type, (event) => {
       event.preventDefault();
-      dropZone.style.borderColor = '#171717';
+      dropZone.classList.add('is-dragging');
     })
   );
 
   ['dragleave', 'drop'].forEach((type) =>
     dropZone.addEventListener(type, (event) => {
       event.preventDefault();
-      dropZone.style.borderColor = '';
+      dropZone.classList.remove('is-dragging');
     })
   );
 
-  dropZone.addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
+  dropZone.addEventListener('drop', (event) => {
+    hasUsedCommonLogoEditor = true;
+    loadFile(event.dataTransfer.files[0]);
+  });
+
+  $('#replaceCommonLogo').addEventListener('click', () => {
+    hasUsedCommonLogoEditor = true;
+    openLogoPicker('common');
+  });
+
+  $('#removeCommonLogo').addEventListener('click', () => {
+    state.content.logo.common = null;
+    syncLegacyContentAliasesFromContent();
+    hasCompletedCommonLogoUpload = false;
+    state.commonLogoUploaded = false;
+    $('#fileCard').hidden = true;
+    $('#traceStatus').hidden = true;
+    setFileCardActionsVisible(false);
+    showUploadFeedback('');
+    updateFirstStepAvailability();
+    render();
+    $('#dropZone').focus({preventScroll: true});
+  });
 
   $('#textInput').addEventListener('input', (event) => {
     hasUsedCommonTextEditor = true;
@@ -3586,6 +3670,17 @@ document.addEventListener('DOMContentLoaded', () => {
     state.commonLogoUploaded ||
     Boolean(restoredCommonLogo && !restoredCommonLogoIsDefault);
   state.commonLogoUploaded = hasCompletedCommonLogoUpload;
+  if (hasCompletedCommonLogoUpload) {
+    const format = (restoredCommonLogo?.logoType || 'logo')
+      .replace('svg-auto', 'SVG')
+      .toUpperCase();
+    showFileCard(
+      {name: 'Логотип проекта'},
+      `${format} · восстановлен`,
+      'Файл сохранён в этом браузере'
+    );
+    setFileCardActionsVisible(true);
+  }
   if (state.commonTextAuthored && restoredCommonLogoIsDefault) clearDemoLogo();
   loadDefaultLogo();
   setActiveSettingsProduct(state.activeSettingsProduct);

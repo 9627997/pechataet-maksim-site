@@ -250,12 +250,40 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .box-ribbon-h img{width:auto;height:auto;max-width:64%;max-height:60px}
 .box-sticker img{width:auto;height:auto;max-width:76%;max-height:76%}
 
-.upload-text-card{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.create-intro{display:flex;flex-direction:column;gap:2px;margin:0 0 12px;padding:11px 12px;border-radius:12px;background:#f3efe9}
+.create-intro strong{font-size:11px}
+.create-intro span{color:var(--muted);font-size:9px;line-height:1.4}
+.upload-text-card{margin-top:0;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.create-option{transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease}
+.create-option:focus-within{border-color:#171717;box-shadow:0 0 0 1px #171717}
 .upload-text-head{margin-bottom:10px}
 .upload-text-head strong,.upload-text-head span{display:block}
+.upload-text-head > div{display:flex;align-items:center;gap:7px}
 .upload-text-head strong{font-size:12px}
 .upload-text-head span{font-size:10px;color:var(--muted);margin-top:2px}
+.upload-text-head .create-option-number,.upload .create-option-number{display:inline-grid;place-items:center;min-width:22px;height:22px;margin:0;border-radius:999px;background:#171717;color:#fff;font-size:8px;letter-spacing:.08em}
 .upload-text-card label{margin-top:9px}
+.text-input-meta{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--muted);font-size:9px}
+.text-input-meta.is-over-limit{color:#9f1d2b;font-weight:700}
+.upload-large{margin-top:10px}
+.upload-large.is-dragging{border-color:#171717;background:#f0ece5;box-shadow:0 0 0 3px rgba(23,23,23,.08)}
+.upload-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#fff0f1;color:#9f1d2b;font-size:10px;font-weight:700;line-height:1.45}
+.upload-feedback[hidden]{display:none}
+.file-card{grid-template-columns:38px minmax(0,1fr) auto}
+.file-card-copy{min-width:0}
+.file-card-copy strong,.file-card-copy span,.file-card-copy small{overflow-wrap:anywhere}
+.file-card-actions{display:flex;flex-direction:column;align-items:stretch;gap:5px}
+.file-card-actions[hidden]{display:none}
+.file-card-actions button{border:0;border-radius:8px;background:#ece8e1;padding:6px 8px;color:var(--ink);font-size:9px;font-weight:800;cursor:pointer}
+.file-card-actions button:last-child{background:transparent;color:#9f1d2b}
+.create-readiness{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.create-readiness > div{display:grid;grid-template-columns:20px 1fr;grid-template-rows:auto auto;align-items:center;padding:9px;border:1px solid var(--line);border-radius:11px;background:#faf9f7}
+.create-readiness > div > span{grid-row:1 / span 2;color:var(--muted);font-size:15px}
+.create-readiness strong{font-size:10px}
+.create-readiness small{color:var(--muted);font-size:8px}
+.create-readiness > div.is-complete{border-color:#bad8c4;background:#f1faf4}
+.create-readiness > div.is-complete > span{color:#16713a}
+.create-readiness > div.is-complete small{color:#16713a}
 .first-step-requirement{
   margin:14px 0 -6px;
   color:var(--muted);
@@ -271,6 +299,9 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
     margin-top:12px;
     padding:18px 16px;
   }
+  .file-card{grid-template-columns:38px minmax(0,1fr)}
+  .file-card-actions{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr}
+  .file-card-actions[hidden]{display:none}
 }
 
 /* Combined logo + text composition in secondary scenes */
