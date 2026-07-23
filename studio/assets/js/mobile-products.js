@@ -3,6 +3,7 @@
     const panel = document.querySelector('.mobile-products-panel');
     const panelSlot = document.querySelector('#mobileProductsSlot');
     const dockToggle = document.querySelector('#mobileProductsDockToggle');
+    const panelHosts = [...document.querySelectorAll('[data-products-host]')];
     const ribbonLogoSource = document.querySelector('#macroLogoImage');
     const stickerLogoSource = document.querySelector('#macroStickerImage');
     const logoInput = document.querySelector('#logoInput');
@@ -29,6 +30,7 @@
     let dockFrame = null;
     let dockExpanded = false;
     let dockFloating = false;
+    let panelMode = document.body.dataset.activePanel || 'upload';
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -43,6 +45,16 @@
     ribbonGuide.setAttribute('aria-hidden', 'true');
     stickerGuide.setAttribute('aria-hidden', 'true');
 
+    const requestProductSettings = (product) => {
+      if (panelMode !== 'settings' || !['ribbon', 'sticker'].includes(product))
+        return;
+      document.dispatchEvent(
+        new CustomEvent('studio:settings-product-change', {
+          detail: {product},
+        }),
+      );
+    };
+
     const createLogoZone = (product) => {
       const zone = document.createElement('button');
       const image = document.createElement('img');
@@ -54,11 +66,21 @@
       image.alt = '';
       action.className = 'mobile-products-zone-action';
       zone.addEventListener('click', () => {
-        document.dispatchEvent(
-          new CustomEvent('studio:content-edit-request', {
-            detail: { kind: 'logo', product },
-          }),
-        );
+        if (zone.dataset.suppressClick === 'true') {
+          zone.dataset.suppressClick = 'false';
+          return;
+        }
+        if (panelMode === 'order') return;
+        if (panelMode === 'upload') {
+          document.dispatchEvent(
+            new CustomEvent('studio:logo-upload-target-set', {
+              detail: {target: 'common'},
+            }),
+          );
+          logoInput.click();
+          return;
+        }
+        requestProductSettings(product);
       });
       zone.append(image, action);
       return { zone, image, action };
@@ -74,11 +96,16 @@
       text.className = `mobile-products-${product}-text`;
       action.className = 'mobile-products-zone-action';
       zone.addEventListener('click', () => {
-        document.dispatchEvent(
-          new CustomEvent('studio:content-edit-request', {
-            detail: { kind: 'text', product },
-          }),
-        );
+        if (zone.dataset.suppressClick === 'true') {
+          zone.dataset.suppressClick = 'false';
+          return;
+        }
+        if (panelMode === 'order') return;
+        if (panelMode === 'upload') {
+          textInput.focus();
+          return;
+        }
+        requestProductSettings(product);
       });
       zone.append(text, action);
       return { zone, text, action };
@@ -102,6 +129,66 @@
     ribbonSurface.append(ribbonTrack, ribbonInteractionCell);
     stickerContent.append(stickerLogo.zone, stickerText.zone);
     stickerSurface.append(stickerContent, stickerGuide);
+
+    const attachTransformDrag = (zone, product, kind, surface) => {
+      let pointerId = null;
+      let lastX = 0;
+      let lastY = 0;
+      let distance = 0;
+
+      zone.addEventListener('pointerdown', (event) => {
+        const editableDock =
+          !panel.classList.contains('is-floating') ||
+          panel.classList.contains('is-expanded');
+        if (panelMode !== 'settings' || !editableDock || event.button !== 0) return;
+        requestProductSettings(product);
+        pointerId = event.pointerId;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        distance = 0;
+        zone.setPointerCapture(pointerId);
+      });
+
+      zone.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== pointerId) return;
+        const dx = event.clientX - lastX;
+        const dy = event.clientY - lastY;
+        distance += Math.hypot(dx, dy);
+        lastX = event.clientX;
+        lastY = event.clientY;
+        if (distance < 4) return;
+        event.preventDefault();
+        zone.dataset.dragging = 'true';
+        const bounds = surface.getBoundingClientRect();
+        document.dispatchEvent(
+          new CustomEvent('studio:transform-delta', {
+            detail: {
+              product,
+              kind,
+              dxRatio: dx / Math.max(bounds.width, 1),
+              dyRatio: dy / Math.max(bounds.height, 1),
+            },
+          }),
+        );
+      });
+
+      const finishDrag = (event) => {
+        if (event.pointerId !== pointerId) return;
+        if (distance >= 4) zone.dataset.suppressClick = 'true';
+        zone.dataset.dragging = 'false';
+        try {
+          zone.releasePointerCapture(pointerId);
+        } catch {}
+        pointerId = null;
+      };
+      zone.addEventListener('pointerup', finishDrag);
+      zone.addEventListener('pointercancel', finishDrag);
+    };
+
+    attachTransformDrag(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface);
+    attachTransformDrag(ribbonText.zone, 'ribbon', 'text', ribbonSurface);
+    attachTransformDrag(stickerLogo.zone, 'sticker', 'logo', stickerSurface);
+    attachTransformDrag(stickerText.zone, 'sticker', 'text', stickerSurface);
 
     const syncVisibility = () => {
       switches.forEach((productSwitch) => {
@@ -201,7 +288,19 @@
         cell.style.left = `${left}px`;
         cell.style.width = `${repeatWidth}px`;
 
-        if (hasLogo && logoSrc && layout.logoBox) {
+        const boxIsFullyVisible = (box) => {
+          if (!box) return false;
+          const boxLeft = left + box.x * repeatWidth;
+          const boxRight = left + (box.x + box.width) * repeatWidth;
+          return boxLeft >= 0.5 && boxRight <= surfaceBounds.width - 0.5;
+        };
+
+        if (
+          hasLogo &&
+          logoSrc &&
+          layout.logoBox &&
+          boxIsFullyVisible(layout.logoBox)
+        ) {
           const image = document.createElement('img');
           const box = layout.logoBox;
           image.className = 'mobile-products-ribbon-repeat-logo';
@@ -214,7 +313,12 @@
           cell.appendChild(image);
         }
 
-        if (hasText && visibleText && textBox) {
+        if (
+          hasText &&
+          visibleText &&
+          textBox &&
+          boxIsFullyVisible(textBox)
+        ) {
           const text = document.createElement('span');
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
@@ -287,11 +391,13 @@
         }
       }
 
-      const updateLogo = ({zone, image, action}, src, hasLogo, mode) => {
+      const updateLogo = ({zone, image, action}, src, hasLogo, mode, product) => {
         if (hasLogo && src) image.src = src;
         else image.removeAttribute('src');
         image.hidden = !hasLogo;
-        const label = hasLogo ? 'Изменить логотип' : 'Добавить логотип';
+        const label = panelMode === 'settings'
+          ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+          : hasLogo ? 'Изменить логотип' : 'Добавить логотип';
         zone.dataset.empty = String(!hasLogo);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
@@ -302,20 +408,31 @@
         ribbonLogoSrc,
         hasRibbonLogo,
         contentLogoState?.ribbon?.mode || 'inherit',
+        'ribbon',
       );
       updateLogo(
         stickerLogo,
         stickerLogoSrc,
         hasStickerLogo,
         contentLogoState?.sticker?.mode || 'inherit',
+        'sticker',
       );
 
-      const updateText = ({ zone, text, action }, value, hasText, mode, style) => {
+      const updateText = (
+        { zone, text, action },
+        value,
+        hasText,
+        mode,
+        style,
+        product,
+      ) => {
         text.textContent = value;
         text.hidden = !hasText;
         text.style.color = style.print;
         text.style.fontFamily = style.font;
-        const label = hasText ? 'Изменить надпись' : 'Добавить надпись';
+        const label = panelMode === 'settings'
+          ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+          : hasText ? 'Изменить надпись' : 'Добавить надпись';
         zone.dataset.empty = String(!hasText);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
@@ -327,6 +444,7 @@
         hasRibbonText,
         contentTextState?.ribbon?.mode || 'inherit',
         ribbonStyle,
+        'ribbon',
       );
       updateText(
         stickerText,
@@ -334,6 +452,7 @@
         hasStickerText,
         contentTextState?.sticker?.mode || 'inherit',
         stickerStyle,
+        'sticker',
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
@@ -574,6 +693,41 @@
       dockFrame = requestAnimationFrame(updateFloatingDock);
     };
 
+    const syncPanelMode = () => {
+      const nextMode = ['upload', 'settings', 'order'].includes(
+        document.body.dataset.activePanel,
+      )
+        ? document.body.dataset.activePanel
+        : 'upload';
+      const host = panelHosts.find(
+        (item) => item.dataset.productsHost === nextMode,
+      );
+      if (!host) return;
+
+      setDockFloating(false);
+      panelMode = nextMode;
+      panel.dataset.mode = panelMode;
+      host.appendChild(panelSlot);
+      panelSlot.dataset.hosted = 'true';
+
+      const interactiveSamples = panelMode === 'settings';
+      samples.forEach((sample) => {
+        if (interactiveSamples) {
+          sample.setAttribute('role', 'button');
+          sample.setAttribute('tabindex', '0');
+        } else {
+          sample.removeAttribute('role');
+          sample.removeAttribute('tabindex');
+        }
+      });
+      [ribbonLogo.zone, ribbonText.zone, stickerLogo.zone, stickerText.zone]
+        .forEach((zone) => {
+          zone.disabled = panelMode === 'order';
+        });
+      scheduleStudioSync();
+      scheduleDockUpdate();
+    };
+
     dockToggle.addEventListener('click', () => {
       setDockExpanded(!dockExpanded);
     });
@@ -606,20 +760,14 @@
       });
     });
 
-    const requestProductSettings = (sample) => {
-      document.dispatchEvent(
-        new CustomEvent('studio:settings-product-change', {
-          detail: {product: sample.dataset.mobileProductSample},
-        }),
-      );
-    };
-
     samples.forEach((sample) => {
-      sample.addEventListener('click', () => requestProductSettings(sample));
+      sample.addEventListener('click', () => {
+        requestProductSettings(sample.dataset.mobileProductSample);
+      });
       sample.addEventListener('keydown', (event) => {
         if (event.target !== sample || !['Enter', ' '].includes(event.key)) return;
         event.preventDefault();
-        requestProductSettings(sample);
+        requestProductSettings(sample.dataset.mobileProductSample);
       });
     });
 
@@ -640,6 +788,12 @@
     document.addEventListener('input', scheduleStudioSync);
     document.addEventListener('change', scheduleStudioSync);
     document.addEventListener('click', scheduleStudioSync);
+
+    const panelModeObserver = new MutationObserver(syncPanelMode);
+    panelModeObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-active-panel'],
+    });
 
     const logoObserver = new MutationObserver(syncStudioState);
     logoObserver.observe(ribbonLogoSource, {
@@ -664,6 +818,7 @@
     const contentFallback = readContentFallback();
     contentTextState = contentFallback?.text || null;
     contentLogoState = contentFallback?.logo || null;
+    syncPanelMode();
     syncStudioState();
     scheduleDockUpdate();
   };

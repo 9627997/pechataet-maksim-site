@@ -151,6 +151,15 @@ textarea.input{min-height:100px;resize:vertical}
 .transform-head strong{font-size:12px}
 .mini-button{border:0;background:#ece8e1;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:800;cursor:pointer}
 .transform-card input[type=range]{width:100%}
+.layout-mode-card{display:grid;gap:10px;margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#faf9f7}
+.layout-mode-card strong,.layout-mode-card small{display:block}
+.layout-mode-card strong{font-size:12px}
+.layout-mode-card small{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.4}
+.layout-mode-card .segmented{width:100%}
+.transform-card.is-automatic{opacity:.55}
+.transform-card.is-automatic input{pointer-events:none}
+.reset-layout{margin-top:10px}
+.mobile-products-host:empty{display:none}
 .settings-context-head{
   display:flex;
   align-items:center;

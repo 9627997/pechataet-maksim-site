@@ -144,6 +144,30 @@
     };
   }
 
+  function clampRectOffsetToCircle(rect, circle, offsetX = 0, offsetY = 0) {
+    const shifted = (factor) => ({
+      ...rect,
+      x: rect.x + offsetX * factor,
+      y: rect.y + offsetY * factor,
+    });
+    if (areRectCornersInsideCircle(shifted(1), circle, 0)) {
+      return {...shifted(1), offsetX, offsetY};
+    }
+
+    let low = 0;
+    let high = 1;
+    for (let index = 0; index < 24; index += 1) {
+      const middle = (low + high) / 2;
+      if (areRectCornersInsideCircle(shifted(middle), circle, 0)) low = middle;
+      else high = middle;
+    }
+    return {
+      ...shifted(low),
+      offsetX: offsetX * low,
+      offsetY: offsetY * low,
+    };
+  }
+
   function serializeProductionSvg(svg) {
     const clone = svg.cloneNode(true);
     clone.querySelectorAll('[data-preview-overlay]').forEach((node) => node.remove());
@@ -158,6 +182,7 @@
     fitRectToCircle,
     areRectCornersInsideCircle,
     clampRectOffsetToBounds,
+    clampRectOffsetToCircle,
     serializeProductionSvg,
   });
 })();

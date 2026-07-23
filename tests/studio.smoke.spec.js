@@ -106,6 +106,11 @@ const expectShowcaseCaptionClear = async (page) => {
 };
 
 const expectInterfaceResponsive = async (page) => {
+  if (
+    (await page.locator('body').getAttribute('data-active-panel')) !==
+    'settings'
+  )
+    await openSettings(page);
   await ensureProductSettingsVisible(page);
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
   const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
@@ -296,16 +301,14 @@ test('fresh first step marks the demo and keeps customer content honest', async 
   await expect(page.locator('.format-list')).toHaveCount(0);
   await expect(page.locator('.help-note')).toHaveCount(0);
   if (testInfo.project.name === 'mobile') {
-    const previewIsAboveCreation = await page.evaluate(() => {
-      const preview = document
-        .querySelector('.mobile-products-panel')
-        .getBoundingClientRect();
-      const creation = document
-        .querySelector('#panel-upload')
-        .getBoundingClientRect();
-      return preview.top < creation.top && preview.bottom <= window.innerHeight;
-    });
-    expect(previewIsAboveCreation).toBe(true);
+    await expect(
+      page.locator('[data-products-host="upload"] #mobileProductsSlot'),
+    ).toHaveCount(1);
+    await expect(page.locator('.mobile-products-panel')).toHaveAttribute(
+      'data-mode',
+      'upload',
+    );
+    await expect(page.locator('.mobile-products-switches')).toBeHidden();
   }
   await expectShowcaseCaptionClear(page);
 
@@ -318,17 +321,17 @@ test('fresh first step marks the demo and keeps customer content honest', async 
   await textInput.fill('Мой бренд');
   await expect(page.locator('body')).toHaveAttribute(
     'data-preview-demo',
-    'true',
+    'false',
   );
   await expect(page.locator('body')).toHaveAttribute(
     'data-preview-logo-demo',
-    'true',
+    'false',
   );
   await expect(page.locator('#continueUpload')).toBeEnabled();
   await expect(page.locator('#continueUploadHelp')).toBeHidden();
-  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
     'hidden',
-    '',
+    true,
   );
   let snapshot = await readContentSnapshot(page);
   expect(snapshot.text.common).toBe('Мой бренд');
@@ -342,9 +345,9 @@ test('fresh first step marks the demo and keeps customer content honest', async 
   await page.reload({ waitUntil: 'networkidle' });
   await expect(textInput).toHaveValue('Мой бренд');
   await expect(page.locator('#continueUpload')).toBeEnabled();
-  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
     'hidden',
-    '',
+    true,
   );
   snapshot = await readContentSnapshot(page);
   expect(snapshot.logo.common).toBeNull();
@@ -820,189 +823,6 @@ test('raster upload target survives tracing and crop cancellation', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('mobile text and logo editing survives twenty alternating cycles', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-  test.setTimeout(120_000);
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-  const logoInput = page.locator('#logoInput');
-  const textEditor = page.locator('#mobileTextEditor');
-  const logoEditor = page.locator('#mobileLogoEditor');
-  const cropModal = page.locator('#cropModal');
-  const textZone = (product) =>
-    page.locator(`[data-mobile-products-safe-zone="${product}-text"]`);
-  const logoZone = (product) =>
-    page.locator(`[data-mobile-products-safe-zone="${product}-logo"]`);
-  const macroLogo = (product) =>
-    page.locator(
-      product === 'ribbon' ? '#macroLogoImage' : '#macroStickerImage',
-    );
-
-  const openTextEditor = async (product) => {
-    await textZone(product).click();
-    await expect(textEditor).toBeVisible();
-  };
-  const saveTextOverride = async (product, value) => {
-    await openTextEditor(product);
-    await page.locator('#editProductText').click();
-    await page.locator('#mobileTextOverrideInput').fill(value);
-    await page
-      .locator('#mobileTextOverrideForm')
-      .getByRole('button', { name: 'Сохранить' })
-      .click();
-    await expect(textEditor).toBeHidden();
-    await expect(page.locator(`.mobile-products-${product}-text`)).toHaveText(
-      value,
-    );
-  };
-  const clearTextOverride = async (product) => {
-    await openTextEditor(product);
-    await page.locator('#clearProductTextOverride').click();
-    await expect(textEditor).toBeHidden();
-  };
-  const openLogoEditor = async (product) => {
-    await logoZone(product).click();
-    await expect(logoEditor).toBeVisible();
-  };
-  const uploadProductLogo = async (product, file, marker) => {
-    await openLogoEditor(product);
-    const [chooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      page.locator('#editProductLogo').click(),
-    ]);
-    await chooser.setFiles(file);
-    await expect(logoEditor).toBeHidden();
-    await expect(logoInput).toHaveValue('');
-    await expectSvgDataToContain(macroLogo(product), marker);
-  };
-  const clearLogoOverride = async (product) => {
-    await openLogoEditor(product);
-    await page.locator('#clearProductLogoOverride').click();
-    await expect(logoEditor).toBeHidden();
-  };
-
-  for (let cycle = 1; cycle <= 20; cycle += 1) {
-    if (cycle % 2 === 1) {
-      const commonText = `stress-common-${cycle}`;
-      await page.locator('.nav-item[data-panel="upload"]').click();
-      await page.locator('#textInput').fill(commonText);
-      await openSettings(page);
-      for (const product of ['ribbon', 'sticker']) {
-        const other = product === 'ribbon' ? 'sticker' : 'ribbon';
-        const otherText = await page
-          .locator(`.mobile-products-${other}-text`)
-          .textContent();
-        await saveTextOverride(product, `${product}-${cycle}-first`);
-        await expect(page.locator(`.mobile-products-${other}-text`)).toHaveText(
-          otherText,
-        );
-        await saveTextOverride(product, `${product}-${cycle}-second`);
-        await clearTextOverride(product);
-        await expect(
-          page.locator(`.mobile-products-${product}-text`),
-        ).toHaveText(commonText);
-      }
-    } else {
-      const commonMarker = `common-${cycle}`;
-      await logoInput.setInputFiles(
-        svgUpload(`common-${cycle}.svg`, commonMarker),
-      );
-      await expect(logoInput).toHaveValue('');
-      await expectSvgDataToContain(macroLogo('ribbon'), commonMarker);
-      await expectSvgDataToContain(macroLogo('sticker'), commonMarker);
-
-      if (cycle === 2) {
-        await openLogoEditor('ribbon');
-        const [cancelledChooser] = await Promise.all([
-          page.waitForEvent('filechooser'),
-          page.locator('#editProductLogo').click(),
-        ]);
-        await cancelledChooser.setFiles([]);
-        await expect(logoEditor).toBeHidden();
-      }
-
-      for (const product of ['ribbon', 'sticker']) {
-        const other = product === 'ribbon' ? 'sticker' : 'ribbon';
-        const otherSrc = await macroLogo(other).getAttribute('src');
-        const repeatedFile = svgUpload(
-          `same-${product}.svg`,
-          `${product}-${cycle}-same`,
-        );
-        await uploadProductLogo(
-          product,
-          repeatedFile,
-          `${product}-${cycle}-same`,
-        );
-        await uploadProductLogo(
-          product,
-          repeatedFile,
-          `${product}-${cycle}-same`,
-        );
-        await expect(macroLogo(other)).toHaveAttribute('src', otherSrc);
-        await clearLogoOverride(product);
-      }
-
-      if (cycle === 2) {
-        await openLogoEditor('ribbon');
-        let chooser = await Promise.all([
-          page.waitForEvent('filechooser'),
-          page.locator('#editProductLogo').click(),
-        ]).then(([fileChooser]) => fileChooser);
-        await chooser.setFiles(fixturePath('transparent-logo.png'));
-        await expect(page.locator('#traceStatus')).not.toHaveAttribute(
-          'hidden',
-          '',
-        );
-        await expect(logoInput).toHaveValue('');
-        await clearLogoOverride('ribbon');
-
-        await openLogoEditor('sticker');
-        chooser = await Promise.all([
-          page.waitForEvent('filechooser'),
-          page.locator('#editProductLogo').click(),
-        ]).then(([fileChooser]) => fileChooser);
-        await chooser.setFiles(fixturePath('opaque-logo.png'));
-        await expect(cropModal).toHaveClass(/open/);
-        await expect(logoInput).toHaveValue('');
-        await page.locator('#cropApply').click();
-        await expect(cropModal).not.toHaveClass(/open/);
-        await clearLogoOverride('sticker');
-
-        await openLogoEditor('ribbon');
-        chooser = await Promise.all([
-          page.waitForEvent('filechooser'),
-          page.locator('#editProductLogo').click(),
-        ]).then(([fileChooser]) => fileChooser);
-        await chooser.setFiles(fixturePath('opaque-logo.png'));
-        await expect(cropModal).toHaveClass(/open/);
-        await page.locator('#cropCancel').click();
-        await expect(cropModal).not.toHaveClass(/open/);
-
-        await openLogoEditor('ribbon');
-        chooser = await Promise.all([
-          page.waitForEvent('filechooser'),
-          page.locator('#editProductLogo').click(),
-        ]).then(([fileChooser]) => fileChooser);
-        await chooser.setFiles(fixturePath('opaque-logo.png'));
-        await expect(cropModal).toHaveClass(/open/);
-        await page.locator('#cropApply').click();
-        await expect(cropModal).not.toHaveClass(/open/);
-        await clearLogoOverride('ribbon');
-      }
-    }
-
-    await expect(textEditor).toBeHidden();
-    await expect(logoEditor).toBeHidden();
-    await expect(cropModal).not.toHaveClass(/open/);
-  }
-
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
 test('resolved product text stays independent from common editing', async ({
   page,
 }, testInfo) => {
@@ -1102,396 +922,6 @@ test('resolved product text stays independent from common editing', async ({
   await expect(macroStickerText).toHaveText('только стикер');
   await expect(mobileRibbonText).toHaveText('только лента');
   await expect(mobileStickerText).toHaveText('только стикер');
-
-  for (const product of ['ribbon', 'sticker']) {
-    const scopeRequired = page.evaluate(
-      () =>
-        new Promise((resolve) => {
-          document.addEventListener(
-            'studio:text-edit-scope-required',
-            (event) => resolve(event.detail),
-            { once: true },
-          );
-        }),
-    );
-    await page
-      .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
-      .click();
-    expect(await scopeRequired).toEqual({ product });
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.locator('#cancelMobileTextEditor').click();
-  }
-
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile text zones request editing and require scope after shared editing starts', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const textInput = page.locator('#textInput');
-  const ribbonText = page.locator(
-    '[data-mobile-products-safe-zone="ribbon-text"]',
-  );
-  const stickerText = page.locator(
-    '[data-mobile-products-safe-zone="sticker-text"]',
-  );
-
-  const editRequest = page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        document.addEventListener(
-          'studio:content-edit-request',
-          (event) => resolve(event.detail),
-          { once: true },
-        );
-      }),
-  );
-  await ribbonText.click();
-  expect(await editRequest).toEqual({ kind: 'text', product: 'ribbon' });
-  await expect(textInput).toBeFocused();
-  await textInput.fill('общий текст');
-
-  const scopeRequired = page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        document.addEventListener(
-          'studio:text-edit-scope-required',
-          (event) => resolve(event.detail),
-          { once: true },
-        );
-      }),
-  );
-  await stickerText.click();
-  expect(await scopeRequired).toEqual({ product: 'sticker' });
-
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('common text input enables product scope on the next safe-zone tap', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-  const textInput = page.locator('#textInput');
-  const ribbonText = page.locator(
-    '[data-mobile-products-safe-zone="ribbon-text"]',
-  );
-
-  await textInput.fill('изменённый общий текст');
-  await expect(page.locator('#macroLogoText')).toHaveText(
-    await readRibbonPreviewText(page),
-  );
-  await expect(page.locator('#macroStickerText')).toHaveText(
-    'изменённый общий текст',
-  );
-
-  await ribbonText.click();
-  await expect(page.locator('#mobileTextEditor')).toBeVisible();
-  await expect(page.locator('#editCommonText')).toHaveText('Изменить везде');
-  await expect(page.locator('#editProductText')).toHaveText('Только для ленты');
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('successful mobile text editing returns to the combined preview', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-  const textInput = page.locator('#textInput');
-  const ribbonZone = page.locator(
-    '[data-mobile-products-safe-zone="ribbon-text"]',
-  );
-  const editor = page.locator('#mobileTextEditor');
-
-  await textInput.scrollIntoViewIfNeeded();
-  await textInput.fill('общий текст после подтверждения');
-  await textInput.blur();
-  await expectMobilePreviewVisible(page);
-
-  await ribbonZone.click();
-  await expect(editor).toBeVisible();
-  await page.locator('#editProductText').click();
-  await page.locator('#mobileTextOverrideInput').fill('только лента');
-  await page
-    .locator('#mobileTextOverrideForm')
-    .getByRole('button', { name: 'Сохранить' })
-    .click();
-  await expectMobilePreviewVisible(page);
-  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
-    'только лента',
-  );
-  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
-    'общий текст после подтверждения',
-  );
-
-  await ribbonZone.click();
-  await page.locator('#clearProductTextOverride').click();
-  await expectMobilePreviewVisible(page);
-  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
-    await readRibbonPreviewText(page),
-  );
-
-  await ribbonZone.click();
-  const scrollBeforeCancel = await page.evaluate(() => window.scrollY);
-  await page.locator('#cancelMobileTextEditor').click();
-  await expect(editor).toBeHidden();
-  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeCancel);
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('empty inherited common text always focuses the shared editor', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'ribbon-studio-v042',
-      JSON.stringify({
-        text: '',
-        content: {
-          logo: {
-            common: null,
-            ribbon: { mode: 'inherit' },
-            sticker: { mode: 'inherit' },
-          },
-          text: {
-            common: '',
-            ribbon: { mode: 'inherit' },
-            sticker: { mode: 'inherit' },
-          },
-        },
-      }),
-    );
-  });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const textInput = page.locator('#textInput');
-  const scopeEvents = await page.evaluateHandle(() => {
-    const events = [];
-    document.addEventListener('studio:text-edit-scope-required', (event) => {
-      events.push(event.detail);
-    });
-    return events;
-  });
-
-  for (const product of ['ribbon', 'sticker', 'ribbon']) {
-    await page
-      .locator(`[data-mobile-products-safe-zone="${product}-text"]`)
-      .click({ position: { x: 8, y: 8 } });
-    await expect(textInput).toBeFocused();
-    await textInput.blur();
-  }
-  expect(await scopeEvents.jsonValue()).toEqual([]);
-
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile text editor creates, persists, and clears product overrides', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const textInput = page.locator('#textInput');
-  const dialog = page.getByRole('dialog');
-  const ribbonZone = page.locator(
-    '[data-mobile-products-safe-zone="ribbon-text"]',
-  );
-  const stickerZone = page.locator(
-    '[data-mobile-products-safe-zone="sticker-text"]',
-  );
-  const overrideInput = page.locator('#mobileTextOverrideInput');
-
-  await ribbonZone.click();
-  await expect(textInput).toBeFocused();
-  await textInput.fill('общий текст');
-  const commonText = await textInput.inputValue();
-  await ribbonZone.click();
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute('aria-modal', 'true');
-  await expect(dialog).toHaveAttribute(
-    'aria-labelledby',
-    'mobileTextEditorTitle',
-  );
-  await expect(page.locator('#clearProductTextOverride')).toBeHidden();
-  await page.locator('#editProductText').click();
-  await expect(overrideInput).toBeFocused();
-  await expect(overrideInput).toHaveValue(commonText);
-  await overrideInput.fill('только лента');
-  await page
-    .locator('#mobileTextOverrideForm')
-    .getByRole('button', {
-      name: 'Сохранить',
-    })
-    .click();
-  await expect(dialog).toBeHidden();
-  await expect(ribbonZone).not.toBeFocused();
-  await expectMobilePreviewVisible(page);
-  await expect(textInput).toHaveValue(commonText);
-
-  let snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.common).toBe(commonText);
-  expect(snapshot.text.ribbon).toEqual({
-    mode: 'override',
-    value: 'только лента',
-  });
-  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
-  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
-    'только лента',
-  );
-
-  await stickerZone.click();
-  await expect(dialog).toBeVisible();
-  await expect(page.locator('#editProductText')).toHaveText(
-    'Только для стикера',
-  );
-  await page.locator('#editProductText').click();
-  await expect(overrideInput).toHaveValue(commonText);
-  await overrideInput.fill('');
-  await page
-    .locator('#mobileTextOverrideForm')
-    .getByRole('button', {
-      name: 'Сохранить',
-    })
-    .click();
-  await expect(stickerZone).not.toBeFocused();
-  await expectMobilePreviewVisible(page);
-  await expect(textInput).toHaveValue(commonText);
-
-  snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.sticker).toEqual({ mode: 'override', value: '' });
-  expect(snapshot.text.resolvedSticker).toBe('');
-  await expect(stickerZone).toHaveAttribute('aria-label', 'Добавить надпись');
-  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
-  await expect(stickerZone.locator('.mobile-products-zone-action')).toHaveCSS(
-    'opacity',
-    '0',
-  );
-
-  await page.reload({ waitUntil: 'networkidle' });
-  await expect(textInput).toHaveValue(commonText);
-  snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.ribbon).toEqual({
-    mode: 'override',
-    value: 'только лента',
-  });
-  expect(snapshot.text.sticker).toEqual({ mode: 'override', value: '' });
-
-  await stickerZone.click();
-  await expect(dialog).toBeVisible();
-  await expect(page.locator('#clearProductTextOverride')).toBeVisible();
-  await page.locator('#editProductText').click();
-  await expect(overrideInput).toHaveValue('');
-  await page.locator('#cancelMobileTextOverride').click();
-  await stickerZone.click();
-  await page.locator('#clearProductTextOverride').click();
-  await expect(dialog).toBeHidden();
-  await expect(stickerZone).not.toBeFocused();
-  await expectMobilePreviewVisible(page);
-
-  snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
-  expect(snapshot.text.resolvedSticker).toBe(commonText);
-  await page.reload({ waitUntil: 'networkidle' });
-  snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
-  expect(snapshot.text.ribbon).toEqual({
-    mode: 'override',
-    value: 'только лента',
-  });
-
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile text editor closes accessibly and traps focus', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'ribbon-studio-v042',
-      JSON.stringify({
-        text: 'общий текст',
-        content: {
-          logo: {
-            common: null,
-            ribbon: { mode: 'inherit' },
-            sticker: { mode: 'inherit' },
-          },
-          text: {
-            common: 'общий текст',
-            ribbon: { mode: 'override', value: 'только лента' },
-            sticker: { mode: 'inherit' },
-          },
-        },
-      }),
-    );
-  });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-text"]');
-  const editor = page.locator('#mobileTextEditor');
-  const dialog = page.getByRole('dialog');
-  const closeButton = page.locator('#closeMobileTextEditor');
-  const cancelButton = page.locator('#cancelMobileTextEditor');
-
-  await zone.click();
-  await expect(dialog).toBeVisible();
-  await closeButton.focus();
-  await closeButton.press('Shift+Tab');
-  await expect(cancelButton).toBeFocused();
-
-  await cancelButton.click();
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await closeButton.click();
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await page
-    .locator('#mobileTextEditorBackdrop')
-    .click({ position: { x: 5, y: 5 } });
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await page.keyboard.press('Escape');
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await page.locator('#editCommonText').click();
-  await expect(editor).toBeHidden();
-  await expect(page.locator('#textInput')).toBeFocused();
-  const snapshot = await readContentSnapshot(page);
-  expect(snapshot.text.ribbon).toEqual({
-    mode: 'override',
-    value: 'только лента',
-  });
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
@@ -1624,6 +1054,15 @@ test('Create step validates input and manages the common logo', async ({
   await expect(counter).toHaveText('9 / 60');
   await expect(textStatus).toHaveClass(/is-complete/);
   await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
+  await expect(page.locator('#dropZone')).toBeVisible();
 
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(page.locator('#uploadFeedback')).toBeHidden();
@@ -1634,10 +1073,26 @@ test('Create step validates input and manages the common logo', async ({
   await expect(page.locator('#fileCard')).toBeHidden();
   await expect(logoStatus).not.toHaveClass(/is-complete/);
   await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
 
   await textInput.fill('');
   await expect(counter).toHaveText('0 / 60');
   await expect(continueUpload).toBeDisabled();
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty('hidden', true);
+  await expect(textInput).toBeEnabled();
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -1675,6 +1130,40 @@ test('product samples reveal independent ribbon and sticker settings', async ({
     'tagName',
     'SELECT',
   );
+  await expect(panel.locator('.mobile-products-ribbon-text-zone')).toHaveCSS(
+    'border-left-width',
+    '0px',
+  );
+
+  await stickerSample.click();
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('#mobileTextEditor')).toBeHidden();
+  await expect(page.locator('#mobileLogoEditor')).toBeHidden();
+  await expect(
+    panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]'),
+  ).toHaveAttribute('aria-label', 'Настроить ленту');
+  const hoverAction = panel
+    .locator('[data-mobile-products-safe-zone="ribbon-logo"]')
+    .locator('.mobile-products-zone-action');
+  await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').hover();
+  await expect(hoverAction).toBeHidden();
+  await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').click();
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
+
+  const stickerSurface = panel.locator('.mobile-products-sticker-sample');
+  const stickerBounds = await stickerSurface.boundingBox();
+  await stickerSurface.click({
+    position: { x: 4, y: stickerBounds.height / 2 },
+  });
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  const ribbonSurface = panel.locator('.mobile-products-ribbon-sample');
+  const ribbonBounds = await ribbonSurface.boundingBox();
+  await ribbonSurface.click({
+    position: { x: ribbonBounds.width - 4, y: ribbonBounds.height / 2 },
+  });
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
 
   await page.locator('#fontSelect').selectOption('Georgia');
   await page.locator('#printColorSelect').selectOption('#b69249');
@@ -1712,6 +1201,178 @@ test('product samples reveal independent ribbon and sticker settings', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('selected product owns the visible settings and manual transforms', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Мой бренд');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+
+  const panel = page.locator('.mobile-products-panel');
+  const ribbonSample = panel.locator('[data-mobile-product-sample="ribbon"]');
+  const stickerSample = panel.locator('[data-mobile-product-sample="sticker"]');
+  const readStyles = () =>
+    page
+      .locator('body')
+      .evaluate((body) => JSON.parse(body.dataset.studioProductStyles || '{}'));
+  const readLayout = () =>
+    page
+      .locator('body')
+      .evaluate((body) => JSON.parse(body.dataset.studioLayout || '{}'));
+  const setRange = (selector, value) =>
+    page.locator(selector).evaluate((input, nextValue) => {
+      input.value = String(nextValue);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+
+  await expect(panel).toHaveAttribute('data-mode', 'settings');
+  await expect(
+    page.locator('[data-products-host="settings"] #mobileProductsSlot'),
+  ).toHaveCount(1);
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
+  await expect(page.locator('#fontSelectLabel')).toContainText('ленте');
+  await expect(
+    page.locator('#layoutModeChoice [data-value="auto"]'),
+  ).toHaveClass(/active/);
+  await expect(page.locator('#logoOffsetY')).toBeDisabled();
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveCSS(
+    'color',
+    'rgb(23, 23, 23)',
+  );
+  await expect
+    .poll(async () => {
+      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#171717');
+  await page.locator('#printColorSelect').selectOption('#b69249');
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveCSS(
+    'color',
+    'rgb(182, 146, 73)',
+  );
+  await expect
+    .poll(async () => {
+      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#b69249');
+  await page.locator('#printColorSelect').selectOption('#171717');
+
+  const automaticRibbon = (await readLayout()).ribbon;
+  const initialRepeat = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+  );
+  const manualRepeat = Math.min(250, initialRepeat + 30);
+  await page.locator('#layoutModeChoice [data-value="manual"]').click();
+  await expect(page.locator('#logoOffsetY')).toBeEnabled();
+  await setRange('#textOffsetX', manualRepeat);
+  const intervalRibbon = (await readLayout()).ribbon;
+  const automaticTextOffsetMm =
+    (automaticRibbon.textBox.x + automaticRibbon.textBox.width / 2 - 0.5) *
+    initialRepeat;
+  const intervalTextOffsetMm =
+    (intervalRibbon.textBox.x + intervalRibbon.textBox.width / 2 - 0.5) *
+    manualRepeat;
+  expect(intervalTextOffsetMm).toBeCloseTo(automaticTextOffsetMm, 1);
+  await setRange('#logoScale', 60);
+  await setRange('#logoOffsetY', 40);
+  await setRange('#fontSize', 40);
+
+  let styles = await readStyles();
+  expect(styles.ribbon).toMatchObject({
+    layoutMode: 'manual',
+    logoScale: 0.6,
+    logoOffsetY: 40,
+    textOffsetX: 0,
+    fontSize: 40,
+  });
+  expect(styles.sticker.layoutMode).toBe('auto');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-repeat-mm',
+    String(manualRepeat),
+  );
+  const manualRibbon = (await readLayout()).ribbon;
+  expect(manualRibbon.logoBox.y).not.toBe(automaticRibbon.logoBox.y);
+  expect(manualRibbon.logoBox.x).toBeGreaterThanOrEqual(
+    manualRibbon.printable.x - 0.001,
+  );
+  expect(manualRibbon.logoBox.y).toBeGreaterThanOrEqual(
+    manualRibbon.printable.y - 0.001,
+  );
+
+  await stickerSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#fontSelectLabel')).toContainText('стикере');
+  await expect(
+    page.locator('#layoutModeChoice [data-value="auto"]'),
+  ).toHaveClass(/active/);
+  await page.locator('#layoutModeChoice [data-value="manual"]').click();
+  await setRange('#textOffsetY', -30);
+  await setRange('#logoOffsetX', 25);
+  styles = await readStyles();
+  expect(styles.sticker).toMatchObject({
+    layoutMode: 'manual',
+    textOffsetY: -30,
+    logoOffsetX: 25,
+  });
+  expect(styles.ribbon.logoOffsetY).toBe(40);
+
+  await ribbonSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('#logoOffsetY')).toHaveValue('40');
+  await expect(page.locator('#textOffsetX')).toHaveValue(String(manualRepeat));
+  await expect(page.locator('#textOffsetXLabel')).toHaveText(
+    'Интервал между повторами, мм',
+  );
+
+  if (testInfo.project.name === 'mobile') {
+    const isFloating = await panel.evaluate((element) =>
+      element.classList.contains('is-floating'),
+    );
+    if (
+      isFloating &&
+      !(await panel.evaluate((element) =>
+        element.classList.contains('is-expanded'),
+      ))
+    ) {
+      await page.locator('#mobileProductsDockToggle').click();
+      await expect(panel).toHaveClass(/is-expanded/);
+    }
+    const logoZone = panel.locator(
+      '[data-mobile-products-safe-zone="ribbon-logo"]',
+    );
+    const repeatBeforeDrag = Number(
+      await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+    );
+    const bounds = await logoZone.boundingBox();
+    await page.mouse.move(
+      bounds.x + bounds.width / 2,
+      bounds.y + bounds.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      bounds.x + bounds.width / 2 + 18,
+      bounds.y + bounds.height / 2 + 5,
+      { steps: 4 },
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () =>
+        Number(
+          await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+        ),
+      )
+      .toBeGreaterThan(repeatBeforeDrag);
+    expect((await readStyles()).ribbon.logoOffsetX).toBe(0);
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('mobile product switches control the static previews', async ({
   page,
 }, testInfo) => {
@@ -1724,6 +1385,8 @@ test('mobile product switches control the static previews', async ({
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
 
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await openSettings(page);
 
   const panel = page.locator('.mobile-products-panel');
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
@@ -1771,6 +1434,8 @@ test('mobile product switches control order quantities and price', async ({
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await openSettings(page);
 
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
   const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
@@ -1789,13 +1454,14 @@ test('mobile product switches control order quantities and price', async ({
   await expect(stickerQty).toHaveValue('100');
   await expect(totalPrice).toHaveText(/1\s790\s₽/);
 
-  await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="order"]').click();
   await meters.selectOption('25');
   await stickerQty.selectOption('250');
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
 
+  await page.locator('.nav-item[data-panel="settings"]').click();
   await ribbonSwitch.uncheck();
+  await page.locator('.nav-item[data-panel="order"]').click();
   await expect(meters).toHaveValue('0');
   await expect(meters).toBeDisabled();
   await expect(stickerQty).toHaveValue('250');
@@ -1811,15 +1477,19 @@ test('mobile product switches control order quantities and price', async ({
   );
 
   await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
   await expect(ribbonSwitch).not.toBeChecked();
   await expect(stickerSwitch).toBeChecked();
   await expect(meters).toHaveValue('0');
   await ribbonSwitch.check();
+  await page.locator('.nav-item[data-panel="order"]').click();
   await expect(meters).toHaveValue('25');
   await expect(meters).toBeEnabled();
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
 
+  await page.locator('.nav-item[data-panel="settings"]').click();
   await stickerSwitch.uncheck();
+  await page.locator('.nav-item[data-panel="order"]').click();
   await expect(stickerQty).toHaveValue('0');
   await expect(stickerQty).toBeDisabled();
   await expect(meters).toHaveValue('25');
@@ -1832,13 +1502,16 @@ test('mobile product switches control order quantities and price', async ({
   );
 
   await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
   await expect(ribbonSwitch).toBeChecked();
   await expect(stickerSwitch).not.toBeChecked();
   await stickerSwitch.check();
+  await page.locator('.nav-item[data-panel="order"]').click();
   await expect(stickerQty).toHaveValue('250');
   await expect(stickerQty).toBeEnabled();
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
 
+  await page.locator('.nav-item[data-panel="settings"]').click();
   await ribbonSwitch.uncheck();
   await stickerSwitch.uncheck();
   await expect(ribbonSwitch).toBeChecked();
@@ -1905,10 +1578,8 @@ test('order product controls remove, restore, and persist products', async ({
   await expect(notice).toBeVisible();
   await expect(body).toHaveAttribute('data-has-ribbon', 'false');
   await expect(body).toHaveAttribute('data-has-sticker', 'true');
-  if (testInfo.project.name === 'mobile') {
-    await expect(page.getByRole('switch', { name: 'Лента' })).not.toBeChecked();
-    await expect(page.getByRole('switch', { name: 'Стикер' })).toBeChecked();
-  }
+  if (testInfo.project.name === 'mobile')
+    await expect(page.locator('.mobile-products-switches')).toBeHidden();
 
   await ribbonButton.click();
   await expect(meters).toHaveValue('25');
@@ -1935,12 +1606,8 @@ test('order product controls remove, restore, and persist products', async ({
   );
   await expect(body).toHaveAttribute('data-has-ribbon', 'true');
   await expect(body).toHaveAttribute('data-has-sticker', 'false');
-  if (testInfo.project.name === 'mobile') {
-    await expect(page.getByRole('switch', { name: 'Лента' })).toBeChecked();
-    await expect(
-      page.getByRole('switch', { name: 'Стикер' }),
-    ).not.toBeChecked();
-  }
+  if (testInfo.project.name === 'mobile')
+    await expect(page.locator('.mobile-products-switches')).toBeHidden();
 
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('.nav-item[data-panel="order"]').click();
@@ -2002,244 +1669,6 @@ test('order dialog validates contact and downloads an accessible request', async
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(openOrder).toBeFocused();
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile logo zones request scope and upload common and product SVG assets', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-  const ribbonZone = page.locator(
-    '[data-mobile-products-safe-zone="ribbon-logo"]',
-  );
-  const stickerZone = page.locator(
-    '[data-mobile-products-safe-zone="sticker-logo"]',
-  );
-  const ribbon = page.locator('#macroLogoImage');
-  const sticker = page.locator('#macroStickerImage');
-  const editor = page.locator('#mobileLogoEditor');
-  const dialog = page.locator('#mobileLogoEditorDialog');
-
-  const ribbonRequest = page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        document.addEventListener(
-          'studio:content-edit-request',
-          (event) => resolve(event.detail),
-          { once: true },
-        );
-      }),
-  );
-  const [commonChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    ribbonZone.click(),
-  ]);
-  expect(await ribbonRequest).toEqual({ kind: 'logo', product: 'ribbon' });
-  expect(await commonChooser.element().getAttribute('id')).toBe('logoInput');
-  await commonChooser.setFiles(
-    svgUpload('scope-common.svg', 'scope-common-marker'),
-  );
-  await expectSvgDataToContain(ribbon, 'scope-common-marker');
-  await expectSvgDataToContain(sticker, 'scope-common-marker');
-  await expect(editor).toBeHidden();
-
-  await ribbonZone.click();
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute('role', 'dialog');
-  await expect(dialog).toHaveAttribute('aria-modal', 'true');
-  await expect(dialog).toHaveAttribute(
-    'aria-labelledby',
-    'mobileLogoEditorTitle',
-  );
-  await expect(page.locator('#mobileLogoEditorTitle')).toHaveText(
-    'Логотип для ленты',
-  );
-  await expect(page.locator('#editProductLogo')).toHaveText('Только для ленты');
-  await expect(page.locator('#clearProductLogoOverride')).toBeHidden();
-
-  const [ribbonChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    page.locator('#editProductLogo').click(),
-  ]);
-  await ribbonChooser.setFiles(
-    svgUpload('scope-ribbon.svg', 'scope-ribbon-marker'),
-  );
-  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
-  await expectSvgDataToContain(sticker, 'scope-common-marker');
-
-  const stickerRequest = page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        document.addEventListener(
-          'studio:content-edit-request',
-          (event) => resolve(event.detail),
-          { once: true },
-        );
-      }),
-  );
-  await stickerZone.click();
-  expect(await stickerRequest).toEqual({ kind: 'logo', product: 'sticker' });
-  await expect(dialog).toBeVisible();
-  await expect(page.locator('#mobileLogoEditorTitle')).toHaveText(
-    'Логотип для стикера',
-  );
-  await expect(page.locator('#editProductLogo')).toHaveText(
-    'Только для стикера',
-  );
-  const [stickerChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    page.locator('#editProductLogo').click(),
-  ]);
-  await stickerChooser.setFiles(
-    svgUpload('scope-sticker.svg', 'scope-sticker-marker'),
-  );
-  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
-  await expectSvgDataToContain(sticker, 'scope-sticker-marker');
-
-  await page.reload({ waitUntil: 'networkidle' });
-  await expectSvgDataToContain(ribbon, 'scope-ribbon-marker');
-  await expectSvgDataToContain(sticker, 'scope-sticker-marker');
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile logo override can return to the current common logo', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem('logo-override-editor-seeded')) return;
-    sessionStorage.setItem('logo-override-editor-seeded', 'true');
-    const asset = (marker) => ({
-      logo: { data: null, ratio: 2 },
-      logoType: 'svg',
-      logoSvgSource: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path id="${marker}" d="M0 0h20v10H0z"/></svg>`,
-      originalRaster: null,
-      traceInfo: null,
-    });
-    localStorage.setItem(
-      'ribbon-studio-v042',
-      JSON.stringify({
-        content: {
-          logo: {
-            common: asset('return-common-marker'),
-            ribbon: {
-              mode: 'override',
-              value: asset('return-override-marker'),
-            },
-            sticker: {
-              mode: 'override',
-              value: asset('other-override-marker'),
-            },
-          },
-          text: {
-            common: 'текст',
-            ribbon: { mode: 'inherit' },
-            sticker: { mode: 'inherit' },
-          },
-        },
-      }),
-    );
-  });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-logo"]');
-  const editor = page.locator('#mobileLogoEditor');
-  const ribbon = page.locator('#macroLogoImage');
-  const sticker = page.locator('#macroStickerImage');
-  await zone.click();
-  await expect(editor).toBeVisible();
-  await expect(page.locator('#clearProductLogoOverride')).toBeVisible();
-  const [commonChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    page.locator('#editCommonLogo').click(),
-  ]);
-  await commonChooser.setFiles(
-    svgUpload('updated-common.svg', 'updated-return-common-marker'),
-  );
-  await expectSvgDataToContain(ribbon, 'return-override-marker');
-  await expectSvgDataToContain(sticker, 'other-override-marker');
-
-  await zone.click();
-  await expect(editor).toBeVisible();
-  await page.locator('#clearProductLogoOverride').click();
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-  await expectSvgDataToContain(ribbon, 'updated-return-common-marker');
-  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
-
-  await page.reload({ waitUntil: 'networkidle' });
-  await expectSvgDataToContain(ribbon, 'updated-return-common-marker');
-  await expectSvgDataToContain(sticker, 'other-override-marker');
-  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('null logo override opens an accessible cancellable scope dialog', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.addInitScript(() => {
-    const saved = JSON.parse(
-      localStorage.getItem('ribbon-studio-v042') || '{}',
-    );
-    saved.content = saved.content || {
-      logo: {},
-      text: {
-        common: 'текст',
-        ribbon: { mode: 'inherit' },
-        sticker: { mode: 'inherit' },
-      },
-    };
-    saved.content.logo.ribbon = { mode: 'override', value: null };
-    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
-  });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const zone = page.locator('[data-mobile-products-safe-zone="ribbon-logo"]');
-  const editor = page.locator('#mobileLogoEditor');
-  const close = page.locator('#closeMobileLogoEditor');
-  const cancel = page.locator('#cancelMobileLogoEditor');
-  await expect(zone).toBeVisible();
-  await expect(zone).toHaveAttribute('aria-label', 'Добавить логотип');
-
-  await zone.click();
-  await expect(editor).toBeVisible();
-  await expect(page.locator('#clearProductLogoOverride')).toBeVisible();
-  await close.focus();
-  await close.press('Shift+Tab');
-  await expect(cancel).toBeFocused();
-  await cancel.click();
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await close.click();
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-  await zone.click();
-  await page
-    .locator('#mobileLogoEditorBackdrop')
-    .click({ position: { x: 5, y: 5 } });
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-  await zone.click();
-  await page.keyboard.press('Escape');
-  await expect(editor).toBeHidden();
-  await expect(zone).toBeFocused();
-
-  await zone.click();
-  await page.locator('#clearProductLogoOverride').click();
-  await expect(page.locator('#macroLogoImage')).toBeHidden();
-  expect((await readContentSnapshot(page)).logo.ribbon.mode).toBe('inherit');
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -2798,6 +2227,10 @@ test('mobile first reveal keeps artwork visible and switches paired with labels'
   await expect(panel).toBeVisible();
   await expectMobileArtworkRendered(page);
   await expectMobileRibbonFramed(page);
+  await expect(page.locator('.mobile-products-switches')).toBeHidden();
+  await completeFirstStepWithText(page);
+  await openSettings(page);
+  await expect(page.locator('.mobile-products-switches')).toBeVisible();
 
   const switchLayout = await panel
     .locator('.mobile-products-switch')
@@ -2871,8 +2304,15 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       'data-active-panel',
       step,
     );
-    await expect(panel.getByRole('switch', { name: 'Лента' })).toBeVisible();
-    await expect(panel.getByRole('switch', { name: 'Стикер' })).toBeVisible();
+    const ribbonSwitch = panel.locator('[data-mobile-product="ribbon"]');
+    const stickerSwitch = panel.locator('[data-mobile-product="sticker"]');
+    if (step === 'settings') {
+      await expect(ribbonSwitch).toBeVisible();
+      await expect(stickerSwitch).toBeVisible();
+    } else {
+      await expect(ribbonSwitch).toBeHidden();
+      await expect(stickerSwitch).toBeHidden();
+    }
     await expect(
       panel.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
@@ -3311,7 +2751,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   await expectNoHorizontalOverflow(page);
 });
 
-test('demo and uploaded logos remain visible when the inscription grows', async ({
+test('text stays logo-free until an uploaded logo is added', async ({
   page,
 }, testInfo) => {
   const fullText = 'Название бренда для упаковки';
@@ -3330,14 +2770,14 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
 
   await expect(page.locator('body')).toHaveAttribute(
     'data-preview-logo-demo',
-    'true',
+    'false',
   );
-  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
     'hidden',
-    '',
+    true,
   );
   if (testInfo.project.name === 'mobile') {
-    await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+    await expect(page.locator('.mobile-products-ribbon-logo')).toBeHidden();
   }
   await expect(card).toBeHidden();
 
@@ -3354,22 +2794,22 @@ test('demo and uploaded logos remain visible when the inscription grows', async 
     };
   });
   expect(result.preview.valid).toBe(true);
-  expect(result.preview.logoBox).not.toBeNull();
+  expect(result.preview.logoBox).toBeNull();
   expect(result.preview.overflow).toBeUndefined();
   expect(result.production.logoBox).toBeNull();
   expect(result.content.logo.common).toBeNull();
   expect(result.serialized).not.toContain('<image');
 
-  const demoSrc = await page.locator('#macroLogoImage').getAttribute('src');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   await expect(page.locator('body')).toHaveAttribute(
     'data-preview-logo-demo',
     'false',
   );
-  await expect
-    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
-    .not.toBe(demoSrc);
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
   await expect(card).toBeHidden();
 
   result = await page.evaluate(() => {
@@ -3555,7 +2995,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
 
   await expect(page.locator('#repeatMm')).toHaveAttribute('readonly', '');
   await page.locator('#textInput').fill('МАКСИМ');
-  const textRepeat = await expectGoldenRepeat('composition');
+  const textRepeat = await expectGoldenRepeat('text');
 
   if (testInfo.project.name === 'mobile') {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -3566,6 +3006,22 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       'data-ribbon-repeat-mm',
       String(textRepeat.repeatMm),
     );
+    const repeatTextIsWhole = await ribbon
+      .locator('.mobile-products-ribbon-repeat-text')
+      .evaluateAll(
+        (elements, surface) => {
+          const bounds = surface.getBoundingClientRect();
+          return elements.every((element) => {
+            const textBounds = element.getBoundingClientRect();
+            return (
+              textBounds.left >= bounds.left - 0.5 &&
+              textBounds.right <= bounds.right + 0.5
+            );
+          });
+        },
+        await ribbon.elementHandle(),
+      );
+    expect(repeatTextIsWhole).toBe(true);
   } else {
     await expect
       .poll(() =>

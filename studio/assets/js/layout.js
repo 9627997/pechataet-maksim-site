@@ -50,6 +50,10 @@
     textMetrics,
     logoScale,
     logoOffsetX,
+    logoOffsetY = 0,
+    textOffsetX = 0,
+    textOffsetY = 0,
+    manualLayout = false,
     preferredFontSize,
   }) {
     const geometry = window.RibbonStudioGeometry;
@@ -69,9 +73,9 @@
       logoBox = geometry.fitRectToBounds(source, logoBounds, logoScale);
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
-        logoBounds,
-        logoOffsetX,
-        0,
+        manualLayout ? bounds : logoBounds,
+        manualLayout ? logoOffsetX : 0,
+        manualLayout ? logoOffsetY : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
       textResult = fitTextToArea({
@@ -92,8 +96,8 @@
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
         bounds,
-        logoOffsetX,
-        0,
+        manualLayout ? logoOffsetX : 0,
+        manualLayout ? logoOffsetY : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
     } else if (hasText) {
@@ -107,6 +111,20 @@
         centerY,
         scaleToFitWidth: false,
       });
+    }
+
+    if (manualLayout && textResult.bbox) {
+      const clamped = geometry.clampRectOffsetToBounds(
+        textResult.bbox,
+        bounds,
+        textOffsetX,
+        textOffsetY,
+      );
+      textResult.bbox = {
+        ...textResult.bbox,
+        x: clamped.x,
+        y: clamped.y,
+      };
     }
 
     return {
@@ -125,6 +143,11 @@
     text,
     textMetrics,
     logoScale,
+    logoOffsetX = 0,
+    logoOffsetY = 0,
+    textOffsetX = 0,
+    textOffsetY = 0,
+    manualLayout = false,
     preferredFontSize,
   }) {
     const geometry = window.RibbonStudioGeometry;
@@ -190,6 +213,24 @@
         centerX: circle.cx,
         centerY: circle.cy,
       });
+    }
+
+
+    if (manualLayout && logoBox) {
+      logoBox = geometry.clampRectOffsetToCircle(
+        logoBox,
+        circle,
+        logoOffsetX,
+        logoOffsetY,
+      );
+    }
+    if (manualLayout && textResult.bbox) {
+      textResult.bbox = geometry.clampRectOffsetToCircle(
+        textResult.bbox,
+        circle,
+        textOffsetX,
+        textOffsetY,
+      );
     }
 
     const logoFits =

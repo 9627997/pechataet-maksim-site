@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260723.2">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.2">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260723.9">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260723.9">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -33,7 +33,7 @@
       <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
 
-    <div class="mobile-products-slot" id="mobileProductsSlot">
+    <div class="mobile-products-slot" id="mobileProductsSlot" data-hosted="false">
     <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
       <button class="mobile-products-dock-toggle" id="mobileProductsDockToggle" type="button" aria-expanded="false" aria-controls="mobileProductsPreview">
         <span aria-hidden="true"></span>
@@ -80,6 +80,7 @@
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Добавьте название, логотип или оба элемента. Результат сразу появится на ленте и стикере.</p>
+      <div class="mobile-products-host" data-products-host="upload"></div>
 
       <div class="create-intro" aria-label="Как создать макет">
         <strong>Достаточно одного варианта</strong>
@@ -154,13 +155,14 @@
     <section class="panel" id="panel-settings">
       <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
       <p class="panel-copy">Выберите образец, чтобы открыть его индивидуальные настройки.</p>
+      <div class="mobile-products-host" data-products-host="settings"></div>
 
       <div class="settings-context-head" aria-live="polite">
         <span>Индивидуальные настройки</span>
         <strong id="activeSettingsTitle">Лента</strong>
       </div>
 
-      <label for="fontSelect">Шрифт надписи</label>
+      <label for="fontSelect" id="fontSelectLabel">Шрифт надписи на ленте</label>
       <select class="input settings-select" id="fontSelect">
         <option value="Manrope">Manrope — современный</option>
         <option value="PT Serif">PT Serif — классический</option>
@@ -169,7 +171,7 @@
         <option value="Times New Roman">Times New Roman — традиционный</option>
       </select>
 
-      <label for="printColorSelect">Цвет печати</label>
+      <label for="printColorSelect" id="printColorSelectLabel">Цвет печати на ленте</label>
       <select class="input settings-select" id="printColorSelect">
         <option value="#171717">Чёрный</option>
         <option value="#b69249">Золото</option>
@@ -218,7 +220,18 @@
         </div>
       </div>
 
-      <label for="fontSize">Размер текста</label>
+      <div class="layout-mode-card">
+        <div>
+          <strong>Расположение элементов</strong>
+          <small id="layoutModeHelp">Studio автоматически компонует ленту</small>
+        </div>
+        <div class="segmented" id="layoutModeChoice" aria-label="Режим расположения элементов">
+          <button class="active" data-value="auto" type="button">Авто</button>
+          <button data-value="manual" type="button">Вручную</button>
+        </div>
+      </div>
+
+      <label for="fontSize" id="fontSizeLabel">Размер текста на ленте</label>
       <input class="settings-range" id="fontSize" type="range" min="16" max="64" value="32">
       <p class="artwork-validation" id="artworkValidation" role="status" hidden></p>
 <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
@@ -232,18 +245,33 @@
       </label>
 
       
-      <div class="transform-card">
+      <div class="transform-card" data-transform-kind="text">
         <div class="transform-head">
-          <strong>Положение логотипа</strong>
-          <button class="mini-button" id="resetTransform" type="button">Сбросить</button>
+          <strong>Положение текста</strong>
+          <button class="mini-button" id="resetTextTransform" type="button">Центрировать</button>
         </div>
-        <label for="logoScale">Масштаб</label>
-        <input id="logoScale" type="range" min="50" max="180" value="100">
-        <label for="logoOffsetX">Смещение по горизонтали</label>
-        <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+        <label for="textOffsetX" id="textOffsetXLabel">По горизонтали</label>
+        <input id="textOffsetX" type="range" min="-100" max="100" value="0">
+        <label for="textOffsetY">По вертикали</label>
+        <input id="textOffsetY" type="range" min="-100" max="100" value="0">
       </div>
 
-      <div class="recommend-card" id="recommendCard">
+      <div class="transform-card" data-transform-kind="logo">
+        <div class="transform-head">
+          <strong>Положение логотипа</strong>
+          <button class="mini-button" id="resetTransform" type="button">Центрировать</button>
+        </div>
+        <label for="logoScale">Размер логотипа</label>
+        <input id="logoScale" type="range" min="50" max="180" value="100">
+        <label for="logoOffsetX" id="logoOffsetXLabel">Смещение по горизонтали</label>
+        <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+        <label for="logoOffsetY">Смещение по вертикали</label>
+        <input id="logoOffsetY" type="range" min="-100" max="100" value="0">
+      </div>
+
+      <button class="button ghost wide reset-layout" id="resetProductLayout" type="button">Вернуть автоматическую композицию</button>
+
+      <div class="recommend-card" id="recommendCard" hidden>
         <div class="recommend-card-head">
           <div>
             <span>Автоматический подбор</span>
@@ -264,6 +292,7 @@
 
 <section class="panel" id="panel-order">
       <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
+      <div class="mobile-products-host" data-products-host="order"></div>
 
       <div class="order-card">
         <div class="order-product-row" id="orderRibbonRow">
@@ -585,7 +614,7 @@
 
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
-<script src="assets/js/app.js?v=20260723.2"></script>
-<script src="assets/js/mobile-products.js?v=20260723.2"></script>
+<script src="assets/js/app.js?v=20260723.9"></script>
+<script src="assets/js/mobile-products.js?v=20260723.9"></script>
 </body>
 </html>

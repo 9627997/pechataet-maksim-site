@@ -79,15 +79,23 @@ document.addEventListener('DOMContentLoaded', () => {
         font: 'Manrope',
         print: '#171717',
         fontSize: 32,
+        layoutMode: 'auto',
+        textOffsetX: 0,
+        textOffsetY: 0,
         logoScale: 1,
-        logoOffsetX: 0
+        logoOffsetX: 0,
+        logoOffsetY: 0
       },
       sticker: {
         font: 'Manrope',
         print: '#171717',
         fontSize: 32,
+        layoutMode: 'auto',
+        textOffsetX: 0,
+        textOffsetY: 0,
         logoScale: 1,
-        logoOffsetX: 0
+        logoOffsetX: 0,
+        logoOffsetY: 0
       }
     },
     activeSettingsProduct: 'ribbon',
@@ -125,8 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
       font,
       print,
       fontSize: Math.min(64, Math.max(16, Number(value?.fontSize ?? fallback.fontSize) || 32)),
+      layoutMode: value?.layoutMode === 'manual' ? 'manual' : 'auto',
+      textOffsetX: Math.min(100, Math.max(-100, Number(value?.textOffsetX) || 0)),
+      textOffsetY: Math.min(100, Math.max(-100, Number(value?.textOffsetY) || 0)),
       logoScale: Math.min(1.8, Math.max(0.5, Number(value?.logoScale ?? fallback.logoScale) || 1)),
-      logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0))
+      logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0)),
+      logoOffsetY: Math.min(100, Math.max(-100, Number(value?.logoOffsetY) || 0))
     };
   }
 
@@ -342,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function isDemoLogoPreview(product) {
     return Boolean(
+      isDemoPreviewActive() &&
       demoLogoAsset &&
       state.content.logo[product]?.mode !== 'override' &&
       !getResolvedLogo(product),
@@ -971,11 +984,37 @@ document.addEventListener('DOMContentLoaded', () => {
     text,
     resolvedLogo,
     textMetrics = getTextMetrics(text, 'ribbon'),
+    preserveComposition = false,
   ) {
     const style = getProductStyle('ribbon');
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
     const repeatWidth = Math.max(360, repeatMm * 6.2);
+    let layoutRepeatMm = repeatMm;
+    let layoutWidth = repeatWidth;
+    let layoutX = 0;
+    if (preserveComposition) {
+      const natural = getNaturalRibbonContentWidthMm(
+        text,
+        resolvedLogo,
+        textMetrics,
+      );
+      const naturalRepeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.ceil(
+          Math.max(
+            MIN_RIBBON_REPEAT_MM,
+            natural.widthMm + natural.widthMm / GOLDEN_RATIO,
+          ) / REPEAT_ROUNDING_MM,
+        ) * REPEAT_ROUNDING_MM,
+      );
+      layoutRepeatMm = Math.min(repeatMm, naturalRepeatMm);
+      layoutWidth = Math.min(
+        repeatWidth,
+        Math.max(360, layoutRepeatMm * 6.2),
+      );
+      layoutX = (repeatWidth - layoutWidth) / 2;
+    }
     const printable = getRibbonPrintableGeometry({
       widthMm: state.width,
       repeatMm,
@@ -984,8 +1023,18 @@ document.addEventListener('DOMContentLoaded', () => {
       width: repeatWidth,
       height,
     });
+    const contentPrintable = preserveComposition
+      ? getRibbonPrintableGeometry({
+      widthMm: state.width,
+      repeatMm: layoutRepeatMm,
+      x: layoutX,
+      y,
+      width: layoutWidth,
+      height,
+        })
+      : printable;
     const layout = getRibbonContentLayout({
-      bounds: printable.bounds,
+      bounds: contentPrintable.bounds,
       centerY: y + height / 2,
       logo: resolvedLogo?.logo
         ? {ratio: Number(resolvedLogo.logo.ratio) || 1}
@@ -993,7 +1042,11 @@ document.addEventListener('DOMContentLoaded', () => {
       text,
       textMetrics,
       logoScale: style.logoScale,
-      logoOffsetX: style.logoOffsetX,
+      logoOffsetX: 0,
+      logoOffsetY: style.logoOffsetY,
+      textOffsetX: 0,
+      textOffsetY: style.textOffsetY,
+      manualLayout: style.layoutMode === 'manual',
       preferredFontSize:
         (state.width === 20 ? 39 : 31) * (style.fontSize / 32),
     });
@@ -1244,6 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resolvedText,
         resolvedLogo,
         textMetrics,
+        state.repeatMode === 'manual',
       ),
       resolvedText,
       resolvedLogo,
@@ -1257,6 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resolvedText,
             previewLogo,
             textMetrics,
+            state.repeatMode === 'manual',
           ),
           resolvedText,
           previewLogo,
@@ -1289,6 +1344,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (let startX = -30; startX < 1260; startX += repeatWidth) {
       const cell = svgEl('g');
+      const boxIsFullyVisible = (box) =>
+        Boolean(
+          box &&
+          startX + box.x >= 28 &&
+          startX + box.x + box.width <= 1172,
+        );
 
       const clipId = `repeat-clip-${Math.round(startX)}`;
       const defs = svgEl('defs');
@@ -1309,13 +1370,16 @@ document.addEventListener('DOMContentLoaded', () => {
         'data-production-content': '',
       });
 
-      if (ribbonLayout.logoBox) {
+      if (boxIsFullyVisible(ribbonLayout.logoBox)) {
         drawLogoBox(content, paintedResolvedLogo, {
           ...ribbonLayout.logoBox,
           x: startX + ribbonLayout.logoBox.x,
         });
       }
-      if (ribbonLayout.valid && ribbonLayout.textBox) {
+      if (
+        ribbonLayout.valid &&
+        boxIsFullyVisible(ribbonLayout.textBox)
+      ) {
         const text = drawText(
           content,
           startX + ribbonLayout.textBox.x + ribbonLayout.textBox.width / 2,
@@ -1335,7 +1399,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'clip-path': `url(#${clipId})`,
           'data-preview-overlay': '',
         });
-        if (previewLayout.logoBox) {
+        if (boxIsFullyVisible(previewLayout.logoBox)) {
           drawLogoBox(previewContent, paintedPreviewLogo, {
             ...previewLayout.logoBox,
             x: startX + previewLayout.logoBox.x,
@@ -1350,7 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const previewFontSize = previewLayout.valid
           ? previewLayout.fontSize
           : previewLayout.previewFontSize;
-        if (previewTextBox && previewText) {
+        if (boxIsFullyVisible(previewTextBox) && previewText) {
           drawText(
             previewContent,
             startX + previewTextBox.x + previewTextBox.width / 2,
@@ -1403,6 +1467,11 @@ document.addEventListener('DOMContentLoaded', () => {
         text: hasText ? resolvedText : '',
         textMetrics: getTextMetrics(resolvedText, 'sticker'),
         logoScale: style.logoScale,
+        logoOffsetX: style.logoOffsetX,
+        logoOffsetY: style.logoOffsetY,
+        textOffsetX: style.textOffsetX,
+        textOffsetY: style.textOffsetY,
+        manualLayout: style.layoutMode === 'manual',
         preferredFontSize: hasLogo && hasText
           ? stickerPreferred.combined * (style.fontSize / 32)
           : stickerPreferred.textOnly * (style.fontSize / 32),
@@ -1503,8 +1572,8 @@ document.addEventListener('DOMContentLoaded', () => {
       logoBox: normalizeBox(layout.logoBox),
       textBox: normalizeBox(layout.textBox),
       fontSizeRatio: layout.fontSize / outer.height,
-      printable: layout.bounds
-        ? normalizeBox(layout.bounds)
+      printable: layout.printable?.bounds || layout.bounds
+        ? normalizeBox(layout.printable?.bounds || layout.bounds)
         : {
             cx: (layout.circle.cx - outer.x) / outer.width,
             cy: (layout.circle.cy - outer.y) / outer.height,
@@ -1911,7 +1980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTextElements([macroStickerText, boxStickerText], stickerTextValue, stickerStyle);
 
     if (macroImage) {
-      macroImage.style.transform = `translateX(${ribbonStyle.logoOffsetX}px) scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
+      macroImage.style.transform = `scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
     }
     if (macroStickerImage) {
       macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo, 'sticker'), 1)})`;
@@ -1938,7 +2007,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stickerLogo
     );
     if (boxRibbonImage) {
-      boxRibbonImage.style.transform = `translateX(${ribbonStyle.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
+      boxRibbonImage.style.transform = `scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
     }
     if (boxStickerImage) {
       boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo, 'sticker')})`;
@@ -2996,13 +3065,52 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
     if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
     if ($('#fontSize')) $('#fontSize').value = style.fontSize;
-    if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
+    const ribbonSettings = state.activeSettingsProduct === 'ribbon';
+    if ($('#textOffsetX')) {
+      $('#textOffsetX').min = ribbonSettings ? MIN_RIBBON_REPEAT_MM : -100;
+      $('#textOffsetX').max = ribbonSettings ? MAX_RIBBON_REPEAT_MM : 100;
+      $('#textOffsetX').value = ribbonSettings
+        ? state.repeatMm
+        : style.textOffsetX;
+    }
+    if ($('#textOffsetY')) $('#textOffsetY').value = style.textOffsetY;
+    if ($('#repeatMm')) {
+      $('#repeatMm').value = state.repeatMm;
+      $('#repeatMm').readOnly =
+        !ribbonSettings || style.layoutMode !== 'manual';
+    }
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
     if ($('#meters')) $('#meters').disabled = state.meters === 0;
     if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
     if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
-    if ($('#logoOffsetX')) $('#logoOffsetX').value = style.logoOffsetX;
+    if ($('#logoOffsetX')) {
+      $('#logoOffsetX').min = ribbonSettings ? MIN_RIBBON_REPEAT_MM : -100;
+      $('#logoOffsetX').max = ribbonSettings ? MAX_RIBBON_REPEAT_MM : 100;
+      $('#logoOffsetX').value = ribbonSettings
+        ? state.repeatMm
+        : style.logoOffsetX;
+    }
+    if ($('#textOffsetXLabel')) {
+      $('#textOffsetXLabel').textContent = ribbonSettings
+        ? 'Интервал между повторами, мм'
+        : 'По горизонтали';
+    }
+    if ($('#logoOffsetXLabel')) {
+      $('#logoOffsetXLabel').textContent = ribbonSettings
+        ? 'Интервал между повторами, мм'
+        : 'Смещение по горизонтали';
+    }
+    if ($('#logoOffsetY')) $('#logoOffsetY').value = style.logoOffsetY;
+    $$('#layoutModeChoice button').forEach((button) => {
+      button.classList.toggle('active', button.dataset.value === style.layoutMode);
+    });
+    $$('.transform-card').forEach((card) => {
+      card.classList.toggle('is-automatic', style.layoutMode === 'auto');
+      card.querySelectorAll('input').forEach((input) => {
+        input.disabled = style.layoutMode === 'auto';
+      });
+    });
     syncPrintGuideState();
   }
 
@@ -3022,6 +3130,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#activeSettingsTitle')) {
       $('#activeSettingsTitle').textContent =
         product === 'ribbon' ? 'Лента' : 'Стикер';
+    }
+    const productLabel = product === 'ribbon' ? 'ленте' : 'стикере';
+    if ($('#fontSelectLabel')) {
+      $('#fontSelectLabel').textContent = `Шрифт надписи на ${productLabel}`;
+    }
+    if ($('#printColorSelectLabel')) {
+      $('#printColorSelectLabel').textContent = `Цвет печати на ${productLabel}`;
+    }
+    if ($('#fontSizeLabel')) {
+      $('#fontSizeLabel').textContent = `Размер текста на ${productLabel}`;
+    }
+    if ($('#layoutModeHelp')) {
+      $('#layoutModeHelp').textContent =
+        `Studio ${getProductStyle(product).layoutMode === 'auto' ? 'автоматически компонует' : 'сохраняет ручную композицию для'} ${product === 'ribbon' ? 'ленты' : 'стикера'}`;
     }
     syncControls();
     if (focusControls) $('#fontSelect')?.focus({preventScroll: true});
@@ -3193,6 +3315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#editCommonText').addEventListener('click', () => {
     closeMobileTextEditor({restoreFocus: false});
+    showPanel('upload');
     $('#textInput').focus();
   });
 
@@ -3291,6 +3414,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#editCommonLogo').addEventListener('click', () => {
     closeMobileLogoEditor({restoreFocus: false});
+    showPanel('upload');
     openLogoPicker('common');
   });
 
@@ -3447,9 +3571,56 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
+  const setLayoutMode = (mode) => {
+    const style = getProductStyle(state.activeSettingsProduct);
+    style.layoutMode = mode === 'manual' ? 'manual' : 'auto';
+    if (style.layoutMode === 'auto') {
+      style.textOffsetX = 0;
+      style.textOffsetY = 0;
+      style.logoOffsetX = 0;
+      style.logoOffsetY = 0;
+      if (state.activeSettingsProduct === 'ribbon') state.repeatMode = 'auto';
+    }
+    syncControls();
+    render();
+  };
+
+  const useManualLayout = () => {
+    getProductStyle(state.activeSettingsProduct).layoutMode = 'manual';
+  };
+
+  $$('#layoutModeChoice button').forEach((button) => {
+    button.addEventListener('click', () => setLayoutMode(button.dataset.value));
+  });
+
   $('#fontSize').addEventListener('input', (event) => {
+    useManualLayout();
     getProductStyle(state.activeSettingsProduct).fontSize = +event.target.value;
+    syncControls();
     syncLegacyStyleAliases();
+    render();
+  });
+
+  $('#textOffsetX').addEventListener('input', (event) => {
+    useManualLayout();
+    const style = getProductStyle(state.activeSettingsProduct);
+    if (state.activeSettingsProduct === 'ribbon') {
+      style.textOffsetX = 0;
+      state.repeatMode = 'manual';
+      state.repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || state.repeatMm),
+      );
+      syncControls();
+    } else {
+      style.textOffsetX = +event.target.value;
+    }
+    render();
+  });
+
+  $('#textOffsetY').addEventListener('input', (event) => {
+    useManualLayout();
+    getProductStyle(state.activeSettingsProduct).textOffsetY = +event.target.value;
     render();
   });
 
@@ -3494,24 +3665,94 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#logoScale').addEventListener('input', (event) => {
+    useManualLayout();
     getProductStyle(state.activeSettingsProduct).logoScale =
       +event.target.value / 100;
+    syncControls();
     syncLegacyStyleAliases();
     render();
   });
 
   $('#logoOffsetX').addEventListener('input', (event) => {
-    getProductStyle(state.activeSettingsProduct).logoOffsetX =
-      +event.target.value;
+    useManualLayout();
+    const style = getProductStyle(state.activeSettingsProduct);
+    if (state.activeSettingsProduct === 'ribbon') {
+      style.logoOffsetX = 0;
+      state.repeatMode = 'manual';
+      state.repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || state.repeatMm),
+      );
+      syncControls();
+    } else {
+      style.logoOffsetX = +event.target.value;
+    }
     syncLegacyStyleAliases();
+    render();
+  });
+
+  $('#logoOffsetY').addEventListener('input', (event) => {
+    useManualLayout();
+    getProductStyle(state.activeSettingsProduct).logoOffsetY =
+      +event.target.value;
+    render();
+  });
+
+  $('#resetTextTransform').addEventListener('click', () => {
+    const style = getProductStyle(state.activeSettingsProduct);
+    style.layoutMode = 'manual';
+    style.textOffsetX = 0;
+    style.textOffsetY = 0;
+    syncControls();
     render();
   });
 
   $('#resetTransform').addEventListener('click', () => {
     const style = getProductStyle(state.activeSettingsProduct);
-    style.logoScale = 1;
+    style.layoutMode = 'manual';
     style.logoOffsetX = 0;
+    style.logoOffsetY = 0;
     syncLegacyStyleAliases();
+    syncControls();
+    render();
+  });
+
+  $('#resetProductLayout').addEventListener('click', () => setLayoutMode('auto'));
+
+  document.addEventListener('studio:transform-delta', (event) => {
+    const product = event.detail?.product;
+    const kind = event.detail?.kind;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    if (!['logo', 'text'].includes(kind)) return;
+    setActiveSettingsProduct(product);
+    const style = getProductStyle(product);
+    const outer = currentLayouts[product]?.outer;
+    if (!outer) return;
+    style.layoutMode = 'manual';
+    const clampOffset = (value) => Math.min(100, Math.max(-100, value));
+    if (product === 'ribbon') {
+      style[`${kind}OffsetX`] = 0;
+      state.repeatMode = 'manual';
+      state.repeatMm = Math.round(
+        Math.min(
+          MAX_RIBBON_REPEAT_MM,
+          Math.max(
+            MIN_RIBBON_REPEAT_MM,
+            state.repeatMm +
+              Number(event.detail.dxRatio || 0) *
+                (MAX_RIBBON_REPEAT_MM - MIN_RIBBON_REPEAT_MM),
+          ),
+        ),
+      );
+    } else {
+      style[`${kind}OffsetX`] = clampOffset(
+        style[`${kind}OffsetX`] +
+          Number(event.detail.dxRatio || 0) * outer.width,
+      );
+    }
+    style[`${kind}OffsetY`] = clampOffset(
+      style[`${kind}OffsetY`] + Number(event.detail.dyRatio || 0) * outer.height,
+    );
     syncControls();
     render();
   });
@@ -3524,9 +3765,17 @@ document.addEventListener('DOMContentLoaded', () => {
     state.productStyles.ribbon.fontSize = rec.width === 20 ? 34 : 28;
     state.productStyles.ribbon.logoScale = rec.logoScale;
     state.productStyles.ribbon.logoOffsetX = 0;
+    state.productStyles.ribbon.logoOffsetY = 0;
+    state.productStyles.ribbon.textOffsetX = 0;
+    state.productStyles.ribbon.textOffsetY = 0;
+    state.productStyles.ribbon.layoutMode = 'auto';
     state.productStyles.sticker.fontSize = 32;
     state.productStyles.sticker.logoScale = rec.logoScale;
     state.productStyles.sticker.logoOffsetX = 0;
+    state.productStyles.sticker.logoOffsetY = 0;
+    state.productStyles.sticker.textOffsetX = 0;
+    state.productStyles.sticker.textOffsetY = 0;
+    state.productStyles.sticker.layoutMode = 'auto';
     syncLegacyStyleAliases();
     setProductSelection({ribbon: true, sticker: true});
   });
