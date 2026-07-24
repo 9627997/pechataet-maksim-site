@@ -24,6 +24,7 @@ Studio: `http://127.0.0.1:4173/studio/`
 ## Проверки
 
 ```bash
+npm run docs:check
 npm run lint
 npm run format:check
 npm test
@@ -37,6 +38,8 @@ Playwright проверяет мобильную ширину `390 px` и нас
 
 ## Документация
 
+- [Быстрый контекст проекта для разработчика и ChatGPT](docs/PROJECT_CONTEXT.md)
+- [Текущее состояние и передача работы](docs/CURRENT_STATUS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [UX-правила](docs/UX_RULES.md)

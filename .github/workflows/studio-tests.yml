@@ -3,6 +3,7 @@ name: Studio checks
 on:
   push:
     branches:
+      - 'agent/*'
       - 'feature/*'
       - develop
   pull_request:
@@ -13,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: studio-checks-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   studio-tests:
     name: Lint and Playwright smoke tests
@@ -22,6 +27,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js LTS
         uses: actions/setup-node@v4
@@ -32,6 +39,9 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Check project documentation
+        run: npm run docs:check
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
