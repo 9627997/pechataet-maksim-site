@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const PROJECT_CONTEXT = 'docs/PROJECT_CONTEXT.md';
 const CURRENT_STATUS = 'docs/CURRENT_STATUS.md';
+const WORK_QUEUE = 'docs/WORK_QUEUE.md';
 
 const contextSensitivePaths = [
   /^AGENTS\.md$/,
@@ -24,6 +25,8 @@ const statusSensitivePaths = [
   /^studio\//,
   /^tests\//,
 ];
+
+const queueSensitivePaths = [/^studio\//, /^tests\//, /^css\//, /^js\//];
 
 function git(args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -100,6 +103,9 @@ const contextRelevant = changedFiles.filter((file) =>
 const statusRelevant = changedFiles.filter((file) =>
   matchesAny(file, statusSensitivePaths),
 );
+const queueRelevant = changedFiles.filter((file) =>
+  matchesAny(file, queueSensitivePaths),
+);
 
 let warningCount = 0;
 
@@ -114,6 +120,13 @@ if (statusRelevant.length && !changedSet.has(CURRENT_STATUS)) {
   warningCount += 1;
   warn(
     `Изменена текущая работа (${statusRelevant.join(', ')}), но ${CURRENT_STATUS} не обновлён. Проверьте статус перед передачей или публикацией.`,
+  );
+}
+
+if (queueRelevant.length && !changedSet.has(WORK_QUEUE)) {
+  warningCount += 1;
+  warn(
+    `Изменены файлы продукта (${queueRelevant.join(', ')}), но ${WORK_QUEUE} не обновлён. Проверьте статус задачи перед передачей или публикацией.`,
   );
 }
 

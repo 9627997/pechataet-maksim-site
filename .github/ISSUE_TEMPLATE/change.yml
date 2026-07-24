@@ -1,0 +1,81 @@
+name: Изменение проекта
+description: Новая функция, исправление или улучшение интерфейса
+title: '[КАТЕГОРИЯ-НОМЕР] '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Перед заполнением проверьте `docs/WORK_QUEUE.md` и возьмите следующий свободный номер нужной категории.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Раздел
+      options:
+        - Главная страница
+        - 01 Создать
+        - 02 Настроить
+        - 03 Получить
+        - Загрузка файлов
+        - Тестирование и доступность
+        - Инфраструктура и документация
+    validations:
+      required: true
+
+  - type: dropdown
+    id: viewport
+    attributes:
+      label: Устройство
+      options:
+        - Мобильное — 390 px
+        - Настольное — 1440 px
+        - Оба контрольных размера
+        - Не относится к интерфейсу
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Текущее поведение
+      description: Что происходит сейчас и почему это является проблемой?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый результат
+      description: Что должен увидеть или получить пользователь?
+    validations:
+      required: true
+
+  - type: textarea
+    id: do_not_change
+    attributes:
+      label: Что нельзя менять
+      description: Укажите соседние блоки, рабочую логику или ограничения.
+
+  - type: textarea
+    id: materials
+    attributes:
+      label: Материалы
+      description: Добавьте снимок, видео, ссылку или пояснение.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии готовности
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Подтверждение
+      options:
+        - label: Я проверил(а), что задача не дублирует пункт в WORK_QUEUE.
+          required: true

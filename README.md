@@ -40,6 +40,9 @@ Playwright проверяет мобильную ширину `390 px` и нас
 
 - [Быстрый контекст проекта для разработчика и ChatGPT](docs/PROJECT_CONTEXT.md)
 - [Текущее состояние и передача работы](docs/CURRENT_STATUS.md)
+- [Рабочая очередь](docs/WORK_QUEUE.md)
+- [Журнал решений](docs/DECISIONS.md)
+- [Шаблон задачи](docs/TASK_TEMPLATE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [UX-правила](docs/UX_RULES.md)
