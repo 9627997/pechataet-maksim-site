@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "http-server . -a 0.0.0.0 -p 4173 -c-1",
+    "docs:check": "node scripts/check-project-docs.mjs",
     "test": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write package.json eslint.config.js prettier.config.js playwright.config.js tests/**/*.js",
