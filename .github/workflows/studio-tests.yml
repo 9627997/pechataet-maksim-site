@@ -3,7 +3,6 @@ name: Studio checks
 on:
   push:
     branches:
-      - 'agent/*'
       - 'feature/*'
       - develop
   pull_request:
@@ -13,10 +12,6 @@ on:
 
 permissions:
   contents: read
-
-concurrency:
-  group: studio-checks-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
 
 jobs:
   studio-tests:
