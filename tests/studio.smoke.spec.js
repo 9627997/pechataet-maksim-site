@@ -48,25 +48,6 @@ const expectMobileLogosToMatch = async (page, expectedSrc) => {
   }
 };
 
-const expectMobileArtworkRendered = async (page) => {
-  await ensureProductSettingsVisible(page);
-  for (const selector of [
-    '.mobile-products-ribbon-logo',
-    '.mobile-products-ribbon-text',
-    '.mobile-products-sticker-logo',
-    '.mobile-products-sticker-text',
-  ]) {
-    const artwork = page.locator(selector);
-    await expect(artwork).toBeVisible();
-    await expect
-      .poll(async () => {
-        const bounds = await artwork.boundingBox();
-        return bounds ? Math.min(bounds.width, bounds.height) : 0;
-      })
-      .toBeGreaterThan(0);
-  }
-};
-
 const expectMobileRibbonFramed = async (page) => {
   await ensureProductSettingsVisible(page);
   await expect
@@ -92,6 +73,7 @@ const expectMobileRibbonFramed = async (page) => {
 };
 
 const expectShowcaseCaptionClear = async (page) => {
+  if (!(await page.locator('.studio').isVisible())) return;
   const gap = await page.locator('#scene-kit').evaluate((scene) => {
     const caption = scene.querySelector('.scene-caption');
     const firstLabel = scene.querySelector(
@@ -243,7 +225,12 @@ test('Studio opens without console errors or horizontal scrolling', async ({
 
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
-  await expect(page.locator('main.studio')).toBeVisible();
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('main.studio')).toBeHidden();
+    await expect(page.locator('.mobile-products-panel')).toBeVisible();
+  } else {
+    await expect(page.locator('main.studio')).toBeVisible();
+  }
 
   const overflow = await page.evaluate(() => ({
     documentElement: {
@@ -308,7 +295,8 @@ test('fresh first step marks the demo and keeps customer content honest', async 
       'data-mode',
       'upload',
     );
-    await expect(page.locator('.mobile-products-switches')).toBeHidden();
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+    await expect(page.locator('.studio')).toBeHidden();
   }
   await expectShowcaseCaptionClear(page);
 
@@ -1485,8 +1473,6 @@ test('mobile product switches control the static previews', async ({
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
 
   await page.goto('/studio/', { waitUntil: 'networkidle' });
-  await completeFirstStepWithText(page);
-  await openSettings(page);
 
   const panel = page.locator('.mobile-products-panel');
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
@@ -1499,6 +1485,22 @@ test('mobile product switches control the static previews', async ({
   await expect(stickerSwitch).toBeChecked();
   await expect(ribbonSample).toBeVisible();
   await expect(stickerSample).toBeVisible();
+
+  await ribbonSwitch.uncheck();
+  await expect(ribbonSample).toBeHidden();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-ribbon',
+    'false',
+  );
+  await stickerSwitch.uncheck();
+  await expect(stickerSwitch).not.toBeChecked();
+  await expect(ribbonSwitch).toBeChecked();
+
+  await stickerSwitch.check();
+  await completeFirstStepWithText(page);
+  await openSettings(page);
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
 
   await ribbonSwitch.uncheck();
   await expect(ribbonSample).toBeHidden();
@@ -1679,7 +1681,7 @@ test('order product controls remove, restore, and persist products', async ({
   await expect(body).toHaveAttribute('data-has-ribbon', 'false');
   await expect(body).toHaveAttribute('data-has-sticker', 'true');
   if (testInfo.project.name === 'mobile')
-    await expect(page.locator('.mobile-products-switches')).toBeHidden();
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
 
   await ribbonButton.click();
   await expect(meters).toHaveValue('25');
@@ -1707,7 +1709,7 @@ test('order product controls remove, restore, and persist products', async ({
   await expect(body).toHaveAttribute('data-has-ribbon', 'true');
   await expect(body).toHaveAttribute('data-has-sticker', 'false');
   if (testInfo.project.name === 'mobile')
-    await expect(page.locator('.mobile-products-switches')).toBeHidden();
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
 
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('.nav-item[data-panel="order"]').click();
@@ -1825,24 +1827,41 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
 
   await expect(zones.ribbonLogo).toHaveAttribute(
     'aria-label',
-    'Изменить логотип',
+    'Добавить логотип',
   );
   await expect(zones.stickerLogo).toHaveAttribute(
     'aria-label',
-    'Изменить логотип',
+    'Добавить логотип',
   );
   await expect(zones.ribbonText).toHaveAttribute(
     'aria-label',
-    'Изменить надпись',
+    'Добавить надпись',
   );
   await expect(zones.stickerText).toHaveAttribute(
     'aria-label',
-    'Изменить надпись',
+    'Добавить надпись',
   );
-  await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
-  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
-  await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
-  await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-logo')).toBeHidden();
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
+      'Ваш логотип',
+    );
+  }
+  for (const zone of [zones.ribbonText, zones.stickerText]) {
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
+      'Ваш текст',
+    );
+  }
+  const emptyProduction = await page.evaluate(() => ({
+    ribbon: window.RibbonStudioProduction.serialize('ribbon'),
+    sticker: window.RibbonStudioProduction.serialize('sticker'),
+    content: document.body.dataset.studioContent,
+  }));
+  expect(JSON.stringify(emptyProduction)).not.toContain('Ваш логотип');
+  expect(JSON.stringify(emptyProduction)).not.toContain('Ваш текст');
 
   await textInput.fill('временная надпись');
   await textInput.fill('');
@@ -1850,11 +1869,11 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     await expect(zone).toBeVisible();
     await expect(zone).toHaveAttribute('aria-label', 'Добавить надпись');
     await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Добавить надпись',
+      'Ваш текст',
     );
     await expect(zone.locator('.mobile-products-zone-action')).toHaveCSS(
       'opacity',
-      '0',
+      '1',
     );
   }
   await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
@@ -1891,6 +1910,11 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
     'общая надпись',
   );
+  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
+    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
+      'Ваш логотип',
+    );
+  }
 
   await expect(logoInput).toHaveAttribute('id', 'logoInput');
 
@@ -1903,6 +1927,11 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     'aria-label',
     'Изменить логотип',
   );
+  await expect(
+    page.locator(
+      '.mobile-products-zone-action:text-is("Ваш логотип"), .mobile-products-zone-action:text-is("Ваш текст")',
+    ),
+  ).toHaveCount(0);
 
   for (const [zone, surface] of [
     [zones.ribbonLogo, page.locator('.mobile-products-ribbon-sample')],
@@ -1961,15 +1990,17 @@ test('mobile previews stay synchronized with Studio state', async ({
   const stickerText = page.locator('.mobile-products-sticker-text');
   const stickerContent = page.locator('.mobile-products-sticker-content');
 
-  await expectMobileArtworkRendered(page);
-  await expect(ribbonText).toHaveText('ленты по любви');
-  await expect(stickerText).toHaveText('ленты по любви');
+  await expect(stickerLogo).toBeHidden();
+  await expect(ribbonText).toBeHidden();
+  await expect(stickerText).toBeHidden();
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
-    'logo-and-text',
+    'empty',
   );
 
   await page.locator('#textInput').fill('новая длинная надпись для упаковки');
+  await expect(ribbonText).toBeVisible();
+  await expect(stickerText).toBeVisible();
   await expect(ribbonText).toHaveText(await readRibbonPreviewText(page));
   await expect(stickerText).toHaveText('новая длинная надпись для упаковки');
 
@@ -2313,7 +2344,7 @@ test('PDF upload renders its first page and completes tracing', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('mobile first reveal keeps artwork visible and switches paired with labels', async ({
+test('mobile first reveal keeps the guided preview and switches paired with labels', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
@@ -2327,12 +2358,13 @@ test('mobile first reveal keeps artwork visible and switches paired with labels'
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(panel).toBeVisible();
-  await expectMobileArtworkRendered(page);
   await expectMobileRibbonFramed(page);
-  await expect(page.locator('.mobile-products-switches')).toBeHidden();
+  await expect(page.locator('.mobile-products-switches')).toBeVisible();
+  await expect(page.locator('.studio')).toBeHidden();
   await completeFirstStepWithText(page);
   await openSettings(page);
   await expect(page.locator('.mobile-products-switches')).toBeVisible();
+  await expect(page.locator('.studio')).toBeVisible();
 
   const switchLayout = await panel
     .locator('.mobile-products-switch')
@@ -2400,21 +2432,33 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     }
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await expect(panel).toHaveClass(/is-floating/);
-    await expect(panel).toHaveAttribute('data-floating', 'true');
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(() =>
+        panel.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const slot = element.closest('#mobileProductsSlot');
+          const slotBounds = slot.getBoundingClientRect();
+          const floating = element.classList.contains('is-floating');
+          const stateMatches = element.dataset.floating === String(floating);
+          const staysVisible =
+            bounds.top >= -2 && bounds.bottom <= window.innerHeight + 2;
+          const leavesNoGap = !floating || slotBounds.height <= 1.5;
+          return stateMatches && staysVisible && leavesNoGap;
+        }),
+      )
+      .toBe(true);
+    const isFloating = await panel.evaluate((element) =>
+      element.classList.contains('is-floating'),
+    );
     await expect(page.locator('body')).toHaveAttribute(
       'data-active-panel',
       step,
     );
     const ribbonSwitch = panel.locator('[data-mobile-product="ribbon"]');
     const stickerSwitch = panel.locator('[data-mobile-product="sticker"]');
-    if (step === 'settings') {
-      await expect(ribbonSwitch).toBeVisible();
-      await expect(stickerSwitch).toBeVisible();
-    } else {
-      await expect(ribbonSwitch).toBeHidden();
-      await expect(stickerSwitch).toBeHidden();
-    }
+    await expect(ribbonSwitch).toBeVisible();
+    await expect(stickerSwitch).toBeVisible();
     await expect(
       panel.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
@@ -2423,16 +2467,16 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     ).toBeVisible();
 
     const dockBounds = await panel.boundingBox();
-    const slotBounds = await page.locator('#mobileProductsSlot').boundingBox();
     expect(dockBounds).not.toBeNull();
-    expect(slotBounds).not.toBeNull();
-    expect(slotBounds.height).toBeLessThanOrEqual(1.5);
     expect(dockBounds.x).toBeGreaterThanOrEqual(8);
     expect(dockBounds.x + dockBounds.width).toBeLessThanOrEqual(382);
     expect(dockBounds.y).toBeGreaterThanOrEqual(0);
-    expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(845);
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(
+      viewportHeight + 2,
+    );
 
-    if (step === 'settings') {
+    if (isFloating) {
       const toolbarCenters = await panel
         .locator('.mobile-products-switches')
         .evaluate((toolbar) =>
@@ -2450,7 +2494,7 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       ).toBeLessThanOrEqual(1);
     }
 
-    if (step === 'upload') {
+    if (step === 'upload' && isFloating) {
       await dockToggle.click();
       await expect(panel).toHaveClass(/is-expanded/);
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'true');

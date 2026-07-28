@@ -65,6 +65,7 @@
       image.className = `mobile-products-${product}-logo`;
       image.alt = '';
       action.className = 'mobile-products-zone-action';
+      action.dataset.placeholderKind = 'logo';
       zone.addEventListener('click', () => {
         if (zone.dataset.suppressClick === 'true') {
           zone.dataset.suppressClick = 'false';
@@ -95,6 +96,7 @@
       zone.dataset.mobileProductsSafeZone = `${product}-text`;
       text.className = `mobile-products-${product}-text`;
       action.className = 'mobile-products-zone-action';
+      action.dataset.placeholderKind = 'text';
       zone.addEventListener('click', () => {
         if (zone.dataset.suppressClick === 'true') {
           zone.dataset.suppressClick = 'false';
@@ -379,10 +381,21 @@
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
       const stickerLogoSrc = stickerLogoSource.getAttribute('src') || '';
-      const hasRibbonLogo = Boolean(ribbonLogoSrc && !ribbonLogoSource.hidden);
-      const hasStickerLogo = Boolean(stickerLogoSrc && !stickerLogoSource.hidden);
-      const hasRibbonText = Boolean(ribbonTextValueTrimmed);
-      const hasStickerText = Boolean(stickerTextValueTrimmed);
+      const suppressDemoArtwork =
+        panelMode === 'upload' &&
+        document.body.dataset.previewDemo === 'true';
+      const hasRibbonLogo = Boolean(
+        ribbonLogoSrc && !ribbonLogoSource.hidden && !suppressDemoArtwork,
+      );
+      const hasStickerLogo = Boolean(
+        stickerLogoSrc && !stickerLogoSource.hidden && !suppressDemoArtwork,
+      );
+      const hasRibbonText = Boolean(
+        ribbonTextValueTrimmed && !suppressDemoArtwork,
+      );
+      const hasStickerText = Boolean(
+        stickerTextValueTrimmed && !suppressDemoArtwork,
+      );
       if (!effectiveLayouts) {
         try {
           effectiveLayouts = JSON.parse(document.body.dataset.studioLayout || '{}');
@@ -395,13 +408,17 @@
         if (hasLogo && src) image.src = src;
         else image.removeAttribute('src');
         image.hidden = !hasLogo;
-        const label = panelMode === 'settings'
-          ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
-          : hasLogo ? 'Изменить логотип' : 'Добавить логотип';
+        const label =
+          panelMode === 'settings'
+            ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+            : hasLogo
+              ? 'Изменить логотип'
+              : 'Добавить логотип';
         zone.dataset.empty = String(!hasLogo);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
-        action.textContent = label;
+        action.textContent =
+          panelMode === 'upload' && !hasLogo ? 'Ваш логотип' : label;
       };
       updateLogo(
         ribbonLogo,
@@ -430,13 +447,17 @@
         text.hidden = !hasText;
         text.style.color = style.print;
         text.style.fontFamily = style.font;
-        const label = panelMode === 'settings'
-          ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
-          : hasText ? 'Изменить надпись' : 'Добавить надпись';
+        const label =
+          panelMode === 'settings'
+            ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+            : hasText
+              ? 'Изменить надпись'
+              : 'Добавить надпись';
         zone.dataset.empty = String(!hasText);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
-        action.textContent = label;
+        action.textContent =
+          panelMode === 'upload' && !hasText ? 'Ваш текст' : label;
       };
       updateText(
         ribbonText,
@@ -638,7 +659,9 @@
           ? 'logo-and-text'
           : hasStickerLogo
             ? 'logo-only'
-            : 'text-only';
+            : hasStickerText
+              ? 'text-only'
+              : 'empty';
       stickerContent.dataset.mobileProductsMode = mode;
       ribbonSurface.dataset.mobileProductsMode =
         hasRibbonLogo && hasRibbonText
@@ -725,7 +748,7 @@
       }
 
       const slotTop = panelSlot.getBoundingClientRect().top;
-      const shouldFloat = dockFloating ? slotTop < 24 : slotTop <= 8;
+      const shouldFloat = dockFloating ? window.scrollY > 24 : slotTop <= 8;
       setDockFloating(shouldFloat);
       updateKeyboardState();
     };
