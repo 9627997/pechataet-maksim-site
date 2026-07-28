@@ -677,6 +677,7 @@ test('order dialog validates contact and downloads an accessible request @smoke'
   await page.locator('#panel-settings .next-panel').click();
 
   const openOrder = page.locator('#openOrder');
+  await expect(openOrder).toHaveText('Сформировать заявку');
   await openOrder.click();
 
   const dialog = page.getByRole('dialog', { name: 'Сформировать заявку' });
