@@ -55,12 +55,12 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
   const expected = [
     {
       path: '/',
-      canonical: 'https://печатаетмаксим.рф/',
+      canonical: 'https://xn--80aaarctnodv3agc9d.xn--p1ai/',
       title: 'Печать лент и наклеек с логотипом — Печатает Максим',
     },
     {
       path: '/studio/',
-      canonical: 'https://печатаетмаксим.рф/studio/',
+      canonical: 'https://xn--80aaarctnodv3agc9d.xn--p1ai/studio/',
       title: 'Конструктор лент и наклеек с логотипом — Печатает Максим',
     },
   ];
@@ -87,7 +87,7 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
     );
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       'content',
-      /^https:\/\/печатаетмаксим\.рф\//,
+      /^https:\/\/xn--80aaarctnodv3agc9d\.xn--p1ai\//,
     );
 
     const structuredData = await page
@@ -100,11 +100,17 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
   }
 
   const robots = await (await page.request.get('/robots.txt')).text();
-  expect(robots).toContain('Sitemap: https://печатаетмаксим.рф/sitemap.xml');
+  expect(robots).toContain(
+    'Sitemap: https://xn--80aaarctnodv3agc9d.xn--p1ai/sitemap.xml',
+  );
 
   const sitemap = await (await page.request.get('/sitemap.xml')).text();
-  expect(sitemap).toContain('<loc>https://печатаетмаксим.рф/</loc>');
-  expect(sitemap).toContain('<loc>https://печатаетмаксим.рф/studio/</loc>');
+  expect(sitemap).toContain(
+    '<loc>https://xn--80aaarctnodv3agc9d.xn--p1ai/</loc>',
+  );
+  expect(sitemap).toContain(
+    '<loc>https://xn--80aaarctnodv3agc9d.xn--p1ai/studio/</loc>',
+  );
 });
 
 test('landing page is responsive and downloads an honest request @smoke', async ({

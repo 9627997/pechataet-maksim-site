@@ -125,7 +125,7 @@ async function assertArtifact() {
     readFile(resolve(outputRoot, 'sitemap.xml'), 'utf8'),
   ]);
 
-  const canonicalHost = 'https://печатаетмаксим.рф';
+  const canonicalHost = 'https://xn--80aaarctnodv3agc9d.xn--p1ai';
   const seoRequirements = [
     [indexHtml, `<link rel="canonical" href="${canonicalHost}/">`],
     [studioHtml, `<link rel="canonical" href="${canonicalHost}/studio/">`],
