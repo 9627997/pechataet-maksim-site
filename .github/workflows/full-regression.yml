@@ -1,23 +1,22 @@
-name: Pull request checks
+name: Full regression
 
 on:
-  pull_request:
-    branches:
-      - main
+  schedule:
+    - cron: '30 2 * * 1-5'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pull-request-checks-${{ github.event.pull_request.number || github.ref }}
+  group: full-regression
   cancel-in-progress: true
 
 jobs:
-  studio-tests:
-    name: Lint and Playwright smoke tests
+  full-regression:
+    name: Full Playwright regression
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -38,14 +37,14 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run pull request checks
-        run: npm run check:pr
+      - name: Run full checks
+        run: npm run check:full
 
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: studio-playwright-failure-${{ github.run_id }}
+          name: full-regression-failure-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/

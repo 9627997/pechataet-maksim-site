@@ -1,0 +1,4 @@
+interface:
+  display_name: "Разработка Печатает Максим"
+  short_description: "Быстрый и безопасный цикл разработки"
+  default_prompt: "Используй $develop-pechataet-maksim, чтобы реализовать изменение и проверить его."

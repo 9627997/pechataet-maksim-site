@@ -1,0 +1,891 @@
+import { expect, test } from '@playwright/test';
+import {
+  expectNoHorizontalOverflow,
+  expectShowcaseCaptionClear,
+  expectSvgDataToContain,
+  fixturePath,
+  openSettings,
+  readContentSnapshot,
+  readRibbonPreviewText,
+  setLogoUploadTarget,
+  svgUpload,
+  watchRuntimeErrors,
+} from './helpers/studio.js';
+
+test('Studio opens without console errors or horizontal scrolling @smoke', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = [];
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      runtimeErrors.push(`console.error: ${message.text()}`);
+    }
+  });
+  page.on('pageerror', (error) => {
+    runtimeErrors.push(`pageerror: ${error.message}`);
+  });
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('main.studio')).toBeHidden();
+    await expect(page.locator('.mobile-products-panel')).toBeVisible();
+  } else {
+    await expect(page.locator('main.studio')).toBeVisible();
+  }
+
+  const overflow = await page.evaluate(() => ({
+    documentElement: {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    },
+    body: {
+      clientWidth: document.body.clientWidth,
+      scrollWidth: document.body.scrollWidth,
+    },
+  }));
+
+  expect(overflow.documentElement.scrollWidth).toBeLessThanOrEqual(
+    overflow.documentElement.clientWidth,
+  );
+  expect(overflow.body.scrollWidth).toBeLessThanOrEqual(
+    overflow.body.clientWidth,
+  );
+  expect(runtimeErrors).toEqual([]);
+
+  await page.screenshot({
+    path: `playwright-screenshots/studio-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
+});
+
+test('fresh first step marks the demo and keeps customer content honest @smoke', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  await expect(textInput).toHaveValue('');
+  await expect(textInput).toHaveAttribute(
+    'placeholder',
+    'Например: ленты по любви',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'true',
+  );
+  await expect(page.locator('#continueUpload')).toBeDisabled();
+  await expect(page.locator('#continueUploadHelp')).toHaveText(
+    'Добавьте название или логотип, чтобы продолжить',
+  );
+  await expect(page.locator('#continueUploadHelp')).toBeVisible();
+  await expect(page.locator('#panel-upload #fontSelect')).toHaveCount(0);
+  await expect(page.locator('#panel-settings #fontSelect')).toHaveCount(1);
+  await expect(page.locator('#dropZone')).toContainText('PDF');
+  await expect(page.locator('#logoInput')).toHaveAttribute(
+    'accept',
+    /application\/pdf/,
+  );
+  await expect(page.locator('.format-list')).toHaveCount(0);
+  await expect(page.locator('.help-note')).toHaveCount(0);
+  if (testInfo.project.name === 'mobile') {
+    await expect(
+      page.locator('[data-products-host="upload"] #mobileProductsSlot'),
+    ).toHaveCount(1);
+    await expect(page.locator('.mobile-products-panel')).toHaveAttribute(
+      'data-mode',
+      'upload',
+    );
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+    await expect(page.locator('.studio')).toBeHidden();
+  }
+  await expectShowcaseCaptionClear(page);
+
+  const demoText =
+    testInfo.project.name === 'mobile'
+      ? page.locator('.dynamic-showcase-text').first()
+      : page.locator('.dynamic-showcase-text').first();
+  await expect(demoText).toHaveText('ленты по любви');
+
+  await textInput.fill('Мой бренд');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'false',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-logo-demo',
+    'false',
+  );
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('#continueUploadHelp')).toBeHidden();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('Мой бренд');
+  expect(snapshot.logo.common).toBeNull();
+  expect(
+    await page.evaluate(() =>
+      window.RibbonStudioProduction.serialize('ribbon').includes('<image'),
+    ),
+  ).toBe(false);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(textInput).toHaveValue('Мой бренд');
+  await expect(page.locator('#continueUpload')).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.logo.common).toBeNull();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('legacy Studio content migrates to common content', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const svgSource =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path fill="#000" d="M0 0h20v10H0z"/></svg>';
+  const logoData = `data:image/svg+xml;base64,${Buffer.from(svgSource).toString('base64')}`;
+  await page.addInitScript(
+    ({ source, data }) => {
+      if (sessionStorage.getItem('legacy-content-seeded')) return;
+      sessionStorage.setItem('legacy-content-seeded', 'true');
+      localStorage.setItem(
+        'ribbon-studio-v042',
+        JSON.stringify({
+          text: 'старый общий текст',
+          logo: { data, ratio: 2 },
+          logoType: 'svg',
+          logoSvgSource: source,
+          originalRaster: null,
+          traceInfo: null,
+        }),
+      );
+    },
+    { source: svgSource, data: logoData },
+  );
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text).toEqual({
+    common: 'старый общий текст',
+    ribbon: { mode: 'inherit' },
+    sticker: { mode: 'inherit' },
+    resolvedRibbon: 'старый общий текст',
+    resolvedSticker: 'старый общий текст',
+  });
+  expect(snapshot.logo.common).toMatchObject({
+    hasLogo: true,
+    ratio: 2,
+    logoType: 'svg',
+    hasSvgSource: true,
+  });
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
+  expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
+
+  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'старый общий текст',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-overflow',
+    'false',
+  );
+  await expect(page.locator('.ribbon-overflow-card-mobile')).toBeHidden();
+  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+  await expect(page.locator('#macroStickerImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('старый общий текст');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.common).toMatchObject({
+    hasLogo: true,
+    ratio: 2,
+    logoType: 'svg',
+    hasSvgSource: true,
+  });
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('content overrides normalize, resolve, persist, and reset', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const svgSource =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 10"><path fill="#000" d="M0 0h30v10H0z"/></svg>';
+  const logoData = `data:image/svg+xml;base64,${Buffer.from(svgSource).toString('base64')}`;
+  await page.addInitScript(
+    ({ source, data }) => {
+      if (sessionStorage.getItem('content-overrides-seeded')) return;
+      sessionStorage.setItem('content-overrides-seeded', 'true');
+      localStorage.setItem(
+        'ribbon-studio-v042',
+        JSON.stringify({
+          text: 'legacy alias must follow common',
+          content: {
+            logo: {
+              common: {
+                logo: { data, ratio: 3 },
+                logoType: 'svg',
+                logoSvgSource: source,
+                originalRaster: null,
+                traceInfo: null,
+              },
+              ribbon: { mode: 'override', value: null },
+              sticker: { mode: 'unknown', value: null },
+            },
+            text: {
+              common: 'новый общий текст',
+              ribbon: { mode: 'override', value: '' },
+              sticker: { mode: 'unknown', value: 'не использовать' },
+            },
+          },
+        }),
+      );
+    },
+    { source: svgSource, data: logoData },
+  );
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('новый общий текст');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'override', value: '' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.resolvedRibbon).toBe('');
+  expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.resolvedRibbon).toBeNull();
+  expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
+
+  await expect(page.locator('#textInput')).toHaveValue('новый общий текст');
+  await expect(page.locator('#macroLogoText')).toBeHidden();
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'новый общий текст',
+  );
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
+    'новый общий текст',
+  );
+  await expect(page.locator('#macroLogoImage')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#macroStickerImage')).not.toHaveAttribute(
+    'hidden',
+    '',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({ mode: 'override', value: '' });
+  expect(snapshot.text.resolvedRibbon).toBe('');
+  expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
+  expect(snapshot.logo.resolvedRibbon).toBeNull();
+  await expect(page.locator('#macroLogoText')).toBeHidden();
+  await expect(page.locator('#macroStickerText')).toHaveText(
+    'новый общий текст',
+  );
+
+  await page.locator('#resetProject').click();
+  await page.waitForLoadState('networkidle');
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.resolvedRibbon).toBe(snapshot.text.common);
+  expect(snapshot.text.resolvedSticker).toBe(snapshot.text.common);
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('resolved logo assets render independently across product scenes', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('resolved-logo-assets-seeded')) return;
+    sessionStorage.setItem('resolved-logo-assets-seeded', 'true');
+    const asset = (marker, width, height) => ({
+      logo: { data: null, ratio: width / height },
+      logoType: 'svg',
+      logoSvgSource: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><path id="${marker}" fill="#000" d="M0 0h${width}v${height}H0z"/></svg>`,
+      originalRaster: null,
+      traceInfo: null,
+    });
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        text: 'общий текст',
+        content: {
+          logo: {
+            common: asset('common-logo-marker', 20, 10),
+            ribbon: {
+              mode: 'override',
+              value: asset('ribbon-logo-marker', 40, 10),
+            },
+            sticker: {
+              mode: 'override',
+              value: asset('sticker-logo-marker', 10, 20),
+            },
+          },
+          text: {
+            common: 'общий текст',
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+        },
+      }),
+    );
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await openSettings(page);
+
+  const macroRibbon = page.locator('#macroLogoImage');
+  const macroSticker = page.locator('#macroStickerImage');
+  const boxRibbon = page.locator('#boxRibbonImage');
+  const boxSticker = page.locator('#boxStickerImage');
+  const mobileRibbon = page.locator('.mobile-products-ribbon-logo');
+  const mobileSticker = page.locator('.mobile-products-sticker-logo');
+  const ribbonSvg = page.locator('#ribbonContent image').first();
+  const stickerSvg = page.locator('#stickerContent image').first();
+  const ribbonShowcase = page
+    .locator('[data-product-type="ribbon"] .dynamic-showcase-logo')
+    .first();
+  const stickerShowcase = page
+    .locator('[data-product-type="sticker"] .dynamic-showcase-logo')
+    .first();
+
+  for (const locator of [
+    macroRibbon,
+    boxRibbon,
+    mobileRibbon,
+    ribbonShowcase,
+  ]) {
+    await expectSvgDataToContain(locator, 'ribbon-logo-marker');
+  }
+  await expectSvgDataToContain(ribbonSvg, 'ribbon-logo-marker', 'href');
+  for (const locator of [
+    macroSticker,
+    boxSticker,
+    mobileSticker,
+    stickerShowcase,
+  ]) {
+    await expectSvgDataToContain(locator, 'sticker-logo-marker');
+  }
+  await expectSvgDataToContain(stickerSvg, 'sticker-logo-marker', 'href');
+
+  const contentEvent = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-state-updated',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await page.locator('#printColorSelect').selectOption('#ffffff');
+  const detail = await contentEvent;
+  expect(detail.logo).toEqual({
+    common: { hasLogo: true, logoType: 'svg', ratio: 2 },
+    ribbon: { mode: 'override', hasLogo: true, logoType: 'svg', ratio: 4 },
+    sticker: { mode: 'override', hasLogo: true, logoType: 'svg', ratio: 0.5 },
+  });
+  expect(JSON.stringify(detail.logo)).not.toContain('data:image');
+  expect(JSON.stringify(detail.logo)).not.toContain('<svg');
+  await expect
+    .poll(async () => {
+      const src = await macroRibbon.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#ffffff');
+  await expect
+    .poll(async () => {
+      const src = await macroSticker.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#171717');
+
+  await page
+    .locator('[data-mobile-product-sample="sticker"]')
+    .click({ position: { x: 4, y: 4 } });
+  await page.locator('#printColorSelect').selectOption('#ffffff');
+  await expect
+    .poll(async () => {
+      const src = await macroSticker.getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#ffffff');
+
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
+    saved.content.logo.ribbon = { mode: 'inherit' };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
+  await expectSvgDataToContain(macroRibbon, 'common-logo-marker');
+  await expectSvgDataToContain(macroSticker, 'sticker-logo-marker');
+  await expectSvgDataToContain(mobileRibbon, 'common-logo-marker');
+  await expectSvgDataToContain(mobileSticker, 'sticker-logo-marker');
+
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
+    saved.content.logo.ribbon = {
+      mode: 'override',
+      value: {
+        logo: { data: null, ratio: 4 },
+        logoType: 'svg',
+        logoSvgSource:
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 10"><path id="ribbon-logo-marker" d="M0 0h40v10H0z"/></svg>',
+        originalRaster: null,
+        traceInfo: null,
+      },
+    };
+    saved.content.logo.sticker = { mode: 'inherit' };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await expectSvgDataToContain(macroRibbon, 'ribbon-logo-marker');
+  await expectSvgDataToContain(macroSticker, 'common-logo-marker');
+
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
+    saved.content.logo.ribbon = { mode: 'override', value: null };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(macroRibbon).toBeHidden();
+  await expect(boxRibbon).toBeHidden();
+  await expect(mobileRibbon).toBeHidden();
+  await expect(page.locator('#ribbonContent image')).toHaveCount(0);
+  await expect(macroSticker).not.toHaveAttribute('hidden', '');
+  await expectSvgDataToContain(macroSticker, 'common-logo-marker');
+  expect((await readContentSnapshot(page)).logo.ribbon).toEqual({
+    mode: 'override',
+    value: null,
+  });
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('logo upload target persists through SVG callbacks and sequential uploads', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('target-upload-state-seeded')) return;
+    sessionStorage.setItem('target-upload-state-seeded', 'true');
+    const overrideSource =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 10"><path id="preserved-ribbon-override" d="M0 0h40v10H0z"/></svg>';
+    const saved = JSON.parse(
+      localStorage.getItem('ribbon-studio-v042') || '{}',
+    );
+    saved.content = saved.content || {
+      text: {
+        common: 'текст',
+        ribbon: { mode: 'inherit' },
+        sticker: { mode: 'inherit' },
+      },
+      logo: { common: null },
+    };
+    saved.content.logo.ribbon = {
+      mode: 'override',
+      value: {
+        logo: { data: null, ratio: 4 },
+        logoType: 'svg',
+        logoSvgSource: overrideSource,
+        originalRaster: null,
+        traceInfo: null,
+      },
+    };
+    saved.content.logo.sticker = { mode: 'inherit' };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('new-common.svg', 'new-common-marker'));
+  await expectSvgDataToContain(ribbon, 'preserved-ribbon-override');
+  await expectSvgDataToContain(sticker, 'new-common-marker');
+
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('ribbon-target.svg', 'ribbon-target-marker'));
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'new-common-marker');
+
+  await setLogoUploadTarget(page, 'sticker');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(svgUpload('sticker-target.svg', 'sticker-target-marker'));
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'sticker-target-marker');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expectSvgDataToContain(ribbon, 'ribbon-target-marker');
+  await expectSvgDataToContain(sticker, 'sticker-target-marker');
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('raster upload target survives tracing and crop cancellation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('#macroLogoImage');
+  const sticker = page.locator('#macroStickerImage');
+  const initialRibbon = await ribbon.getAttribute('src');
+  const initialSticker = await sticker.getAttribute('src');
+
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('transparent-logo.png'));
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect.poll(() => ribbon.getAttribute('src')).not.toBe(initialRibbon);
+  await expect(sticker).toHaveAttribute('src', initialSticker);
+  const tracedRibbon = await ribbon.getAttribute('src');
+
+  await setLogoUploadTarget(page, 'sticker');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  await page.locator('#cropApply').click();
+  await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
+  await expect.poll(() => sticker.getAttribute('src')).not.toBe(initialSticker);
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  const tracedSticker = await sticker.getAttribute('src');
+
+  await page.locator('#logoInput').setInputFiles([]);
+  await setLogoUploadTarget(page, 'ribbon');
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  await page.locator('#cropCancel').click();
+  await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  await expect(sticker).toHaveAttribute('src', tracedSticker);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
+  await expect(sticker).toHaveAttribute('src', tracedSticker);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('resolved product text stays independent from common editing', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('resolved-text-seeded')) return;
+    sessionStorage.setItem('resolved-text-seeded', 'true');
+    localStorage.setItem(
+      'ribbon-studio-v042',
+      JSON.stringify({
+        text: 'общий текст',
+        content: {
+          logo: {
+            common: null,
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'inherit' },
+          },
+          text: {
+            common: 'общий текст',
+            ribbon: { mode: 'inherit' },
+            sticker: { mode: 'override', value: 'только стикер' },
+          },
+        },
+      }),
+    );
+  });
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const macroRibbonText = page.locator('#macroLogoText');
+  const macroStickerText = page.locator('#macroStickerText');
+  const mobileRibbonText = page.locator('.mobile-products-ribbon-text');
+  const mobileStickerText = page.locator('.mobile-products-sticker-text');
+
+  await expect(textInput).toHaveValue('общий текст');
+  await expect(macroRibbonText).toHaveText('общий текст');
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText('общий текст');
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  const contentEvent = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        document.addEventListener(
+          'studio:content-state-updated',
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      }),
+  );
+  await textInput.fill('обновлённый общий');
+  expect(await contentEvent).toMatchObject({
+    text: {
+      common: 'обновлённый общий',
+      ribbon: { mode: 'inherit', resolved: 'обновлённый общий' },
+      sticker: { mode: 'override', resolved: 'только стикер' },
+    },
+  });
+  const updatedRibbonPreview = await readRibbonPreviewText(page);
+  await expect(macroRibbonText).toHaveText(updatedRibbonPreview);
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText(updatedRibbonPreview);
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  let snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.common).toBe('обновлённый общий');
+  expect(snapshot.text.ribbon).toEqual({ mode: 'inherit' });
+  expect(snapshot.text.sticker).toEqual({
+    mode: 'override',
+    value: 'только стикер',
+  });
+
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('ribbon-studio-v042'));
+    saved.content.text.ribbon = {
+      mode: 'override',
+      value: 'только лента',
+    };
+    localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+
+  snapshot = await readContentSnapshot(page);
+  expect(snapshot.text.ribbon).toEqual({
+    mode: 'override',
+    value: 'только лента',
+  });
+  expect(snapshot.text.sticker).toEqual({
+    mode: 'override',
+    value: 'только стикер',
+  });
+  await expect(textInput).toHaveValue('обновлённый общий');
+  await expect(macroRibbonText).toHaveText('только лента');
+  await expect(macroStickerText).toHaveText('только стикер');
+  await expect(mobileRibbonText).toHaveText('только лента');
+  await expect(mobileStickerText).toHaveText('только стикер');
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('Studio navigation follows the three-step flow @smoke', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const navigation = page.locator('.main-nav');
+  const items = navigation.locator('.nav-item');
+  const expectedItems = [
+    { number: '01', label: 'Создать', panel: 'upload' },
+    { number: '02', label: 'Настроить', panel: 'settings' },
+    { number: '03', label: 'Получить', panel: 'order' },
+  ];
+
+  await expect(items).toHaveCount(3);
+  await expect(navigation.locator('[data-panel="bundle"]')).toHaveCount(0);
+
+  for (const [index, expected] of expectedItems.entries()) {
+    const item = items.nth(index);
+    await expect(item).toHaveAttribute('data-panel', expected.panel);
+    await expect(item.locator('span')).toHaveText(expected.number);
+    await expect(item).toContainText(expected.label);
+  }
+
+  const widths = await items.evaluateAll((elements) =>
+    elements.map((element) => element.getBoundingClientRect().width),
+  );
+  expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+
+  await expect(page.locator('#panel-bundle')).toHaveCount(1);
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+  await expect(page.locator('#bundleChoice')).toHaveCount(1);
+  await expect(page.locator('#fileCard')).toBeHidden();
+
+  const continueUpload = page.locator('#continueUpload');
+  await expect(continueUpload).toBeDisabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeDisabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeDisabled();
+
+  await page.evaluate(() => {
+    document.querySelector('[data-panel="order"]').disabled = false;
+  });
+  await navigation.locator('[data-panel="order"]').click();
+  await expect(page.locator('#panel-upload')).toBeVisible();
+
+  await page.locator('#textInput').fill('Мой бренд');
+  await expect(continueUpload).toBeEnabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeEnabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeEnabled();
+  await continueUpload.click();
+
+  await expect(page.locator('#panel-settings')).toBeVisible();
+  await expect(navigation.locator('[data-panel="settings"]')).toHaveClass(
+    /active/,
+  );
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+
+  await navigation.locator('[data-panel="upload"]').click();
+  await page.locator('#textInput').fill('');
+  await expect(continueUpload).toBeDisabled();
+  await expect(navigation.locator('[data-panel="settings"]')).toBeDisabled();
+  await expect(navigation.locator('[data-panel="order"]')).toBeDisabled();
+
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#fileCard')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
+  await expect(continueUpload).toHaveAttribute('data-next', 'settings');
+  await continueUpload.click();
+
+  await expect(page.locator('#panel-settings')).toBeVisible();
+  await expect(navigation.locator('[data-panel="settings"]')).toHaveClass(
+    /active/,
+  );
+  await expect(page.locator('#panel-bundle')).toBeHidden();
+
+  const continueSettings = page.locator('#panel-settings .next-panel');
+  await expect(continueSettings).toHaveAttribute('data-next', 'order');
+  await continueSettings.click();
+  await expect(page.locator('#panel-order')).toBeVisible();
+  await expect(navigation.locator('[data-panel="order"]')).toHaveClass(
+    /active/,
+  );
+
+  for (const panel of ['upload', 'settings', 'order']) {
+    await navigation.locator(`[data-panel="${panel}"]`).click();
+    await expect(page.locator(`#panel-${panel}`)).toBeVisible();
+    await expect(navigation.locator(`[data-panel="${panel}"]`)).toHaveClass(
+      /active/,
+    );
+    await expect(page.locator('#panel-bundle')).toBeHidden();
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('Create step validates input and manages the common logo @smoke', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const textInput = page.locator('#textInput');
+  const counter = page.locator('#textInputCounter');
+  const continueUpload = page.locator('#continueUpload');
+  const textStatus = page.locator('[data-create-status="text"]');
+  const logoStatus = page.locator('[data-create-status="logo"]');
+
+  await expect(textInput).not.toHaveAttribute('maxlength');
+  await expect(counter).toHaveText('0 / 60');
+  await expect(textStatus).toContainText('не добавлено');
+  await expect(logoStatus).toContainText('не добавлен');
+
+  await page.locator('#logoInput').setInputFiles({
+    name: 'logo.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not a logo'),
+  });
+  await expect(page.locator('#uploadFeedback')).toContainText(
+    'Поддерживаются только SVG, PNG, JPEG и PDF',
+  );
+  await expect(page.locator('#fileCard')).toBeHidden();
+  await expect(continueUpload).toBeDisabled();
+
+  await textInput.fill('Мой бренд');
+  await expect(counter).toHaveText('9 / 60');
+  await expect(textStatus).toHaveClass(/is-complete/);
+  await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
+  await expect(page.locator('#dropZone')).toBeVisible();
+
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#uploadFeedback')).toBeHidden();
+  await expect(logoStatus).toHaveClass(/is-complete/);
+  await expect(page.locator('#fileCardActions')).toBeVisible();
+
+  await page.locator('#removeCommonLogo').click();
+  await expect(page.locator('#fileCard')).toBeHidden();
+  await expect(logoStatus).not.toHaveClass(/is-complete/);
+  await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    true,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
+
+  await textInput.fill('');
+  await expect(counter).toHaveText('0 / 60');
+  await expect(continueUpload).toBeDisabled();
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(continueUpload).toBeEnabled();
+  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
+    'hidden',
+    false,
+  );
+  await expect(page.locator('#macroLogoText')).toHaveJSProperty('hidden', true);
+  await expect(textInput).toBeEnabled();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});

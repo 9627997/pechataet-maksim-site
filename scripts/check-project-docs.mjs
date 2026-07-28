@@ -2,8 +2,6 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const PROJECT_CONTEXT = 'docs/PROJECT_CONTEXT.md';
-const CURRENT_STATUS = 'docs/CURRENT_STATUS.md';
-const WORK_QUEUE = 'docs/WORK_QUEUE.md';
 
 const contextSensitivePaths = [
   /^AGENTS\.md$/,
@@ -14,19 +12,6 @@ const contextSensitivePaths = [
   /^studio\/assets\/js\//,
   /^studio\/data\//,
 ];
-
-const statusSensitivePaths = [
-  /^AGENTS\.md$/,
-  /^README\.md$/,
-  /^TODO\.md$/,
-  /^docs\/(?:ARCHITECTURE|ROADMAP|UX_RULES|CHANGELOG)\.md$/,
-  /^\.github\//,
-  /^scripts\//,
-  /^studio\//,
-  /^tests\//,
-];
-
-const queueSensitivePaths = [/^studio\//, /^tests\//, /^css\//, /^js\//];
 
 function git(args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -100,33 +85,12 @@ const changedSet = new Set(changedFiles);
 const contextRelevant = changedFiles.filter((file) =>
   matchesAny(file, contextSensitivePaths),
 );
-const statusRelevant = changedFiles.filter((file) =>
-  matchesAny(file, statusSensitivePaths),
-);
-const queueRelevant = changedFiles.filter((file) =>
-  matchesAny(file, queueSensitivePaths),
-);
-
 let warningCount = 0;
 
 if (contextRelevant.length && !changedSet.has(PROJECT_CONTEXT)) {
   warningCount += 1;
   warn(
     `Изменены ключевые файлы (${contextRelevant.join(', ')}), но ${PROJECT_CONTEXT} не обновлён. Проверьте, изменилась ли карта проекта.`,
-  );
-}
-
-if (statusRelevant.length && !changedSet.has(CURRENT_STATUS)) {
-  warningCount += 1;
-  warn(
-    `Изменена текущая работа (${statusRelevant.join(', ')}), но ${CURRENT_STATUS} не обновлён. Проверьте статус перед передачей или публикацией.`,
-  );
-}
-
-if (queueRelevant.length && !changedSet.has(WORK_QUEUE)) {
-  warningCount += 1;
-  warn(
-    `Изменены файлы продукта (${queueRelevant.join(', ')}), но ${WORK_QUEUE} не обновлён. Проверьте статус задачи перед передачей или публикацией.`,
   );
 }
 

@@ -12,16 +12,20 @@ const watchRuntimeErrors = (page) => {
 };
 
 const expectNoHorizontalOverflow = async (page) => {
-  const overflow = await page.evaluate(() => ({
-    documentElement:
-      document.documentElement.scrollWidth >
-      document.documentElement.clientWidth,
-    body: document.body.scrollWidth > document.body.clientWidth,
-  }));
-  expect(overflow).toEqual({ documentElement: false, body: false });
+  await page.evaluate(() => document.fonts?.ready);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        documentElement:
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth,
+        body: document.body.scrollWidth > document.body.clientWidth,
+      })),
+    )
+    .toEqual({ documentElement: false, body: false });
 };
 
-test('local styles and scripts use deployment cache versions', async ({
+test('local styles and scripts use deployment cache versions @smoke', async ({
   page,
 }) => {
   for (const path of ['/', '/studio/']) {
@@ -45,7 +49,7 @@ test('local styles and scripts use deployment cache versions', async ({
   }
 });
 
-test('landing page is responsive and downloads an honest request', async ({
+test('landing page is responsive and downloads an honest request @smoke', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);

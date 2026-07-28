@@ -54,9 +54,19 @@ Workflow `Deploy to REG.RU` сохраняет artifact, синхронизир�
 файлы домена. Старые URL `constructor.html` и
 `ribbon-studio-design-system-v1.html` получают минимальные страницы-переходы в
 актуальную `/studio/`, поэтому сохранённые ссылки не ведут на исторический
-runtime. Перед настройкой SSH workflow повторно запускает lint, форматирование,
-проверку документации и оба Playwright-проекта; deployment выполняются
-последовательно и не отменяют уже начатую синхронизацию.
+runtime.
+
+Проверки разделены на три уровня:
+
+- `check:fast` проверяет изменённые файлы локально;
+- `check:pr` является обязательной проверкой Pull Request и включает
+  критические Playwright-сценарии;
+- `check:full` выполняет полный regression вручную и по расписанию.
+
+Deployment не повторяет quality gate: защищённый `main` уже принимает только
+прошедший PR. Workflow собирает artifact, сохраняет его, публикует на REG.RU и
+проверяет production. Deployment выполняются последовательно, не отменяют уже
+начатую синхронизацию и связаны с GitHub Environment `production`.
 
 ## Что не входит в production-runtime
 
