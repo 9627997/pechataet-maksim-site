@@ -1,0 +1,712 @@
+import { expect, test } from '@playwright/test';
+import {
+  completeFirstStepWithText,
+  expectNoHorizontalOverflow,
+  fixturePath,
+  openSettings,
+  watchRuntimeErrors,
+} from './helpers/studio.js';
+
+test('product samples reveal independent ribbon and sticker settings @smoke', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+
+  const panel = page.locator('.mobile-products-panel');
+  const ribbonSample = panel.locator('[data-mobile-product-sample="ribbon"]');
+  const stickerSample = panel.locator('[data-mobile-product-sample="sticker"]');
+  const ribbonText = page.locator('.mobile-products-ribbon-text');
+  const stickerText = page.locator('.mobile-products-sticker-text');
+
+  await expect(panel).toBeVisible();
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('switch', { name: 'Лента' })).toBeChecked();
+  await expect(panel.getByRole('switch', { name: 'Стикер' })).toBeChecked();
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
+  await expect(page.locator('#fontSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+  await expect(page.locator('#fontPickerPreview')).toHaveText('Мой бренд');
+  await page.locator('#fontPickerTrigger').click();
+  await expect(page.locator('#fontPickerList')).toBeVisible();
+  await expect(page.locator('#fontPickerList [role="option"]')).toHaveCount(13);
+  expect(
+    await page
+      .locator('.font-picker-option [data-font-sample]')
+      .allTextContents(),
+  ).toEqual(Array(13).fill('Мой бренд'));
+  expect(
+    await page.evaluate(async () => {
+      const families = [
+        'Manrope',
+        'Unbounded',
+        'Comfortaa',
+        'Play',
+        'Yeseva One',
+        'Commissioner',
+        'Dela Gothic One',
+        'Forum',
+        'IBM Plex Sans',
+        'PT Sans',
+        'PT Serif',
+        'Pacifico',
+        'Playfair Display',
+      ];
+      const loaded = await Promise.all(
+        families.map((family) =>
+          document.fonts.load(`700 20px "${family}"`, 'Мой бренд'),
+        ),
+      );
+      return loaded.every((faces) => faces.length > 0);
+    }),
+  ).toBe(true);
+  await expect(page.locator('#printColorSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+  await expect(page.locator('#ribbonColorSelect')).toHaveJSProperty(
+    'tagName',
+    'SELECT',
+  );
+  await expect(panel.locator('.mobile-products-ribbon-text-zone')).toHaveCSS(
+    'border-left-width',
+    '0px',
+  );
+
+  await stickerSample.click();
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('#mobileTextEditor')).toBeHidden();
+  await expect(page.locator('#mobileLogoEditor')).toBeHidden();
+  await expect(
+    panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]'),
+  ).toHaveAttribute('aria-label', 'Настроить ленту');
+  const hoverAction = panel
+    .locator('[data-mobile-products-safe-zone="ribbon-logo"]')
+    .locator('.mobile-products-zone-action');
+  await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').hover();
+  await expect(hoverAction).toBeHidden();
+  await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').click();
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
+
+  const stickerSurface = panel.locator('.mobile-products-sticker-sample');
+  const stickerBounds = await stickerSurface.boundingBox();
+  await stickerSurface.click({
+    position: { x: 4, y: stickerBounds.height / 2 },
+  });
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  const ribbonSurface = panel.locator('.mobile-products-ribbon-sample');
+  const ribbonBounds = await ribbonSurface.boundingBox();
+  await ribbonSurface.click({
+    position: { x: ribbonBounds.width - 4, y: ribbonBounds.height / 2 },
+  });
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
+
+  await page.locator('#fontPickerTrigger').click();
+  await page
+    .locator('#fontPickerList')
+    .getByRole('option', { name: 'Pacifico' })
+    .click();
+  await expect(page.locator('#fontSelect')).toHaveValue('Pacifico');
+  await expect(page.locator('#fontPickerPreview')).toHaveCSS(
+    'font-family',
+    'Pacifico',
+  );
+  await page.locator('#printColorSelect').selectOption('#b69249');
+  await page.locator('#ribbonColorSelect').selectOption('#b7202d');
+  await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
+  await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
+  await expect(stickerText).toHaveCSS('font-family', 'Manrope');
+  await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
+  await expect(page.locator('.mobile-products-ribbon-sample')).toHaveCSS(
+    'background-color',
+    'rgb(183, 32, 45)',
+  );
+
+  await stickerSample.click({ position: { x: 4, y: 4 } });
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#fontSelect')).toHaveValue('Manrope');
+  await expect(page.locator('#printColorSelect')).toHaveValue('#171717');
+
+  await page.locator('#fontSelect').selectOption('PT Serif');
+  await page.locator('#printColorSelect').selectOption('#c6c8cd');
+  await expect(stickerText).toHaveCSS('font-family', '"PT Serif"');
+  await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
+  await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
+  await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
+
+  await ribbonSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('#fontSelect')).toHaveValue('Pacifico');
+  await expect(page.locator('#printColorSelect')).toHaveValue('#b69249');
+  await expect(page.locator('#ribbonColorSelect')).toHaveValue('#b7202d');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('selected product owns the visible settings and manual transforms', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Мой бренд');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+
+  const panel = page.locator('.mobile-products-panel');
+  const ribbonSample = panel.locator('[data-mobile-product-sample="ribbon"]');
+  const stickerSample = panel.locator('[data-mobile-product-sample="sticker"]');
+  const readStyles = () =>
+    page
+      .locator('body')
+      .evaluate((body) => JSON.parse(body.dataset.studioProductStyles || '{}'));
+  const readLayout = () =>
+    page
+      .locator('body')
+      .evaluate((body) => JSON.parse(body.dataset.studioLayout || '{}'));
+  const setRange = (selector, value) =>
+    page.locator(selector).evaluate((input, nextValue) => {
+      input.value = String(nextValue);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+
+  await expect(panel).toHaveAttribute('data-mode', 'settings');
+  await expect(
+    page.locator('[data-products-host="settings"] #mobileProductsSlot'),
+  ).toHaveCount(1);
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
+  await expect(page.locator('#fontSelectLabel')).toContainText('ленте');
+  await expect(
+    page.locator('#layoutModeChoice [data-value="auto"]'),
+  ).toHaveClass(/active/);
+  await expect(page.locator('#logoOffsetY')).toBeDisabled();
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveCSS(
+    'color',
+    'rgb(23, 23, 23)',
+  );
+  await expect
+    .poll(async () => {
+      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#171717');
+  await page.locator('#printColorSelect').selectOption('#b69249');
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveCSS(
+    'color',
+    'rgb(182, 146, 73)',
+  );
+  await expect
+    .poll(async () => {
+      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
+    })
+    .toContain('#b69249');
+  await page.locator('#printColorSelect').selectOption('#171717');
+
+  const automaticRibbon = (await readLayout()).ribbon;
+  const initialRepeat = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+  );
+  const manualRepeat = Math.min(250, initialRepeat + 30);
+  await page.locator('#layoutModeChoice [data-value="manual"]').click();
+  await expect(page.locator('#logoOffsetY')).toBeEnabled();
+  await setRange('#textOffsetX', manualRepeat);
+  const intervalRibbon = (await readLayout()).ribbon;
+  const automaticTextOffsetMm =
+    (automaticRibbon.textBox.x + automaticRibbon.textBox.width / 2 - 0.5) *
+    initialRepeat;
+  const intervalTextOffsetMm =
+    (intervalRibbon.textBox.x + intervalRibbon.textBox.width / 2 - 0.5) *
+    manualRepeat;
+  expect(intervalTextOffsetMm).toBeCloseTo(automaticTextOffsetMm, 1);
+  await setRange('#logoScale', 60);
+  await setRange('#logoOffsetY', 40);
+  await setRange('#textOffsetY', -25);
+  await setRange('#fontSize', 40);
+
+  let styles = await readStyles();
+  expect(styles.ribbon).toMatchObject({
+    layoutMode: 'manual',
+    logoScale: 0.6,
+    logoOffsetY: 40,
+    textOffsetX: 0,
+    textOffsetY: -25,
+    fontSize: 40,
+  });
+  expect(styles.sticker.layoutMode).toBe('auto');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-repeat-mm',
+    String(manualRepeat),
+  );
+  const manualRibbon = (await readLayout()).ribbon;
+  expect(manualRibbon.logoBox.y).not.toBe(automaticRibbon.logoBox.y);
+  expect(manualRibbon.logoBox.x).toBeGreaterThanOrEqual(
+    manualRibbon.printable.x - 0.001,
+  );
+  expect(manualRibbon.logoBox.y).toBeGreaterThanOrEqual(
+    manualRibbon.printable.y - 0.001,
+  );
+
+  if (testInfo.project.name === 'mobile') {
+    const mobileGeometry = await panel
+      .locator('.mobile-products-ribbon-sample')
+      .evaluate((surface) => {
+        const interaction = surface.querySelector(
+          '.mobile-products-ribbon-interaction-cell',
+        );
+        const interactionBounds = interaction.getBoundingClientRect();
+        const normalize = (selector) => {
+          const bounds = surface
+            .querySelector(selector)
+            .getBoundingClientRect();
+          return {
+            x: (bounds.left - interactionBounds.left) / interactionBounds.width,
+            y: (bounds.top - interactionBounds.top) / interactionBounds.height,
+            width: bounds.width / interactionBounds.width,
+            height: bounds.height / interactionBounds.height,
+          };
+        };
+        const layout = JSON.parse(surface.dataset.layout);
+        return {
+          layout,
+          logo: normalize('[data-mobile-products-safe-zone="ribbon-logo"]'),
+          text: normalize('[data-mobile-products-safe-zone="ribbon-text"]'),
+          logoArtwork: normalize('.mobile-products-ribbon-logo'),
+          textArtwork: normalize('.mobile-products-ribbon-text'),
+        };
+      });
+
+    const center = (box, axis, size) => box[axis] + box[size] / 2;
+    for (const [mask, artwork, layoutBox] of [
+      [
+        mobileGeometry.logo,
+        mobileGeometry.logoArtwork,
+        mobileGeometry.layout.logoBox,
+      ],
+      [
+        mobileGeometry.text,
+        mobileGeometry.textArtwork,
+        mobileGeometry.layout.textBox,
+      ],
+    ]) {
+      expect(center(mask, 'x', 'width')).toBeCloseTo(
+        center(layoutBox, 'x', 'width'),
+        2,
+      );
+      expect(center(mask, 'y', 'height')).toBeCloseTo(
+        center(layoutBox, 'y', 'height'),
+        2,
+      );
+      expect(mask.width).toBeCloseTo(artwork.width, 2);
+      expect(mask.height).toBeCloseTo(artwork.height, 2);
+    }
+  }
+
+  await stickerSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
+  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#fontSelectLabel')).toContainText('стикере');
+  await expect(
+    page.locator('#layoutModeChoice [data-value="auto"]'),
+  ).toHaveClass(/active/);
+  await page.locator('#layoutModeChoice [data-value="manual"]').click();
+  await setRange('#textOffsetY', -30);
+  await setRange('#logoOffsetX', 25);
+  styles = await readStyles();
+  expect(styles.sticker).toMatchObject({
+    layoutMode: 'manual',
+    textOffsetY: -30,
+    logoOffsetX: 25,
+  });
+  expect(styles.ribbon.logoOffsetY).toBe(40);
+
+  await ribbonSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('#logoOffsetY')).toHaveValue('40');
+  await expect(page.locator('#textOffsetX')).toHaveValue(String(manualRepeat));
+  await expect(page.locator('#textOffsetXLabel')).toHaveText(
+    'Интервал между повторами, мм',
+  );
+
+  if (testInfo.project.name === 'mobile') {
+    const isFloating = await panel.evaluate((element) =>
+      element.classList.contains('is-floating'),
+    );
+    if (
+      isFloating &&
+      !(await panel.evaluate((element) =>
+        element.classList.contains('is-expanded'),
+      ))
+    ) {
+      await page.locator('#mobileProductsDockToggle').click();
+      await expect(panel).toHaveClass(/is-expanded/);
+    }
+    await panel.evaluate((element) =>
+      Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+    );
+    const logoZone = panel.locator(
+      '[data-mobile-products-safe-zone="ribbon-logo"]',
+    );
+    await expect(logoZone).toBeVisible();
+    const dragBaseline = 120;
+    await setRange('#logoOffsetX', dragBaseline);
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-ribbon-repeat-mm',
+      String(dragBaseline),
+    );
+    const repeatBeforeDrag = Number(
+      await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+    );
+    const bounds = await logoZone.boundingBox();
+    await page.mouse.move(
+      bounds.x + bounds.width / 2,
+      bounds.y + bounds.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      bounds.x + bounds.width / 2 + 18,
+      bounds.y + bounds.height / 2 + 5,
+      { steps: 4 },
+    );
+    await page.mouse.up();
+    await expect
+      .poll(async () =>
+        Number(
+          await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+        ),
+      )
+      .toBeGreaterThan(repeatBeforeDrag);
+    expect((await readStyles()).ribbon.logoOffsetX).toBe(0);
+  }
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile product switches control the static previews', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') runtimeErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const panel = page.locator('.mobile-products-panel');
+  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
+  const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
+  const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
+  const stickerSample = page.locator('[data-mobile-product-sample="sticker"]');
+
+  await expect(panel).toBeVisible();
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(ribbonSample).toBeVisible();
+  await expect(stickerSample).toBeVisible();
+
+  await ribbonSwitch.uncheck();
+  await expect(ribbonSample).toBeHidden();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-ribbon',
+    'false',
+  );
+  await stickerSwitch.uncheck();
+  await expect(stickerSwitch).not.toBeChecked();
+  await expect(ribbonSwitch).toBeChecked();
+
+  await stickerSwitch.check();
+  await completeFirstStepWithText(page);
+  await openSettings(page);
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+
+  await ribbonSwitch.uncheck();
+  await expect(ribbonSample).toBeHidden();
+  await expect(stickerSample).toBeVisible();
+
+  await stickerSwitch.uncheck();
+  await expect(stickerSwitch).not.toBeChecked();
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSample).toBeHidden();
+  await expect(ribbonSample).toBeVisible();
+
+  await ribbonSwitch.uncheck();
+  await expect(ribbonSwitch).not.toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(ribbonSample).toBeHidden();
+  await expect(stickerSample).toBeVisible();
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+        document.documentElement.clientWidth ||
+      document.body.scrollWidth > document.body.clientWidth,
+  );
+
+  expect(hasHorizontalOverflow).toBe(false);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('mobile product switches control order quantities and price @smoke', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await openSettings(page);
+
+  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
+  const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
+  const meters = page.locator('#meters');
+  const stickerQty = page.locator('#stickerQty');
+  const totalPrice = page.locator('#totalPrice');
+
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+  await expect(meters).toHaveValue('100');
+  await expect(stickerQty).toHaveValue('100');
+  await expect(totalPrice).toHaveText(/1\s790\s₽/);
+
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await meters.selectOption('25');
+  await stickerQty.selectOption('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await ribbonSwitch.uncheck();
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(meters).toHaveValue('0');
+  await expect(meters).toBeDisabled();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(page.locator('#orderRibbon')).toContainText('0 м');
+  await expect(totalPrice).toHaveText(/1\s350\s₽/);
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-ribbon',
+    'false',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
+  await expect(ribbonSwitch).not.toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(meters).toHaveValue('0');
+  await ribbonSwitch.check();
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(meters).toHaveValue('25');
+  await expect(meters).toBeEnabled();
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await stickerSwitch.uncheck();
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(stickerQty).toHaveValue('0');
+  await expect(stickerQty).toBeDisabled();
+  await expect(meters).toHaveValue('25');
+  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
+  await expect(totalPrice).toHaveText(/590\s₽/);
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'false',
+  );
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await openSettings(page);
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).not.toBeChecked();
+  await stickerSwitch.check();
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(stickerQty).toBeEnabled();
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await ribbonSwitch.uncheck();
+  await stickerSwitch.uncheck();
+  await expect(ribbonSwitch).toBeChecked();
+  await expect(stickerSwitch).not.toBeChecked();
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'false',
+  );
+  await expect(meters).toHaveValue('25');
+  await expect(stickerQty).toHaveValue('0');
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('order product controls remove, restore, and persist products', async ({
+  page,
+}, testInfo) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('.nav-item[data-panel="order"]').click();
+
+  const body = page.locator('body');
+  const meters = page.locator('#meters');
+  const stickerQty = page.locator('#stickerQty');
+  const totalPrice = page.locator('#totalPrice');
+  const ribbonButton = page.locator('#toggleOrderRibbon');
+  const stickerButton = page.locator('#toggleOrderSticker');
+  const notice = page.locator('#orderProductNotice');
+
+  await expect(ribbonButton).toBeVisible();
+  await expect(stickerButton).toBeVisible();
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeEnabled();
+  await expect(stickerButton).toBeEnabled();
+  await expect(notice).toHaveText(
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(notice).toBeHidden();
+
+  await meters.selectOption('25');
+  await stickerQty.selectOption('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+
+  await ribbonButton.click();
+  await expect(meters).toHaveValue('0');
+  await expect(page.locator('#orderRibbon')).toContainText('0 м');
+  await expect(totalPrice).toHaveText(/1\s350\s₽/);
+  await expect(ribbonButton).toHaveText('Добавить');
+  await expect(ribbonButton).toBeEnabled();
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(stickerButton).toBeDisabled();
+  await expect(stickerButton).toHaveAttribute(
+    'title',
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(stickerButton).toHaveAttribute(
+    'aria-describedby',
+    'orderProductNotice',
+  );
+  await expect(notice).toBeVisible();
+  await expect(body).toHaveAttribute('data-has-ribbon', 'false');
+  await expect(body).toHaveAttribute('data-has-sticker', 'true');
+  if (testInfo.project.name === 'mobile')
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+
+  await ribbonButton.click();
+  await expect(meters).toHaveValue('25');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(stickerButton).toBeEnabled();
+  await expect(notice).toBeHidden();
+
+  await stickerButton.click();
+  await expect(stickerQty).toHaveValue('0');
+  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
+  await expect(totalPrice).toHaveText(/590\s₽/);
+  await expect(stickerButton).toHaveText('Добавить');
+  await expect(stickerButton).toBeEnabled();
+  await expect(ribbonButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeDisabled();
+  await expect(ribbonButton).toHaveAttribute(
+    'title',
+    'В заказе должен остаться хотя бы один продукт.',
+  );
+  await expect(ribbonButton).toHaveAttribute(
+    'aria-describedby',
+    'orderProductNotice',
+  );
+  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(body).toHaveAttribute('data-has-sticker', 'false');
+  if (testInfo.project.name === 'mobile')
+    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(meters).toHaveValue('25');
+  await expect(stickerQty).toHaveValue('0');
+  await expect(ribbonButton).toBeDisabled();
+  await expect(stickerButton).toHaveText('Добавить');
+  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(body).toHaveAttribute('data-has-sticker', 'false');
+
+  await stickerButton.click();
+  await expect(stickerQty).toHaveValue('250');
+  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(stickerButton).toHaveText('Убрать');
+  await expect(ribbonButton).toBeEnabled();
+
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('order dialog validates contact and downloads an accessible request @smoke', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+  await page.locator('#panel-settings .next-panel').click();
+
+  const openOrder = page.locator('#openOrder');
+  await openOrder.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Сформировать заявку' });
+  const customerName = page.getByLabel('Имя');
+  const customerPhone = page.getByLabel('Телефон');
+  const downloadOrder = page.getByRole('button', { name: 'Скачать заявку' });
+  await expect(dialog).toBeVisible();
+  await expect(customerName).toBeFocused();
+
+  await customerName.fill('Максим');
+  await downloadOrder.click();
+  await expect(page.locator('#orderFormStatus')).toHaveText(
+    'Укажите телефон или Telegram.',
+  );
+  await expect(customerPhone).toBeFocused();
+
+  await customerPhone.fill('+7 900 000-00-00');
+  const downloadPromise = page.waitForEvent('download');
+  await downloadOrder.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(
+    'zayavka-studio-pechataet-maksim.txt',
+  );
+  await expect(page.locator('#orderFormStatus')).toContainText(
+    'Заявка скачана.',
+  );
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(openOrder).toBeFocused();
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});

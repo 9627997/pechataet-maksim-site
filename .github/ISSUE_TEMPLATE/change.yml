@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Перед заполнением проверьте `docs/WORK_QUEUE.md` и возьмите следующий свободный номер нужной категории.
+        Перед заполнением проверьте существующие GitHub Issues, чтобы не создать дубликат.
 
   - type: dropdown
     id: area
@@ -77,5 +77,5 @@ body:
     attributes:
       label: Подтверждение
       options:
-        - label: Я проверил(а), что задача не дублирует пункт в WORK_QUEUE.
+        - label: Я проверил(а), что задача не дублирует существующий GitHub Issue.
           required: true

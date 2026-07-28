@@ -24,13 +24,14 @@ Studio: `http://127.0.0.1:4173/studio/`
 ## Проверки
 
 ```bash
-npm run docs:check
-npm run lint
-npm run format:check
-npm test
+npm run check:fast
+npm run check:pr
+npm run check:full
 ```
 
-Playwright проверяет мобильную ширину `390 px` и настольную `1440 px`.
+`check:fast` предназначен для локального цикла, `check:pr` — для Pull Request,
+а `check:full` — для полного regression. Playwright проверяет мобильную ширину
+`390 px` и настольную `1440 px`.
 
 ## Текущее ограничение заявок
 
@@ -39,8 +40,6 @@ Playwright проверяет мобильную ширину `390 px` и нас
 ## Документация
 
 - [Быстрый контекст проекта для разработчика и ChatGPT](docs/PROJECT_CONTEXT.md)
-- [Текущее состояние и передача работы](docs/CURRENT_STATUS.md)
-- [Рабочая очередь](docs/WORK_QUEUE.md)
 - [Журнал решений](docs/DECISIONS.md)
 - [Шаблон задачи](docs/TASK_TEMPLATE.md)
 - [Архитектура](docs/ARCHITECTURE.md)

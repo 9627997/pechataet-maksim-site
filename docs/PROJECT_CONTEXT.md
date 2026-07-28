@@ -12,21 +12,22 @@ ChatGPT/Codex. Его задача — дать рабочее понимани�
 
 1. `AGENTS.md` — обязательные правила работы, проверок, commit и публикации.
 2. Этот файл — карта кода и поток данных.
-3. `docs/CURRENT_STATUS.md` — production-версия, активная работа и известные
-   проблемы на текущий момент.
-4. `docs/WORK_QUEUE.md` — активная задача и порядок следующих работ.
-5. `docs/DECISIONS.md` — ранее согласованные продуктовые и технические решения.
-6. `docs/UX_RULES.md` — неизменяемые правила интерфейса.
-7. `docs/ARCHITECTURE.md` — подробности текущей архитектуры и риски.
-8. `docs/ROADMAP.md` и `TODO.md` — приоритеты, но их актуальность нужно сверять
+3. Связанные записи `docs/DECISIONS.md` — согласованные продуктовые и
+   технические решения.
+4. `docs/UX_RULES.md` — неизменяемые правила интерфейса, если задача влияет на
+   пользовательский путь.
+5. GitHub Issue или Pull Request текущей задачи — статус, критерии и передача.
+6. `docs/ARCHITECTURE.md` — подробности текущей архитектуры и риски.
+7. `docs/ROADMAP.md` и `TODO.md` — долгосрочные приоритеты, актуальность которых
+   нужно сверять
    с владельцем проекта и последними commit.
 
 Новый диалог с ChatGPT можно начинать так:
 
-> Открой `AGENTS.md`, `docs/PROJECT_CONTEXT.md` и
-> `docs/CURRENT_STATUS.md`, затем проверь актуальную ветку и последние commit.
-> Сначала опиши понимание задачи и затрагиваемые файлы. Ничего не публикуй без
-> отдельной команды.
+> Открой `AGENTS.md` и `docs/PROJECT_CONTEXT.md`, проверь актуальную ветку,
+> рабочее дерево и связанный GitHub Issue. Реализуй задачу, выполни указанные
+> проверки и обнови проектный контекст только при изменении устройства проекта.
+> Ничего не публикуй без отдельной команды.
 
 ## Что представляет собой проект
 
@@ -303,20 +304,35 @@ npm run dev
 ## Проверки
 
 ```bash
-npm run docs:check
-npm run format:check
-npm run lint
+npm run check:fast
+npm run check:pr
+npm run check:full
+npm run test:smoke
+npm run test:studio-content
+npm run test:studio-settings
+npm run test:studio-mobile
+npm run test:studio-production
 npm run test:mobile
 npm run test:desktop
 npm test
 ```
+
+- `check:fast` форматирует и проверяет только изменённые файлы, не запускает
+  браузер;
+- `check:pr` выполняет общую проверку, сборку artifact и критические сценарии
+  `@smoke`;
+- `check:full` выполняет весь regression и используется отдельным workflow;
+- тематические команды позволяют проверять только затронутую часть Studio.
 
 Playwright-конфигурация:
 
 - mobile: `390 × 844`;
 - desktop: `1440 × 900`;
 - Chromium;
-- тесты: `tests/site.smoke.spec.js` и `tests/studio.smoke.spec.js`.
+- общие helpers: `tests/helpers/studio.js`;
+- сценарии: `tests/site.smoke.spec.js`, `tests/studio-content.spec.js`,
+  `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js` и
+  `tests/studio-production.spec.js`.
 
 После изменения Studio обязательно проверить:
 
@@ -344,17 +360,20 @@ Playwright-конфигурация:
   `scripts/check-project-docs.mjs` / `npm run docs:check`;
 - шаблон PR: `.github/pull_request_template.md`;
 - шаблон GitHub Issue: `.github/ISSUE_TEMPLATE/change.yml`;
-- очередь задач: `docs/WORK_QUEUE.md`;
+- текущая работа и её статус: GitHub Issues/Projects;
 - журнал устойчивых решений: `docs/DECISIONS.md`;
 - deployment: `.github/workflows/deploy-reg-ru.yml`;
+- полный regression: `.github/workflows/full-regression.yml`;
 - публичный deployment artifact создаёт
   `scripts/build-deploy.mjs` / `npm run build:deploy`;
 - generated-каталог `_site/` содержит только публичные страницы и runtime-ресурсы
   и не хранится в Git;
 - каждый artifact содержит `version.json` с точным commit и временем сборки;
 - merge/push в `main` публикует статические файлы на REG.RU;
-- deployment повторно выполняет документационные, форматирующие, lint и
-  Playwright-проверки до настройки SSH и синхронизации сервера;
+- обязательный Pull Request один раз выполняет `check:pr`;
+- deployment не повторяет lint и Playwright: он собирает artifact, публикует и
+  проверяет production;
+- полный regression запускается вручную и по расписанию в рабочие дни;
 - workflow сохраняет artifact на 14 дней, синхронизирует его с production и
   проверяет commit в `version.json`, главную, Studio, `robots.txt` и sitemap;
 - production deployment выполняются последовательно; новая публикация не
@@ -364,7 +383,8 @@ Playwright-конфигурация:
 - прежние публичные URL `constructor.html` и
   `ribbon-studio-design-system-v1.html` сохраняются в artifact только как
   переходы на актуальную `/studio/`, без исторического runtime;
-- workflow deployment также поддерживает ручной `workflow_dispatch`.
+- workflow deployment также поддерживает ручной `workflow_dispatch` и связан с
+  GitHub Environment `production`.
 
 Секреты REG.RU находятся в GitHub Actions. Их нельзя копировать в код,
 документацию, сообщения или локальные `.env`.
@@ -379,8 +399,7 @@ Playwright-конфигурация:
 4. `docs/UX_RULES.md`;
 5. `docs/DECISIONS.md`;
 6. этот файл и `docs/ARCHITECTURE.md`;
-7. `docs/WORK_QUEUE.md`, `docs/ROADMAP.md`, `TODO.md`, changelog и исторические
-   заметки.
+7. `docs/ROADMAP.md`, `TODO.md`, changelog и исторические заметки.
 
 Если документация расходится с кодом, сначала подтвердить фактическое поведение,
 затем исправить документацию в той же задаче.
@@ -389,7 +408,8 @@ Playwright-конфигурация:
 
 - каждый участник начинает новую задачу от свежего `origin/main`;
 - один участник — одна ветка;
-- каждый участник берёт отдельный номер из `docs/WORK_QUEUE.md`;
+- каждый участник берёт отдельный GitHub Issue или явно ограниченную локальную
+  задачу;
 - не редактировать одновременно один участок `app.js` без согласования;
 - не менять state shape, события или геометрию молча;
 - не смешивать рефакторинг и изменение UX в одном commit;
@@ -444,6 +464,5 @@ Playwright-конфигурация:
 Мелкие стили, исправления текста и внутренний рефакторинг без изменения карты
 проекта обновления этого файла не требуют.
 
-Текущую production-версию, активную работу, ближайшие шаги и известные проблемы
-фиксировать в `docs/CURRENT_STATUS.md`, не перегружая ими устойчивую карту
-архитектуры.
+Текущую работу, ближайшие шаги, блокировки и передачу фиксировать в GitHub
+Issue или Pull Request, не перегружая ими устойчивую карту архитектуры.
