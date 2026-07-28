@@ -1,0 +1,6 @@
+RewriteEngine On
+
+RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+RewriteCond %{HTTP_HOST} !^xn--80aaarctnodv3agc9d\.xn--p1ai(?::443)?$ [NC,OR]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://xn--80aaarctnodv3agc9d.xn--p1ai%{REQUEST_URI} [R=301,L,NE]

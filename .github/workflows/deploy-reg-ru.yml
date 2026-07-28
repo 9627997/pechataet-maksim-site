@@ -95,8 +95,24 @@ jobs:
           canonical_target="https://${canonical_host}/studio/?redirect-check=1"
 
           while read -r source expected_redirects; do
+            initial_status="$(
+              curl --silent --show-error \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                "${source}/studio/?redirect-check=1"
+            )"
+            expected_status="301"
+            if [ "${expected_redirects}" = "0" ]; then
+              expected_status="200"
+            fi
+
+            if [ "${initial_status}" != "${expected_status}" ]; then
+              echo "Unexpected initial status for ${source}: ${initial_status}" >&2
+              exit 1
+            fi
+
             result="$(
-              curl --silent --show-error --location --max-redirs 2 \
+              curl --silent --show-error --location --max-redirs 8 \
                 --output /dev/null \
                 --write-out '%{http_code} %{url_effective} %{num_redirects}' \
                 "${source}/studio/?redirect-check=1"

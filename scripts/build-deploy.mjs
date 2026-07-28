@@ -14,6 +14,7 @@ const repositoryRoot = resolve(import.meta.dirname, '..');
 const outputRoot = resolve(repositoryRoot, '_site');
 
 const publicEntries = [
+  '.htaccess',
   'index.html',
   'robots.txt',
   'sitemap.xml',
@@ -27,6 +28,7 @@ const publicEntries = [
 ];
 
 const requiredOutput = [
+  '.htaccess',
   'constructor.html',
   'index.html',
   'robots.txt',

@@ -375,6 +375,9 @@ Playwright-конфигурация:
   `scripts/build-deploy.mjs` / `npm run build:deploy`;
 - generated-каталог `_site/` содержит только публичные страницы и runtime-ресурсы
   и не хранится в Git;
+- корневой `.htaccess` входит в artifact и выполняет единый прямой 301 с HTTP и
+  `www` на канонический HTTPS-домен; встроенные редиректы сайта в ISPmanager
+  должны оставаться выключенными, чтобы не создавать цепочки;
 - каждый artifact содержит `version.json` с точным commit и временем сборки;
 - merge/push в `main` публикует статические файлы на REG.RU;
 - обязательный Pull Request один раз выполняет `check:pr`;
