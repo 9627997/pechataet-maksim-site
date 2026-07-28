@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { access, cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  access,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
@@ -108,6 +116,30 @@ async function assertArtifact() {
     throw new Error(
       `В deployment artifact попали служебные файлы: ${forbiddenEntries.join(', ')}`,
     );
+  }
+
+  const [indexHtml, studioHtml, robots, sitemap] = await Promise.all([
+    readFile(resolve(outputRoot, 'index.html'), 'utf8'),
+    readFile(resolve(outputRoot, 'studio/index.html'), 'utf8'),
+    readFile(resolve(outputRoot, 'robots.txt'), 'utf8'),
+    readFile(resolve(outputRoot, 'sitemap.xml'), 'utf8'),
+  ]);
+
+  const canonicalHost = 'https://печатаетмаксим.рф';
+  const seoRequirements = [
+    [indexHtml, `<link rel="canonical" href="${canonicalHost}/">`],
+    [studioHtml, `<link rel="canonical" href="${canonicalHost}/studio/">`],
+    [robots, `Sitemap: ${canonicalHost}/sitemap.xml`],
+    [sitemap, `<loc>${canonicalHost}/</loc>`],
+    [sitemap, `<loc>${canonicalHost}/studio/</loc>`],
+  ];
+
+  for (const [content, requiredText] of seoRequirements) {
+    if (!content.includes(requiredText)) {
+      throw new Error(
+        `Deployment artifact не содержит обязательное SEO-значение: ${requiredText}`,
+      );
+    }
   }
 }
 

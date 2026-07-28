@@ -49,6 +49,64 @@ test('local styles and scripts use deployment cache versions @smoke', async ({
   }
 });
 
+test('public pages expose canonical SEO metadata and valid structured data @smoke', async ({
+  page,
+}) => {
+  const expected = [
+    {
+      path: '/',
+      canonical: 'https://печатаетмаксим.рф/',
+      title: 'Печать лент и наклеек с логотипом — Печатает Максим',
+    },
+    {
+      path: '/studio/',
+      canonical: 'https://печатаетмаксим.рф/studio/',
+      title: 'Конструктор лент и наклеек с логотипом — Печатает Максим',
+    },
+  ];
+
+  for (const entry of expected) {
+    await page.goto(entry.path, { waitUntil: 'networkidle' });
+
+    await expect(page).toHaveTitle(entry.title);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      entry.canonical,
+    );
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      /.+/,
+    );
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      /index,follow/,
+    );
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+      'content',
+      entry.canonical,
+    );
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      /^https:\/\/печатаетмаксим\.рф\//,
+    );
+
+    const structuredData = await page
+      .locator('script[type="application/ld+json"]')
+      .allTextContents();
+    expect(structuredData.length).toBeGreaterThan(0);
+    for (const item of structuredData) {
+      expect(() => JSON.parse(item)).not.toThrow();
+    }
+  }
+
+  const robots = await (await page.request.get('/robots.txt')).text();
+  expect(robots).toContain('Sitemap: https://печатаетмаксим.рф/sitemap.xml');
+
+  const sitemap = await (await page.request.get('/sitemap.xml')).text();
+  expect(sitemap).toContain('<loc>https://печатаетмаксим.рф/</loc>');
+  expect(sitemap).toContain('<loc>https://печатаетмаксим.рф/studio/</loc>');
+});
+
 test('landing page is responsive and downloads an honest request @smoke', async ({
   page,
 }) => {
@@ -56,6 +114,8 @@ test('landing page is responsive and downloads an honest request @smoke', async 
   await page.goto('/', { waitUntil: 'networkidle' });
 
   await expect(page.locator('h1')).toHaveCount(1);
+  await expect(page.locator('#region')).toContainText('Нижневартовск');
+  await expect(page.locator('#region')).toContainText('ХМАО');
   await expectNoHorizontalOverflow(page);
 
   const form = page.locator('#contact-form');

@@ -91,6 +91,32 @@ jobs:
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/sitemap.xml" >/dev/null
 
+          canonical_host="xn--80aaarctnodv3agc9d.xn--p1ai"
+          canonical_target="https://${canonical_host}/studio/?redirect-check=1"
+
+          while read -r source expected_redirects; do
+            result="$(
+              curl --silent --show-error --location --max-redirs 2 \
+                --output /dev/null \
+                --write-out '%{http_code} %{url_effective} %{num_redirects}' \
+                "${source}/studio/?redirect-check=1"
+            )"
+
+            if [ "${result}" != "200 ${canonical_target} ${expected_redirects}" ]; then
+              echo "Unexpected redirect for ${source}: ${result}" >&2
+              exit 1
+            fi
+          done <<EOF
+          http://${canonical_host} 1
+          https://${canonical_host} 0
+          http://www.${canonical_host} 1
+          https://www.${canonical_host} 1
+          http://print86.ru 1
+          https://print86.ru 1
+          http://www.print86.ru 1
+          https://www.print86.ru 1
+          EOF
+
           for legacy_path in \
             constructor.html \
             ribbon-studio-design-system-v1.html
