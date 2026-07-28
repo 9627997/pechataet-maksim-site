@@ -3,7 +3,12 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/**', 'playwright-report/**', 'test-results/**'],
+    ignores: [
+      '_site/**',
+      'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
+    ],
   },
   {
     files: ['studio/**/*.js'],
@@ -15,7 +20,12 @@ export default [
     rules: {},
   },
   {
-    files: ['*.config.js', 'eslint.config.js', 'tests/**/*.js'],
+    files: [
+      '*.config.js',
+      'eslint.config.js',
+      'scripts/**/*.mjs',
+      'tests/**/*.js',
+    ],
     ...eslint.configs.recommended,
     languageOptions: {
       ecmaVersion: 'latest',

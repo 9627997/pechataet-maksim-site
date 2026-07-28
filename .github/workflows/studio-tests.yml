@@ -21,12 +21,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Node.js LTS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 'lts/*'
           cache: npm
@@ -37,6 +37,9 @@ jobs:
 
       - name: Check project documentation
         run: npm run docs:check
+
+      - name: Build public deployment artifact
+        run: npm run build:deploy
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
@@ -55,7 +58,7 @@ jobs:
 
       - name: Upload Playwright artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: studio-playwright-failure-${{ github.run_id }}
           path: |

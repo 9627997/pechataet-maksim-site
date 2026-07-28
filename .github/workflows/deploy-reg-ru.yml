@@ -11,16 +11,58 @@ permissions:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy static site
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Check project documentation
+        run: npm run docs:check
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mobile Studio smoke test
+        run: npm run test:mobile
+
+      - name: Run desktop Studio smoke test
+        run: npm run test:desktop
+
+      - name: Build public deployment artifact
+        run: npm run build:deploy
+
+      - name: Save deployment artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-site-${{ github.sha }}
+          path: _site/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Configure SSH
         shell: bash
@@ -33,13 +75,63 @@ jobs:
       - name: Upload site to REG.RU
         shell: bash
         run: |
-          rsync -az \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.gitignore' \
-            --exclude='.gitattributes' \
-            --exclude='README.md' \
-            --exclude='SPEC.md' \
-            --exclude='TODO.md' \
+          rsync -az --delete-delay --delay-updates \
+            --exclude='.well-known/' \
             -e "ssh -i ~/.ssh/deploy_key" \
-            ./ "${{ secrets.USERNAME }}@${{ secrets.HOST }}:/var/www/u2767403/data/www/xn--80aaarctnodv3agc9d.xn--p1ai/"
+            ./_site/ "${{ secrets.USERNAME }}@${{ secrets.HOST }}:/var/www/u2767403/data/www/xn--80aaarctnodv3agc9d.xn--p1ai/"
+
+      - name: Verify production version and routes
+        shell: bash
+        env:
+          PRODUCTION_URL: https://xn--80aaarctnodv3agc9d.xn--p1ai
+        run: |
+          version_json="$(
+            curl --fail --location \
+              --retry 6 --retry-delay 5 --retry-all-errors \
+              "${PRODUCTION_URL}/version.json?commit=${GITHUB_SHA}"
+          )"
+          deployed_sha="$(
+            VERSION_JSON="${version_json}" node -e \
+              "process.stdout.write(JSON.parse(process.env.VERSION_JSON).commit)"
+          )"
+
+          if [ "${deployed_sha}" != "${GITHUB_SHA}" ]; then
+            echo "Expected ${GITHUB_SHA}, received ${deployed_sha}" >&2
+            exit 1
+          fi
+
+          curl --fail --location --retry 3 "${PRODUCTION_URL}/" >/dev/null
+          curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
+          curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
+          curl --fail --location --retry 3 "${PRODUCTION_URL}/sitemap.xml" >/dev/null
+
+          for legacy_path in \
+            constructor.html \
+            ribbon-studio-design-system-v1.html
+          do
+            legacy_html="$(
+              curl --fail --location --retry 3 \
+                "${PRODUCTION_URL}/${legacy_path}"
+            )"
+            if ! grep -q 'url=/studio/' <<<"${legacy_html}"; then
+              echo "Legacy path /${legacy_path} does not redirect to /studio/" >&2
+              exit 1
+            fi
+          done
+
+          for private_path in \
+            docs/PROJECT_CONTEXT.md \
+            tests/studio.smoke.spec.js \
+            studio/README.txt \
+            studio/components/shared/state.js
+          do
+            status="$(
+              curl --location --silent --output /dev/null \
+                --write-out '%{http_code}' \
+                "${PRODUCTION_URL}/${private_path}"
+            )"
+            if [ "${status}" != "403" ] && [ "${status}" != "404" ]; then
+              echo "Private path /${private_path} returned HTTP ${status}" >&2
+              exit 1
+            fi
+          done
