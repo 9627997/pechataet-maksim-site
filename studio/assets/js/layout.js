@@ -64,7 +64,10 @@
 
     if (hasLogo && hasText) {
       const gap = bounds.width * 0.04;
-      const logoWidth = bounds.width * 0.42;
+      const logoWidth = Math.min(
+        bounds.width * 0.72,
+        logo.ratio * bounds.height,
+      );
       const textWidth = bounds.width - logoWidth - gap;
       const logoBounds = {...bounds, width: logoWidth};
       const source = logo.ratio >= 1

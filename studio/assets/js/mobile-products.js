@@ -59,6 +59,7 @@
       const zone = document.createElement('button');
       const image = document.createElement('img');
       const action = document.createElement('span');
+      const frame = document.createElement('span');
       zone.type = 'button';
       zone.className = `mobile-products-${product}-logo-zone`;
       zone.dataset.mobileProductsSafeZone = `${product}-logo`;
@@ -66,6 +67,8 @@
       image.alt = '';
       action.className = 'mobile-products-zone-action';
       action.dataset.placeholderKind = 'logo';
+      frame.className = 'mobile-products-object-frame';
+      frame.setAttribute('aria-hidden', 'true');
       zone.addEventListener('click', () => {
         if (zone.dataset.suppressClick === 'true') {
           zone.dataset.suppressClick = 'false';
@@ -83,20 +86,23 @@
         }
         requestProductSettings(product);
       });
-      zone.append(image, action);
-      return { zone, image, action };
+      zone.append(image, action, frame);
+      return { zone, image, action, frame };
     };
 
     const createTextZone = (product) => {
       const zone = document.createElement('button');
       const text = document.createElement('span');
       const action = document.createElement('span');
+      const frame = document.createElement('span');
       zone.type = 'button';
       zone.className = `mobile-products-${product}-text-zone`;
       zone.dataset.mobileProductsSafeZone = `${product}-text`;
       text.className = `mobile-products-${product}-text`;
       action.className = 'mobile-products-zone-action';
       action.dataset.placeholderKind = 'text';
+      frame.className = 'mobile-products-object-frame';
+      frame.setAttribute('aria-hidden', 'true');
       zone.addEventListener('click', () => {
         if (zone.dataset.suppressClick === 'true') {
           zone.dataset.suppressClick = 'false';
@@ -109,8 +115,8 @@
         }
         requestProductSettings(product);
       });
-      zone.append(text, action);
-      return { zone, text, action };
+      zone.append(text, action, frame);
+      return { zone, text, action, frame };
     };
 
     const ribbonLogo = createLogoZone('ribbon');
@@ -199,7 +205,11 @@
             item.dataset.mobileProductSample === productSwitch.dataset.mobileProduct,
         );
 
-        if (sample) sample.hidden = !productSwitch.checked;
+        if (sample) {
+          sample.hidden = false;
+          sample.classList.toggle('is-product-disabled', !productSwitch.checked);
+          sample.setAttribute('aria-disabled', String(!productSwitch.checked));
+        }
       });
     };
 
@@ -352,10 +362,16 @@
         productStyles = {};
       }
       const commonText = document.querySelector('#textInput')?.value || '';
-      const ribbonTextValue =
-        contentTextState?.ribbon?.resolved ?? commonText;
-      const stickerTextValue =
-        contentTextState?.sticker?.resolved ?? commonText;
+      const demoArtwork =
+        panelMode === 'upload' &&
+        document.body.dataset.previewDemo === 'true';
+      const demoText = document.body.dataset.previewDemoText || 'ленты по любви';
+      const ribbonTextValue = demoArtwork
+        ? demoText
+        : contentTextState?.ribbon?.resolved ?? commonText;
+      const stickerTextValue = demoArtwork
+        ? demoText
+        : contentTextState?.sticker?.resolved ?? commonText;
       const ribbonTextValueTrimmed = ribbonTextValue.trim();
       const stickerTextValueTrimmed = stickerTextValue.trim();
       const fallbackFont = document.querySelector('#fontSelect')?.value || 'Manrope';
@@ -381,20 +397,17 @@
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
       const stickerLogoSrc = stickerLogoSource.getAttribute('src') || '';
-      const suppressDemoArtwork =
-        panelMode === 'upload' &&
-        document.body.dataset.previewDemo === 'true';
       const hasRibbonLogo = Boolean(
-        ribbonLogoSrc && !ribbonLogoSource.hidden && !suppressDemoArtwork,
+        ribbonLogoSrc && !ribbonLogoSource.hidden,
       );
       const hasStickerLogo = Boolean(
-        stickerLogoSrc && !stickerLogoSource.hidden && !suppressDemoArtwork,
+        stickerLogoSrc && !stickerLogoSource.hidden,
       );
       const hasRibbonText = Boolean(
-        ribbonTextValueTrimmed && !suppressDemoArtwork,
+        ribbonTextValueTrimmed,
       );
       const hasStickerText = Boolean(
-        stickerTextValueTrimmed && !suppressDemoArtwork,
+        stickerTextValueTrimmed,
       );
       if (!effectiveLayouts) {
         try {
@@ -411,9 +424,12 @@
         const label =
           panelMode === 'settings'
             ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+            : demoArtwork
+              ? 'Добавить логотип'
             : hasLogo
               ? 'Изменить логотип'
               : 'Добавить логотип';
+        zone.dataset.demo = String(demoArtwork);
         zone.dataset.empty = String(!hasLogo);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
@@ -450,9 +466,12 @@
         const label =
           panelMode === 'settings'
             ? `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`
+            : demoArtwork
+              ? 'Добавить надпись'
             : hasText
               ? 'Изменить надпись'
               : 'Добавить надпись';
+        zone.dataset.demo = String(demoArtwork);
         zone.dataset.empty = String(!hasText);
         zone.dataset.contentMode = mode;
         zone.setAttribute('aria-label', label);
@@ -572,6 +591,26 @@
           zone.style.width = `${paintedWidth}px`;
           zone.style.height = `${paintedHeight}px`;
         };
+        const measureTextInk = (element, fontSize) => {
+          const canvas = measureTextInk.canvas ||
+            (measureTextInk.canvas = document.createElement('canvas'));
+          const context = canvas.getContext('2d');
+          const weight = getComputedStyle(element).fontWeight || '800';
+          context.font = `${weight} ${fontSize}px ${getComputedStyle(element).fontFamily}`;
+          const metrics = context.measureText(element.textContent || '');
+          return {
+            width: Math.max(
+              (metrics.actualBoundingBoxLeft || 0) +
+                (metrics.actualBoundingBoxRight || metrics.width),
+              1,
+            ),
+            height: Math.max(
+              (metrics.actualBoundingBoxAscent || fontSize * 0.8) +
+                (metrics.actualBoundingBoxDescent || fontSize * 0.2),
+              1,
+            ),
+          };
+        };
         place(logoPart.zone, hasProductLogo ? layout.logoBox : null);
         place(textPart.zone, hasProductText ? textBox : null, sticker ? 10 : 0);
 
@@ -590,44 +629,27 @@
             : layout.previewFontSizeRatio;
           textPart.text.style.fontSize =
             `${fontSizeRatio * surfaceHeight}px`;
-          if (sticker && layout.valid && layout.textBox) {
-            const paintedTextHeight =
-              textPart.text.getBoundingClientRect().height;
-            const safeZoneHeight =
-              textPart.zone.getBoundingClientRect().height;
-            if (paintedTextHeight > safeZoneHeight) {
-              const box = layout.textBox;
-              textPart.zone.style.top =
-                `${(box.y + box.height / 2) * surfaceHeight - paintedTextHeight / 2}px`;
-              textPart.zone.style.height = `${paintedTextHeight}px`;
-            }
-          }
         }
-        if (!sticker) {
-          if (hasProductLogo && layout.logoBox) {
-            const ratio =
-              logoPart.image.naturalWidth > 0 &&
-              logoPart.image.naturalHeight > 0
-                ? logoPart.image.naturalWidth / logoPart.image.naturalHeight
-                : null;
-            if (ratio) {
-              const height = layout.logoBox.height * surfaceHeight;
-              placePainted(
-                logoPart.zone,
-                layout.logoBox,
-                height * ratio,
-                height,
-              );
-            }
-          }
-          if (visibleText) {
+        if (hasProductLogo && layout.logoBox) {
+          const ratio =
+            logoPart.image.naturalWidth > 0 &&
+            logoPart.image.naturalHeight > 0
+              ? logoPart.image.naturalWidth / logoPart.image.naturalHeight
+              : null;
+          if (ratio) {
+            const height = layout.logoBox.height * surfaceHeight;
             placePainted(
-              textPart.zone,
-              textBox,
-              Math.max(textPart.text.scrollWidth, 1),
-              Math.max(textPart.text.scrollHeight, 1),
+              logoPart.zone,
+              layout.logoBox,
+              height * ratio,
+              height,
             );
           }
+        }
+        if (visibleText) {
+          const fontSize = Number.parseFloat(textPart.text.style.fontSize) || 1;
+          const ink = measureTextInk(textPart.text, fontSize);
+          placePainted(textPart.zone, textBox, ink.width, ink.height);
         }
       };
       renderRibbonRepeats({

@@ -93,6 +93,10 @@
 
     <div class="mobile-products-slot" id="mobileProductsSlot" data-hosted="false">
     <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
+      <div class="mobile-products-preview-context" aria-live="polite">
+        <strong id="previewContextTitle">Пример оформления</strong>
+        <span id="previewContextCopy">Введите название или загрузите логотип — результат появится здесь.</span>
+      </div>
       <p class="mobile-products-choice-label">Что оформляем?</p>
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
@@ -158,9 +162,12 @@
           <span>Рекомендуем до 60 знаков</span>
           <span id="textInputCounter" aria-live="polite">0 / 60</span>
         </div>
+        <p class="text-length-warning" id="textLengthWarning" hidden>
+          Надпись длиннее рекомендации. На ленте покажем сокращённый вариант и полный макет ниже.
+        </p>
       </div>
 
-      <label class="upload upload-large create-option" id="dropZone" role="button" tabindex="0" aria-controls="logoInput" aria-describedby="uploadFormats">
+      <label class="upload upload-large create-option" id="dropZone" role="button" tabindex="0" aria-controls="logoInput" aria-describedby="uploadFormats" data-upload-state="idle">
         <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg,application/pdf,.pdf" hidden>
         <span class="upload-icon">↑</span>
         <strong><span class="create-option-number">02</span> Загрузить логотип</strong>
@@ -197,7 +204,7 @@
         <div data-create-status="logo"><span aria-hidden="true">○</span><strong>Логотип</strong><small>не добавлен</small></div>
       </div>
       <p class="first-step-requirement" id="continueUploadHelp">Добавьте название или логотип, чтобы продолжить</p>
-      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" aria-describedby="continueUploadHelp" disabled>Далее: настроить</button>
+      <button class="button primary wide next-panel" id="continueUpload" data-next="settings" aria-describedby="continueUploadHelp" disabled>Далее: настроить макет</button>
     </section>
 
     <section class="panel" id="panel-bundle">

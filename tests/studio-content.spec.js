@@ -76,6 +76,16 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'data-preview-demo',
     'true',
   );
+  await expect(page.locator('#previewContextTitle')).toHaveText(
+    'Пример оформления',
+  );
+  if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('#previewContextCopy')).toBeVisible();
+  } else {
+    await expect(page.locator('#previewContextCopy')).toHaveText(
+      'Введите название или загрузите логотип — результат появится здесь.',
+    );
+  }
   await expect(page.locator('#continueUpload')).toBeDisabled();
   await expect(page.locator('#continueUploadHelp')).toHaveText(
     'Добавьте название или логотип, чтобы продолжить',
@@ -107,7 +117,19 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     testInfo.project.name === 'mobile'
       ? page.locator('.dynamic-showcase-text').first()
       : page.locator('.dynamic-showcase-text').first();
-  await expect(demoText).toHaveText('ленты по любви');
+  await expect(demoText).toContainText('ленты');
+  const demoOverflowCard = page.locator(
+    testInfo.project.name === 'mobile'
+      ? '.ribbon-overflow-card-mobile'
+      : '.ribbon-overflow-card-desktop',
+  );
+  await expect(demoOverflowCard).toBeVisible();
+  await expect(
+    demoOverflowCard.locator('[data-ribbon-overflow-logo]'),
+  ).toBeVisible();
+  await expect(
+    demoOverflowCard.locator('[data-ribbon-overflow-text]'),
+  ).toHaveText('ленты по любви');
 
   await textInput.fill('Мой бренд');
   await expect(page.locator('body')).toHaveAttribute(
@@ -118,6 +140,8 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'data-preview-logo-demo',
     'false',
   );
+  await expect(page.locator('#previewContextTitle')).toHaveText('Ваш макет');
+  await expect(page.locator('#previewContextCopy')).toBeHidden();
   await expect(page.locator('#continueUpload')).toBeEnabled();
   await expect(page.locator('#continueUploadHelp')).toBeHidden();
   await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
@@ -142,6 +166,15 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   );
   snapshot = await readContentSnapshot(page);
   expect(snapshot.logo.common).toBeNull();
+  await textInput.fill('');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'true',
+  );
+  await expect(page.locator('#previewContextTitle')).toHaveText(
+    'Пример оформления',
+  );
+  await expect(page.locator('#continueUpload')).toBeDisabled();
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -830,7 +863,7 @@ test('Create step validates input and manages the common logo @smoke', async ({
   await expect(textInput).not.toHaveAttribute('maxlength');
   await expect(counter).toHaveText('0 / 60');
   await expect(textStatus).toContainText('не добавлено');
-  await expect(logoStatus).toContainText('не добавлен');
+  await expect(logoStatus).toContainText('не добавлен — необязательно');
 
   await page.locator('#logoInput').setInputFiles({
     name: 'logo.txt',
@@ -842,6 +875,12 @@ test('Create step validates input and manages the common logo @smoke', async ({
   );
   await expect(page.locator('#fileCard')).toBeHidden();
   await expect(continueUpload).toBeDisabled();
+
+  await textInput.fill('  Мой    бренд   ');
+  await expect(textInput).toHaveValue('Мой бренд ');
+  await textInput.blur();
+  await expect(textInput).toHaveValue('Мой бренд');
+  await textInput.fill('');
 
   await textInput.fill('Мой бренд');
   await expect(counter).toHaveText('9 / 60');
@@ -856,6 +895,10 @@ test('Create step validates input and manages the common logo @smoke', async ({
     false,
   );
   await expect(page.locator('#dropZone')).toBeVisible();
+
+  await textInput.fill('Очень длинное название '.repeat(4));
+  await expect(page.locator('#textLengthWarning')).toBeVisible();
+  await textInput.fill('Мой бренд');
 
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(page.locator('#uploadFeedback')).toBeHidden();
