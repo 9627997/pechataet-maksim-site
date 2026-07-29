@@ -82,20 +82,13 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     'aria-label',
     'Добавить надпись',
   );
-  await expect(page.locator('.mobile-products-ribbon-logo')).toBeHidden();
-  await expect(page.locator('.mobile-products-sticker-logo')).toBeHidden();
-  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
-  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
-  for (const zone of [zones.ribbonLogo, zones.stickerLogo]) {
-    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Ваш логотип',
-    );
-  }
-  for (const zone of [zones.ribbonText, zones.stickerText]) {
-    await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Ваш текст',
-    );
-  }
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
+  await expect(page.locator('#previewContextTitle')).toHaveText(
+    'Пример оформления',
+  );
   const emptyProduction = await page.evaluate(() => ({
     ribbon: window.RibbonStudioProduction.serialize('ribbon'),
     sticker: window.RibbonStudioProduction.serialize('sticker'),
@@ -110,15 +103,11 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     await expect(zone).toBeVisible();
     await expect(zone).toHaveAttribute('aria-label', 'Добавить надпись');
     await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
-      'Ваш текст',
-    );
-    await expect(zone.locator('.mobile-products-zone-action')).toHaveCSS(
-      'opacity',
-      '1',
+      'Добавить надпись',
     );
   }
-  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
-  await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
 
   await zones.ribbonText.focus();
   await expect(
@@ -208,6 +197,25 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
       .toBeGreaterThanOrEqual(44);
   }
 
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await zones.ribbonText.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  const objectFrame = zones.ribbonText.locator('.mobile-products-object-frame');
+  await expect(objectFrame).toHaveCSS('opacity', '1');
+  const frameGap = await zones.ribbonText.evaluate((element) => {
+    const zone = element.getBoundingClientRect();
+    const frame = element
+      .querySelector('.mobile-products-object-frame')
+      .getBoundingClientRect();
+    return {
+      horizontal: frame.width - zone.width,
+      vertical: frame.height - zone.height,
+    };
+  });
+  expect(frameGap.horizontal).toBeCloseTo(4, 0);
+  expect(frameGap.vertical).toBeCloseTo(4, 0);
+
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -231,12 +239,12 @@ test('mobile previews stay synchronized with Studio state', async ({
   const stickerText = page.locator('.mobile-products-sticker-text');
   const stickerContent = page.locator('.mobile-products-sticker-content');
 
-  await expect(stickerLogo).toBeHidden();
-  await expect(ribbonText).toBeHidden();
-  await expect(stickerText).toBeHidden();
+  await expect(stickerLogo).toBeVisible();
+  await expect(ribbonText).toBeVisible();
+  await expect(stickerText).toBeVisible();
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
-    'empty',
+    'logo-and-text',
   );
 
   await page.locator('#textInput').fill('новая длинная надпись для упаковки');
@@ -569,9 +577,11 @@ test('PDF upload renders its first page and completes tracing', async ({
     name: 'Выделите логотип',
   });
   await expect(cropDialog).toBeVisible();
-  await expect(page.locator('#fileCardName')).toHaveText('test-logo.pdf');
-  await expect(page.locator('#fileCardMeta')).toContainText('PDF');
-  await expect(page.locator('#fileCardMeta')).toContainText('1 страница');
+  await expect(page.locator('#fileCard')).toBeHidden();
+  await expect(page.locator('#dropZone')).toHaveAttribute(
+    'data-upload-state',
+    'processing',
+  );
 
   await page.locator('#cropUseAll').click();
   await expect(cropDialog).toBeHidden();

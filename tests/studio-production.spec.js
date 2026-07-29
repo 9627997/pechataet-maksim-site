@@ -92,10 +92,6 @@ test('printable guides stay contextual and never enter the final preview', async
       ? '.mobile-products-printable-guide.ribbon-guide'
       : '#ribbonPrintableGuide',
   );
-  const guideColorTarget =
-    testInfo.project.name === 'mobile'
-      ? guide
-      : page.locator('#ribbonPrintableGuide rect');
   const showcaseGuide = page.locator(
     '.showcase-ribbon-15 .showcase-ribbon-body',
   );
@@ -118,8 +114,8 @@ test('printable guides stay contextual and never enter the final preview', async
   await expect(guide).toHaveCSS('opacity', '0');
   await expectShowcaseGuideOpacity('0');
   await textInput.focus();
-  await expect(guide).toHaveCSS('opacity', '1');
-  await expectShowcaseGuideOpacity('1');
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
   await uploadNavigation.focus();
   await expect(guide).toHaveCSS('opacity', '0');
   await expectShowcaseGuideOpacity('0');
@@ -147,12 +143,8 @@ test('printable guides stay contextual and never enter the final preview', async
     'data-artwork-valid',
     'false',
   );
-  await expect(guide).toHaveCSS('opacity', '1');
-  await expectShowcaseGuideOpacity('1');
-  await expect(guideColorTarget).toHaveCSS(
-    testInfo.project.name === 'mobile' ? 'border-top-color' : 'stroke',
-    'rgba(190, 56, 65, 0.82)',
-  );
+  await expect(guide).toHaveCSS('opacity', '0');
+  await expectShowcaseGuideOpacity('0');
 
   await orderNavigation.click();
   await expect(page.locator('body')).toHaveAttribute(

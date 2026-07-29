@@ -288,13 +288,15 @@ test('selected product owns the visible settings and manual transforms', async (
       });
 
     const center = (box, axis, size) => box[axis] + box[size] / 2;
-    for (const [mask, artwork, layoutBox] of [
+    for (const [kind, mask, artwork, layoutBox] of [
       [
+        'logo',
         mobileGeometry.logo,
         mobileGeometry.logoArtwork,
         mobileGeometry.layout.logoBox,
       ],
       [
+        'text',
         mobileGeometry.text,
         mobileGeometry.textArtwork,
         mobileGeometry.layout.textBox,
@@ -308,8 +310,14 @@ test('selected product owns the visible settings and manual transforms', async (
         center(layoutBox, 'y', 'height'),
         2,
       );
-      expect(mask.width).toBeCloseTo(artwork.width, 2);
-      expect(mask.height).toBeCloseTo(artwork.height, 2);
+      if (kind === 'logo') {
+        expect(mask.width).toBeCloseTo(artwork.width, 2);
+        expect(mask.height).toBeCloseTo(artwork.height, 2);
+      } else {
+        expect(mask.width).toBeLessThanOrEqual(artwork.width + 0.01);
+        expect(mask.height).toBeLessThan(artwork.height);
+        expect(mask.height).toBeGreaterThan(0);
+      }
     }
   }
 
@@ -423,7 +431,8 @@ test('mobile product switches control the static previews', async ({
   await expect(stickerSample).toBeVisible();
 
   await ribbonSwitch.uncheck();
-  await expect(ribbonSample).toBeHidden();
+  await expect(ribbonSample).toBeVisible();
+  await expect(ribbonSample).toHaveClass(/is-product-disabled/);
   await expect(page.locator('body')).toHaveAttribute(
     'data-has-ribbon',
     'false',
@@ -439,19 +448,22 @@ test('mobile product switches control the static previews', async ({
   await expect(stickerSwitch).toBeChecked();
 
   await ribbonSwitch.uncheck();
-  await expect(ribbonSample).toBeHidden();
+  await expect(ribbonSample).toBeVisible();
+  await expect(ribbonSample).toHaveClass(/is-product-disabled/);
   await expect(stickerSample).toBeVisible();
 
   await stickerSwitch.uncheck();
   await expect(stickerSwitch).not.toBeChecked();
   await expect(ribbonSwitch).toBeChecked();
-  await expect(stickerSample).toBeHidden();
+  await expect(stickerSample).toBeVisible();
+  await expect(stickerSample).toHaveClass(/is-product-disabled/);
   await expect(ribbonSample).toBeVisible();
 
   await ribbonSwitch.uncheck();
   await expect(ribbonSwitch).not.toBeChecked();
   await expect(stickerSwitch).toBeChecked();
-  await expect(ribbonSample).toBeHidden();
+  await expect(ribbonSample).toBeVisible();
+  await expect(ribbonSample).toHaveClass(/is-product-disabled/);
   await expect(stickerSample).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(

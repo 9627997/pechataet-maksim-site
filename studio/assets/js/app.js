@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     traceInfo: null,
     logoScale: 1,
     logoOffsetX: 0,
-    text: DEMO_TEXT,
+    text: '',
     content: {
       logo: {
         common: null,
@@ -330,7 +330,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function isDemoPreviewActive() {
-    return !state.commonTextAuthored && !state.commonLogoUploaded;
+    return !state.content.text.common.trim() && !state.content.logo.common?.logo;
+  }
+
+  function getPreviewText(product) {
+    const resolved = getResolvedText(product).trim();
+    return isDemoPreviewActive() && !resolved ? DEMO_TEXT : resolved;
   }
 
   function setCommonText(value) {
@@ -426,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.commonLogoUploaded = true;
       syncLegacyContentAliasesFromContent();
       setFileCardActionsVisible(true);
-      showUploadFeedback('');
+      setUploadState('success', '');
       updateFirstStepAvailability();
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
@@ -586,13 +591,16 @@ document.addEventListener('DOMContentLoaded', () => {
         DEMO_TEXT,
       ];
       if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
-        state.text = DEMO_TEXT;
+        state.text = '';
       }
       state.content = normalizeContentModel(restored.content, state);
       const commonText = state.content.text.common.trim();
       state.commonTextAuthored =
         restored.commonTextAuthored === true ||
         Boolean(commonText && !legacyDemoTexts.includes(commonText.toLowerCase()));
+      if (!state.commonTextAuthored && legacyDemoTexts.includes(commonText.toLowerCase())) {
+        state.content.text.common = '';
+      }
       state.commonLogoUploaded = restored.commonLogoUploaded === true;
       syncLegacyContentAliasesFromContent();
 
@@ -646,12 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    if (state.logo || state.commonTextAuthored || state.commonLogoUploaded) return;
-
-    state.logoSvgSource = DEFAULT_LOGO_SVG;
-    state.logo = {...demoLogoAsset.logo};
-    state.logoType = 'svg';
-    syncCommonContentFromLegacyAliases();
   }
 
 
@@ -671,7 +673,9 @@ document.addEventListener('DOMContentLoaded', () => {
     $$('.dynamic-showcase-text').forEach((el) => {
       const product = el.closest('[data-product-type]')?.dataset.productType;
       const normalizedProduct = product === 'sticker' ? 'sticker' : 'ribbon';
-      const textValue = getResolvedText(normalizedProduct).trim();
+      const textValue = onUpload
+        ? getPreviewText(normalizedProduct)
+        : getResolvedText(normalizedProduct).trim();
       el.textContent = textValue;
       el.hidden = !textValue;
       el.style.fontFamily = getProductStyle(normalizedProduct).font;
@@ -810,15 +814,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function isFirstStepReady() {
     return (
-      hasCompletedCommonLogoUpload ||
-      (hasUsedCommonTextEditor && Boolean(state.content.text.common.trim()))
+      hasCompletedCommonLogoUpload || Boolean(state.content.text.common.trim())
     );
   }
 
   function updateFirstStepAvailability() {
     const ready = isFirstStepReady();
     const textReady =
-      hasUsedCommonTextEditor && Boolean(state.content.text.common.trim());
+      Boolean(state.content.text.common.trim());
     const logoReady = hasCompletedCommonLogoUpload;
     const continueButton = $('#continueUpload');
     const continueHelp = $('#continueUploadHelp');
@@ -842,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : emptyLabel;
     };
     updateStatus('text', textReady, 'добавлено', 'не добавлено');
-    updateStatus('logo', logoReady, 'добавлен', 'не добавлен');
+    updateStatus('logo', logoReady, 'добавлен', 'не добавлен — необязательно');
 
     if ($('#textInputCounter')) {
       const textLength = [...($('#textInput')?.value || '')].length;
@@ -852,6 +855,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'is-over-limit',
         textLength > MAX_COMMON_TEXT_LENGTH
       );
+      if ($('#textLengthWarning')) {
+        $('#textLengthWarning').hidden = textLength <= MAX_COMMON_TEXT_LENGTH;
+      }
     }
 
     $$('.nav-item').forEach((button) => {
@@ -1298,6 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const paintedResolvedLogo = getPaintedLogo('ribbon', resolvedLogo);
     const paintedPreviewLogo = getPaintedLogo('ribbon', previewLogo);
     const resolvedText = getResolvedText('ribbon').trim();
+    const previewTextValue = getPreviewText('ribbon');
     const textMetrics = getTextMetrics(resolvedText, 'ribbon');
     const ribbonLayout = addRibbonOverflow(
       calculateRibbonLayout(
@@ -1311,19 +1318,21 @@ document.addEventListener('DOMContentLoaded', () => {
       resolvedLogo,
       textMetrics,
     );
-    const previewLayout = previewLogo === resolvedLogo
+    const previewTextMetrics = getTextMetrics(previewTextValue, 'ribbon');
+    const previewLayout =
+      previewLogo === resolvedLogo && previewTextValue === resolvedText
       ? ribbonLayout
       : addRibbonOverflow(
           calculateRibbonLayout(
             state.repeatMm,
-            resolvedText,
+            previewTextValue,
             previewLogo,
-            textMetrics,
+            previewTextMetrics,
             state.repeatMode === 'manual',
           ),
-          resolvedText,
+          previewTextValue,
           previewLogo,
-          textMetrics,
+          previewTextMetrics,
         );
     const {height, y, width: repeatWidth} = ribbonLayout.outer;
     const {printable} = ribbonLayout;
@@ -1378,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'data-production-content': '',
       });
 
-      if (boxIsFullyVisible(ribbonLayout.logoBox)) {
+      if (ribbonLayout.logoBox) {
         drawLogoBox(content, paintedResolvedLogo, {
           ...ribbonLayout.logoBox,
           x: startX + ribbonLayout.logoBox.x,
@@ -1407,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'clip-path': `url(#${clipId})`,
           'data-preview-overlay': '',
         });
-        if (boxIsFullyVisible(previewLayout.logoBox)) {
+        if (previewLayout.logoBox) {
           drawLogoBox(previewContent, paintedPreviewLogo, {
             ...previewLayout.logoBox,
             x: startX + previewLayout.logoBox.x,
@@ -1417,7 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? previewLayout.textBox
           : previewLayout.previewTextBox;
         const previewText = previewLayout.valid
-          ? resolvedText
+          ? previewTextValue
           : previewLayout.previewText;
         const previewFontSize = previewLayout.valid
           ? previewLayout.fontSize
@@ -1451,6 +1460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const paintedResolvedLogo = getPaintedLogo('sticker', resolvedLogo);
     const paintedPreviewLogo = getPaintedLogo('sticker', previewLogo);
     const resolvedText = getResolvedText('sticker');
+    const previewTextValue = getPreviewText('sticker');
     const hasText = Boolean(resolvedText.trim());
     const printable = getStickerPrintableGeometry({
       diameterMm: state.stickerSize,
@@ -1467,28 +1477,30 @@ document.addEventListener('DOMContentLoaded', () => {
       50: {combined: 33, textOnly: 48},
     }[state.stickerSize];
 
-    const getLayout = (logo) => {
+    const getLayout = (logo, textValue = resolvedText) => {
       const hasLogo = Boolean(logo?.logo);
+      const layoutHasText = Boolean(textValue.trim());
       return getStickerContentLayout({
         circle: printable.circle,
         logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
-        text: hasText ? resolvedText : '',
-        textMetrics: getTextMetrics(resolvedText, 'sticker'),
+        text: layoutHasText ? textValue : '',
+        textMetrics: getTextMetrics(textValue, 'sticker'),
         logoScale: style.logoScale,
         logoOffsetX: style.logoOffsetX,
         logoOffsetY: style.logoOffsetY,
         textOffsetX: style.textOffsetX,
         textOffsetY: style.textOffsetY,
         manualLayout: style.layoutMode === 'manual',
-        preferredFontSize: hasLogo && hasText
+        preferredFontSize: hasLogo && layoutHasText
           ? stickerPreferred.combined * (style.fontSize / 32)
           : stickerPreferred.textOnly * (style.fontSize / 32),
       });
     };
     const stickerLayout = getLayout(resolvedLogo);
-    const previewLayout = previewLogo === resolvedLogo
+    const previewLayout =
+      previewLogo === resolvedLogo && previewTextValue === resolvedText.trim()
       ? stickerLayout
-      : getLayout(previewLogo);
+      : getLayout(previewLogo, previewTextValue);
     currentLayouts.sticker = {
       ...stickerLayout,
       outer: {x: 22, y: 22, width: 356, height: 356},
@@ -1531,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
           previewLayout.textBox.x + previewLayout.textBox.width / 2,
           previewLayout.textBox.y + previewLayout.textBox.height / 2,
           previewLayout.fontSize,
-          resolvedText,
+          previewTextValue,
           'sticker',
         );
       }
@@ -1673,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const message = card.querySelector('[data-ribbon-overflow-message]');
       const button = card.querySelector('[data-apply-ribbon-repeat]');
       const resolvedLogo = getPaintedLogo('ribbon', getPreviewLogo('ribbon'));
-      const fullText = getResolvedText('ribbon').trim();
+      const fullText = getPreviewText('ribbon').trim();
 
       card.dataset.canApply = String(Boolean(overflow.canApply));
       if (measure) {
@@ -2110,7 +2122,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.previewDemo = String(
       isDemoPreviewActive() || previewLogoDemo,
     );
+    document.body.dataset.previewDemoText = DEMO_TEXT;
     document.body.dataset.previewLogoDemo = String(previewLogoDemo);
+    if ($('#previewContextTitle')) {
+      $('#previewContextTitle').textContent =
+        isDemoPreviewActive() ? 'Пример оформления' : 'Ваш макет';
+    }
+    if ($('#previewContextCopy')) {
+      $('#previewContextCopy').hidden = !isDemoPreviewActive();
+    }
     updateShowcaseContent();
     const printMode = (product) => {
       const print = getProductStyle(product).print;
@@ -2257,6 +2277,15 @@ document.addEventListener('DOMContentLoaded', () => {
     feedback.hidden = !message;
   }
 
+  function setUploadState(mode, message = '') {
+    const dropZone = $('#dropZone');
+    if (dropZone) {
+      dropZone.dataset.uploadState = mode;
+      dropZone.setAttribute('aria-busy', String(mode === 'processing'));
+    }
+    showUploadFeedback(message);
+  }
+
   function validateLogoFile(file) {
     if (!file.size) return 'Файл пустой. Выберите другой логотип.';
     if (file.size > MAX_LOGO_FILE_BYTES) {
@@ -2267,6 +2296,54 @@ document.addEventListener('DOMContentLoaded', () => {
       return 'Поддерживаются только SVG, PNG, JPEG и PDF.';
     }
     return '';
+  }
+
+  async function tightenSvgArtwork(svg) {
+    const host = document.createElement('div');
+    Object.assign(host.style, {
+      position: 'fixed',
+      left: '-10000px',
+      top: '0',
+      width: '1000px',
+      height: '1000px',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+    });
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute('width');
+    clone.removeAttribute('height');
+    clone.style.width = '1000px';
+    clone.style.height = '1000px';
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    try {
+      let bbox;
+      try {
+        bbox = clone.getBBox({stroke: true});
+      } catch {
+        bbox = clone.getBBox();
+      }
+      if (bbox.width > 0 && bbox.height > 0) {
+        const padding = Math.max(bbox.width, bbox.height) * 0.002;
+        svg.setAttribute(
+          'viewBox',
+          [
+            bbox.x - padding,
+            bbox.y - padding,
+            bbox.width + padding * 2,
+            bbox.height + padding * 2,
+          ].join(' '),
+        );
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+      }
+    } catch {
+      // The original viewBox remains the safe fallback for unsupported SVGs.
+    } finally {
+      host.remove();
+    }
+    return svg;
   }
 
   function isNonePaint(value) {
@@ -2901,7 +2978,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadPdfFile(file, target) {
     let loadingTask = null;
     try {
-      showFileCard(file, 'PDF · подготовка первой страницы', 'Подождите несколько секунд');
+      setUploadState('processing', 'Проверяем логотип… Подготавливаем первую страницу PDF.');
       const pdfjs = await getPdfJs();
       const data = new Uint8Array(await file.arrayBuffer());
       loadingTask = pdfjs.getDocument({
@@ -2935,23 +3012,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const renderedDataUrl = canvas.toDataURL('image/png');
       const image = await imageFromDataUrl(renderedDataUrl);
-      showFileCard(
-        file,
-        pdf.numPages > 1 ? `PDF · страница 1 из ${pdf.numPages}` : 'PDF · 1 страница',
-        'Выберите область логотипа'
-      );
+      setUploadState('processing', 'Логотип прочитан. Выберите область для макета.');
       openCropModal(file, image, renderedDataUrl, target);
       page.cleanup();
     } catch {
       pdfJsPromise = null;
-      showUploadFeedback(
+      setUploadState('error',
         'Не удалось прочитать PDF. Сохраните первую страницу как PNG или SVG.'
-      );
-      showFileCard(
-        file,
-        'PDF',
-        'Не удалось прочитать PDF. Сохраните первую страницу как PNG или SVG.',
-        true
       );
     } finally {
       if (loadingTask) await loadingTask.destroy();
@@ -2962,26 +3029,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
     const validationMessage = validateLogoFile(file);
     if (validationMessage) {
-      showUploadFeedback(validationMessage);
+      setUploadState('error', validationMessage);
       return;
     }
-    showUploadFeedback('');
+    setUploadState('processing', 'Проверяем логотип…');
     const logoTarget = normalizeLogoTarget(target);
 
     const ext = file.name.split('.').pop().toLowerCase();
     const reader = new FileReader();
 
     if (ext === 'svg') {
-      reader.onload = () => {
+      reader.onload = async () => {
         const doc = new DOMParser().parseFromString(reader.result, 'image/svg+xml');
         const svg = doc.documentElement;
 
         if (svg.nodeName.toLowerCase() !== 'svg') {
-          showUploadFeedback('Не удалось прочитать SVG. Проверьте файл и попробуйте снова.');
+          setUploadState('error', 'Не удалось прочитать SVG. Проверьте файл и попробуйте снова.');
           return;
         }
 
         svg.querySelectorAll('script,foreignObject').forEach((node) => node.remove());
+        await tightenSvgArtwork(svg);
 
         const viewBox = (svg.getAttribute('viewBox') || '').trim().split(/\s+/).map(Number);
         const ratio = viewBox.length === 4 && viewBox[3] ? viewBox[2] / viewBox[3] : 1;
@@ -3032,13 +3100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         image.onerror = () => {
-          showUploadFeedback('Не удалось прочитать изображение. Проверьте файл и попробуйте снова.');
-          showFileCard(
-            file,
-            ext.toUpperCase(),
-            'Не удалось прочитать изображение',
-            true
-          );
+          setUploadState('error', 'Не удалось прочитать изображение. Проверьте файл и попробуйте снова.');
         };
 
         image.src = reader.result;
@@ -3048,7 +3110,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    showUploadFeedback('Поддерживаются только SVG, PNG, JPEG и PDF.');
+    setUploadState('error', 'Поддерживаются только SVG, PNG, JPEG и PDF.');
   }
 
   function syncControls() {
@@ -3586,7 +3648,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#fileCard').hidden = true;
     $('#traceStatus').hidden = true;
     setFileCardActionsVisible(false);
-    showUploadFeedback('');
+    setUploadState('idle', '');
     updateFirstStepAvailability();
     render();
     $('#dropZone').focus({preventScroll: true});
@@ -3594,13 +3656,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#textInput').addEventListener('input', (event) => {
     hasUsedCommonTextEditor = true;
-    state.commonTextAuthored = true;
-    clearDemoLogo();
-    setCommonText(event.target.value);
+    const normalized = event.target.value
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/^\s+/, '');
+    if (event.target.value !== normalized) event.target.value = normalized;
+    const meaningful = normalized.trim();
+    state.commonTextAuthored = Boolean(meaningful);
+    setCommonText(meaningful);
     updateFirstStepAvailability();
   });
 
-  $('#textInput').addEventListener('change', returnToMobilePreview);
+  $('#textInput').addEventListener('change', (event) => {
+    event.target.value = event.target.value.trim();
+    setCommonText(event.target.value);
+    returnToMobilePreview();
+  });
 
   $('#fontSelect').addEventListener('change', (event) => {
     const font = FONT_OPTIONS.includes(event.target.value)
@@ -4035,7 +4106,10 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setFileCardActionsVisible(true);
   }
-  if (state.commonTextAuthored && restoredCommonLogoIsDefault) clearDemoLogo();
+  if (restoredCommonLogoIsDefault) {
+    state.content.logo.common = null;
+    syncLegacyContentAliasesFromContent();
+  }
   loadDefaultLogo();
   setActiveSettingsProduct(state.activeSettingsProduct);
   updateFirstStepAvailability();

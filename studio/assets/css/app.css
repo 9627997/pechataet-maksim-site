@@ -357,10 +357,16 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .upload-text-card label{margin-top:9px}
 .text-input-meta{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--muted);font-size:9px}
 .text-input-meta.is-over-limit{color:#9f1d2b;font-weight:700}
+.text-length-warning{margin:7px 0 0;color:#8b5419;font-size:9px;line-height:1.4}
+.text-length-warning[hidden]{display:none}
 .upload-large{margin-top:10px}
 .upload-large.is-dragging{border-color:#171717;background:#f0ece5;box-shadow:0 0 0 3px rgba(23,23,23,.08)}
 .upload-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#fff0f1;color:#9f1d2b;font-size:10px;font-weight:700;line-height:1.45}
 .upload-feedback[hidden]{display:none}
+.upload[data-upload-state='processing']{border-color:rgba(31,111,235,.58);background:#f4f8ff}
+.upload[data-upload-state='processing'] .upload-icon{animation:uploadPulse 900ms ease-in-out infinite alternate}
+.upload[data-upload-state='error']{border-color:rgba(159,29,43,.5)}
+@keyframes uploadPulse{to{transform:translateY(-2px);opacity:.58}}
 .file-card{grid-template-columns:38px minmax(0,1fr) auto}
 .file-card-copy{min-width:0}
 .file-card-copy strong,.file-card-copy span,.file-card-copy small{overflow-wrap:anywhere}
@@ -1409,6 +1415,9 @@ body[data-artwork-valid="false"]:not([data-active-panel="order"]) [data-preview-
 body[data-active-panel="order"] [data-preview-overlay]{
   opacity:0!important;
 }
+body[data-active-panel="upload"] [data-preview-overlay]{
+  opacity:0!important;
+}
 #ribbonPrintableGuide rect,
 #stickerPrintableGuide circle{
   fill:none;
@@ -1478,6 +1487,10 @@ body[data-artwork-valid="false"] .showcase-sticker-body::after{
 }
 body[data-active-panel="order"] .showcase-ribbon-body::after,
 body[data-active-panel="order"] .showcase-sticker-body::after{
+  opacity:0!important;
+}
+body[data-active-panel="upload"] .showcase-ribbon-body::after,
+body[data-active-panel="upload"] .showcase-sticker-body::after{
   opacity:0!important;
 }
 .showcase-ribbon-15 .showcase-ribbon-body::after{
