@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let textMeasurementSvg = null;
   let demoLogoAsset = null;
   const DEMO_TEXT = 'ленты по любви';
+  const DEMO_FONT = 'Comfortaa';
   const MIN_RIBBON_REPEAT_MM = 40;
   const MAX_RIBBON_REPEAT_MM = 250;
   const GOLDEN_RATIO = 1.618;
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         logoOffsetY: 0
       }
     },
+    activeContentProduct: 'ribbon',
     activeSettingsProduct: 'ribbon',
     repeatMm: 100,
     repeatMode: 'auto',
@@ -177,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasUsedCommonLogoEditor = false;
   let hasCompletedCommonLogoUpload = false;
   let pendingLogoTarget = 'common';
+  let activeTextTarget = 'common';
   let cropModalOrigin = null;
   let orderModalOrigin = null;
 
@@ -329,13 +332,27 @@ document.addEventListener('DOMContentLoaded', () => {
     return override?.mode === 'override' ? override.value : state.content.text.common;
   }
 
+  function hasUserContent() {
+    return ['ribbon', 'sticker'].some(
+      (product) =>
+        Boolean(getResolvedText(product).trim()) ||
+        Boolean(getResolvedLogo(product)?.logo),
+    );
+  }
+
   function isDemoPreviewActive() {
-    return !state.content.text.common.trim() && !state.content.logo.common?.logo;
+    return !hasUserContent();
   }
 
   function getPreviewText(product) {
     const resolved = getResolvedText(product).trim();
     return isDemoPreviewActive() && !resolved ? DEMO_TEXT : resolved;
+  }
+
+  function getPreviewFont(product) {
+    return isDemoPreviewActive()
+      ? DEMO_FONT
+      : getProductStyle(product).font;
   }
 
   function setCommonText(value) {
@@ -358,6 +375,150 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!['ribbon', 'sticker'].includes(product)) return;
     state.content.text[product] = {mode: 'inherit'};
     render();
+  }
+
+  function getProductLabel(product, form = 'nominative') {
+    if (form === 'prepositional') {
+      return product === 'sticker' ? 'стикере' : 'ленте';
+    }
+    if (form === 'genitive') {
+      return product === 'sticker' ? 'стикера' : 'ленты';
+    }
+    return product === 'sticker' ? 'Стикер' : 'Лента';
+  }
+
+  function syncContentEditor() {
+    const product = state.activeContentProduct;
+    const productLabel = getProductLabel(product);
+    const productPrepositional = getProductLabel(product, 'prepositional');
+    const productGenitive = getProductLabel(product, 'genitive');
+    const textOverride = state.content.text[product];
+    const logoOverride = state.content.logo[product];
+    const textIsIndividual = textOverride.mode === 'override';
+    const logoIsIndividual = logoOverride.mode === 'override';
+    const textValue =
+      activeTextTarget === 'common'
+        ? state.content.text.common
+        : getResolvedText(product);
+
+    document.body.dataset.activeContentProduct = product;
+    $$('[data-content-product]').forEach((button) => {
+      const active = button.dataset.contentProduct === product;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    $$('[data-mobile-product-sample]').forEach((sample) => {
+      const active = sample.dataset.mobileProductSample === product;
+      const editingContent = state.panel === 'upload';
+      sample.classList.toggle('is-content-active', editingContent && active);
+      sample.classList.toggle('is-content-inactive', editingContent && !active);
+      if (editingContent) sample.setAttribute('aria-pressed', String(active));
+    });
+
+    if ($('#contentProductEditorHint')) {
+      $('#contentProductEditorHint').textContent =
+        'Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.';
+    }
+    if ($('#textInputLabel')) {
+      $('#textInputLabel').textContent = `Надпись на ${productPrepositional}`;
+    }
+    if ($('#logoInputLabel')) {
+      $('#logoInputLabel').textContent = `Логотип на ${productPrepositional}`;
+    }
+    if ($('#textInput') && document.activeElement !== $('#textInput')) {
+      $('#textInput').value = isDemoPreviewActive() ? '' : textValue;
+    }
+    if ($('#textScopeStatus')) {
+      $('#textScopeStatus').textContent = textIsIndividual
+        ? textOverride.value.trim()
+          ? `Только для ${productGenitive}`
+          : `Не используется на ${productPrepositional}`
+        : 'Общая для обоих';
+    }
+    if ($('#logoScopeStatus')) {
+      $('#logoScopeStatus').textContent = logoIsIndividual
+        ? logoOverride.value?.logo
+          ? `Только для ${productGenitive}`
+          : `Не используется на ${productPrepositional}`
+        : 'Общий для обоих';
+    }
+
+    const makeText = $('#makeProductText');
+    const restoreText = $('#restoreProductText');
+    const removeText = $('#removeProductText');
+    if (makeText) {
+      makeText.hidden = textIsIndividual || !state.content.text.common.trim();
+      makeText.textContent = `Сделать отдельной для ${productGenitive}`;
+    }
+    if (restoreText) {
+      restoreText.hidden = !textIsIndividual;
+      restoreText.textContent = 'Вернуть общую надпись';
+    }
+    if (removeText) {
+      removeText.hidden = !getResolvedText(product).trim();
+      removeText.textContent = `Убрать с ${productGenitive}`;
+    }
+
+    const makeLogo = $('#makeProductLogo');
+    const restoreLogo = $('#restoreProductLogo');
+    const removeLogo = $('#removeProductLogo');
+    if (makeLogo) {
+      makeLogo.hidden = logoIsIndividual || !state.content.logo.common?.logo;
+      makeLogo.textContent = `Заменить только на ${productPrepositional}`;
+    }
+    if (restoreLogo) {
+      restoreLogo.hidden = !logoIsIndividual;
+      restoreLogo.textContent = 'Вернуть общий логотип';
+    }
+    if (removeLogo) {
+      removeLogo.hidden = !getResolvedLogo(product)?.logo;
+      removeLogo.textContent = `Убрать с ${productGenitive}`;
+    }
+
+    const replaceUploadedLogo = $('#replaceCommonLogo');
+    const removeUploadedLogo = $('#removeCommonLogo');
+    if (replaceUploadedLogo) {
+      replaceUploadedLogo.textContent = logoIsIndividual
+        ? `Заменить для ${productGenitive}`
+        : 'Заменить общий';
+    }
+    if (removeUploadedLogo) {
+      removeUploadedLogo.textContent = logoIsIndividual
+        ? `Убрать с ${productGenitive}`
+        : 'Удалить общий';
+    }
+
+    if ($('#settingsContentStatus')) {
+      const settingsProduct = state.activeSettingsProduct;
+      const textMode =
+        state.content.text[settingsProduct].mode === 'override'
+          ? getResolvedText(settingsProduct).trim()
+            ? 'своя надпись'
+            : 'без надписи'
+          : state.content.text.common.trim()
+            ? 'общая надпись'
+            : 'надпись не добавлена';
+      const logoMode =
+        state.content.logo[settingsProduct].mode === 'override'
+          ? getResolvedLogo(settingsProduct)?.logo
+            ? 'свой логотип'
+            : 'без логотипа'
+          : state.content.logo.common?.logo
+            ? 'общий логотип'
+            : 'логотип не добавлен';
+      $('#settingsContentStatus').textContent = `${textMode} · ${logoMode}`;
+    }
+  }
+
+  function setActiveContentProduct(product, {renderPreview = true} = {}) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.activeContentProduct = product;
+    activeTextTarget =
+      state.content.text[product].mode === 'override' ? product : 'common';
+    syncContentEditor();
+    updateProductShowcase();
+    updateStudioContext();
+    if (renderPreview) render();
   }
 
   function getResolvedLogo(product) {
@@ -436,6 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
     }
+    updateFirstStepAvailability();
     render();
     returnToMobilePreview();
   }
@@ -564,6 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
       Object.assign(state, restored);
+      state.activeContentProduct =
+        restored.activeContentProduct === 'sticker' ? 'sticker' : 'ribbon';
       state.activeSettingsProduct =
         restored.activeSettingsProduct === 'sticker' ? 'sticker' : 'ribbon';
       state.productStyles = {
@@ -678,7 +842,9 @@ document.addEventListener('DOMContentLoaded', () => {
         : getResolvedText(normalizedProduct).trim();
       el.textContent = textValue;
       el.hidden = !textValue;
-      el.style.fontFamily = getProductStyle(normalizedProduct).font;
+      el.style.fontFamily = onUpload
+        ? getPreviewFont(normalizedProduct)
+        : getProductStyle(normalizedProduct).font;
     });
 
     if (onUpload) {
@@ -772,9 +938,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!scene || !showcase) return;
 
     const onUpload = state.panel === 'upload';
-    const ribbonsOnly = !onUpload && state.bundle === 'ribbon';
-    const stickersOnly = !onUpload && state.bundle === 'sticker';
-    const showAll = onUpload || state.bundle === 'bundle';
+    const onSettings = state.panel === 'settings';
+    const focusedProduct = onUpload
+      ? state.activeContentProduct
+      : state.activeSettingsProduct;
+    const focusSingleProduct = onSettings || onUpload;
+    const ribbonsOnly = focusSingleProduct
+      ? focusedProduct === 'ribbon'
+      : !onUpload && state.bundle === 'ribbon';
+    const stickersOnly = focusSingleProduct
+      ? focusedProduct === 'sticker'
+      : !onUpload && state.bundle === 'sticker';
+    const showAll = !onUpload && !onSettings && state.bundle === 'bundle';
 
     scene.classList.toggle('showcase-ribbons-only', ribbonsOnly);
     scene.classList.toggle('showcase-stickers-only', stickersOnly);
@@ -788,6 +963,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
       item.classList.toggle('is-hidden', hide);
     });
+
+    const selectedRibbon = state.width === 20
+      ? '.showcase-ribbon-20'
+      : '.showcase-ribbon-15';
+    showcase.querySelectorAll('.showcase-ribbon').forEach((item) => {
+      item.classList.toggle(
+        'is-variant-hidden',
+        !item.matches(selectedRibbon),
+      );
+    });
+    showcase.querySelectorAll('.showcase-sticker').forEach((item) => {
+      item.classList.toggle(
+        'is-variant-hidden',
+        !item.classList.contains('showcase-sticker-white'),
+      );
+    });
+  }
+
+  function updateStudioContext() {
+    const eyebrow = $('#studioContextEyebrow');
+    const title = $('#studioContextTitle');
+    const sceneLabel = $('#sceneKitLabel');
+    const sceneTitle = $('#sceneKitTitle');
+    if (!eyebrow || !title || !sceneLabel || !sceneTitle) return;
+
+    const context = {
+      upload: {
+        eyebrow: 'Живой образец',
+        title:
+          state.activeContentProduct === 'sticker'
+            ? 'Предпросмотр стикера'
+            : 'Предпросмотр ленты',
+        sceneLabel:
+          state.activeContentProduct === 'sticker'
+            ? 'Выбран стикер'
+            : 'Выбрана лента',
+        sceneTitle:
+          state.activeContentProduct === 'sticker'
+            ? 'Круглый стикер'
+            : 'Сатиновая лента',
+      },
+      settings: {
+        eyebrow: 'Точная настройка',
+        title:
+          state.activeSettingsProduct === 'sticker'
+            ? 'Настройте стикер'
+            : 'Настройте ленту',
+        sceneLabel:
+          state.activeSettingsProduct === 'sticker'
+            ? 'Выбран стикер'
+            : 'Выбрана лента',
+        sceneTitle:
+          state.activeSettingsProduct === 'sticker'
+            ? 'Круглый стикер'
+            : 'Сатиновая лента',
+      },
+      order: {
+        eyebrow: 'Итоговый просмотр',
+        title: 'Проверьте комплект перед заявкой',
+        sceneLabel: 'Фирменный комплект',
+        sceneTitle: 'Сатиновая лента и круглый стикер',
+      },
+    }[state.panel];
+
+    eyebrow.textContent = context.eyebrow;
+    title.textContent = context.title;
+    sceneLabel.textContent = context.sceneLabel;
+    sceneTitle.textContent = context.sceneTitle;
   }
 
   function showPanel(id) {
@@ -798,8 +1041,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id === 'order') setPrintGuidesEditing(false);
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
-    if (id === 'settings') setActiveSettingsProduct(state.activeSettingsProduct);
+    if (id === 'settings') {
+      setActiveSettingsProduct(state.activeContentProduct);
+    }
+    if (id === 'upload') {
+      setActiveContentProduct(state.activeContentProduct, {renderPreview: false});
+    }
+    setScene('kit');
     updateProductShowcase();
+    updateStudioContext();
   }
 
   function setPrintGuidesEditing(active) {
@@ -813,16 +1063,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function isFirstStepReady() {
-    return (
-      hasCompletedCommonLogoUpload || Boolean(state.content.text.common.trim())
-    );
+    return hasUserContent();
   }
 
   function updateFirstStepAvailability() {
     const ready = isFirstStepReady();
-    const textReady =
-      Boolean(state.content.text.common.trim());
-    const logoReady = hasCompletedCommonLogoUpload;
+    const textReady = ['ribbon', 'sticker'].some((product) =>
+      Boolean(getResolvedText(product).trim()),
+    );
+    const logoReady = ['ribbon', 'sticker'].some((product) =>
+      Boolean(getResolvedLogo(product)?.logo),
+    );
     const continueButton = $('#continueUpload');
     const continueHelp = $('#continueUploadHelp');
     if (continueButton) {
@@ -864,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (button.dataset.panel === 'upload') return;
       button.disabled = !ready;
     });
+    syncContentEditor();
   }
 
   function clearDemoLogo() {
@@ -914,7 +1166,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function drawText(parent, x, y, size, value, product, anchor = 'middle') {
+  function drawText(
+    parent,
+    x,
+    y,
+    size,
+    value,
+    product,
+    anchor = 'middle',
+    font = getProductStyle(product).font,
+  ) {
     if (!value) return;
     const style = getProductStyle(product);
 
@@ -923,7 +1184,7 @@ document.addEventListener('DOMContentLoaded', () => {
       y,
       'text-anchor': anchor,
       'dominant-baseline': 'middle',
-      'font-family': style.font,
+      'font-family': font,
       'font-size': size,
       'font-weight': '700',
       fill: style.print
@@ -934,16 +1195,24 @@ document.addEventListener('DOMContentLoaded', () => {
     return text;
   }
 
-  function measureTextBox(text, size = 100, product = 'ribbon') {
-    textMeasureContext.font = `700 ${size}px ${getProductStyle(product).font}`;
+  function measureTextBox(
+    text,
+    size = 100,
+    product = 'ribbon',
+    font = getProductStyle(product).font,
+  ) {
+    textMeasureContext.font = `700 ${size}px ${font}`;
     const metrics = textMeasureContext.measureText(text || '');
     const ascent = metrics.actualBoundingBoxAscent || size * 0.8;
     const descent = metrics.actualBoundingBoxDescent || size * 0.2;
     return {width: metrics.width, height: ascent + descent};
   }
 
-  function getTextMetrics(text, product = 'ribbon') {
-    const style = getProductStyle(product);
+  function getTextMetrics(
+    text,
+    product = 'ribbon',
+    font = getProductStyle(product).font,
+  ) {
     if (!textMeasurementSvg) {
       textMeasurementSvg = svgEl('svg', {
         width: 1,
@@ -962,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sample = svgEl('text', {
       x: 0,
       y: 100,
-      'font-family': style.font,
+      'font-family': font,
       'font-size': 100,
       'font-weight': '700',
     });
@@ -971,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bbox = sample.getBBox();
     const measured = bbox.width && bbox.height
       ? {width: bbox.width, height: bbox.height}
-      : measureTextBox(text, 100, product);
+      : measureTextBox(text, 100, product, font);
     return {
       widthPerSize: measured.width / 100,
       heightPerSize: measured.height / 100,
@@ -1125,9 +1394,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function calculateAutomaticRibbonRepeat() {
-    const text = getResolvedText('ribbon').trim();
+    const text = getPreviewText('ribbon').trim();
     const resolvedLogo = getPreviewLogo('ribbon');
-    const textMetrics = getTextMetrics(text, 'ribbon');
+    const textMetrics = getTextMetrics(
+      text,
+      'ribbon',
+      getPreviewFont('ribbon'),
+    );
     const content = getNaturalRibbonContentWidthMm(
       text,
       resolvedLogo,
@@ -1318,7 +1591,12 @@ document.addEventListener('DOMContentLoaded', () => {
       resolvedLogo,
       textMetrics,
     );
-    const previewTextMetrics = getTextMetrics(previewTextValue, 'ribbon');
+    const previewFont = getPreviewFont('ribbon');
+    const previewTextMetrics = getTextMetrics(
+      previewTextValue,
+      'ribbon',
+      previewFont,
+    );
     const previewLayout =
       previewLogo === resolvedLogo && previewTextValue === resolvedText
       ? ribbonLayout
@@ -1439,6 +1717,8 @@ document.addEventListener('DOMContentLoaded', () => {
             previewFontSize,
             previewText,
             'ribbon',
+            'middle',
+            previewFont,
           );
         }
         cell.appendChild(previewContent);
@@ -1477,14 +1757,18 @@ document.addEventListener('DOMContentLoaded', () => {
       50: {combined: 33, textOnly: 48},
     }[state.stickerSize];
 
-    const getLayout = (logo, textValue = resolvedText) => {
+    const getLayout = (
+      logo,
+      textValue = resolvedText,
+      font = style.font,
+    ) => {
       const hasLogo = Boolean(logo?.logo);
       const layoutHasText = Boolean(textValue.trim());
       return getStickerContentLayout({
         circle: printable.circle,
         logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
         text: layoutHasText ? textValue : '',
-        textMetrics: getTextMetrics(textValue, 'sticker'),
+        textMetrics: getTextMetrics(textValue, 'sticker', font),
         logoScale: style.logoScale,
         logoOffsetX: style.logoOffsetX,
         logoOffsetY: style.logoOffsetY,
@@ -1500,7 +1784,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewLayout =
       previewLogo === resolvedLogo && previewTextValue === resolvedText.trim()
       ? stickerLayout
-      : getLayout(previewLogo, previewTextValue);
+      : getLayout(
+          previewLogo,
+          previewTextValue,
+          getPreviewFont('sticker'),
+        );
     currentLayouts.sticker = {
       ...stickerLayout,
       outer: {x: 22, y: 22, width: 356, height: 356},
@@ -1545,6 +1833,8 @@ document.addEventListener('DOMContentLoaded', () => {
           previewLayout.fontSize,
           previewTextValue,
           'sticker',
+          'middle',
+          getPreviewFont('sticker'),
         );
       }
       layer.appendChild(previewContent);
@@ -1655,7 +1945,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateRibbonOverflowCards(layout) {
     const style = getProductStyle('ribbon');
     const overflow = layout?.overflow;
-    const visible = Boolean(overflow && state.bundle !== 'sticker');
+    const visible = Boolean(
+      overflow &&
+      state.bundle !== 'sticker' &&
+      !isDemoPreviewActive(),
+    );
     const requiredRepeatMm = overflow?.requiredRepeatMm || null;
     document.body.dataset.ribbonOverflow = String(visible);
     if (requiredRepeatMm) {
@@ -1666,7 +1960,9 @@ document.addEventListener('DOMContentLoaded', () => {
       delete document.body.dataset.ribbonRecommendedRepeat;
     }
 
-    const displayText = layout?.previewText || getResolvedText('ribbon').trim();
+    const displayText = isDemoPreviewActive()
+      ? getPreviewText('ribbon')
+      : layout?.previewText || getResolvedText('ribbon').trim();
     $$('[data-product-type="ribbon"] .dynamic-showcase-text').forEach(
       (element) => {
         element.textContent = displayText;
@@ -1882,6 +2178,14 @@ document.addEventListener('DOMContentLoaded', () => {
     state.meters = ribbon ? (state.meters || state.lastMeters) : 0;
     state.stickerQty = sticker ? (state.stickerQty || state.lastStickerQty) : 0;
     state.bundle = ribbon && sticker ? 'bundle' : ribbon ? 'ribbon' : 'sticker';
+    if (
+      (state.activeContentProduct === 'ribbon' && !ribbon) ||
+      (state.activeContentProduct === 'sticker' && !sticker)
+    ) {
+      setActiveContentProduct(ribbon ? 'ribbon' : 'sticker', {
+        renderPreview: false
+      });
+    }
     syncControls();
     render();
     return true;
@@ -2196,6 +2500,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProductShowcase();
     updateStickerScale();
     publishEffectiveLayouts();
+    syncContentEditor();
 
     if ($('#status')) {
       $('#status').textContent =
@@ -3128,9 +3433,13 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     if ($('#textInput')) {
+      const textValue =
+        activeTextTarget === 'common'
+          ? state.content.text.common
+          : getResolvedText(state.activeContentProduct);
       $('#textInput').value = isDemoPreviewActive()
         ? ''
-        : state.content.text.common;
+        : textValue;
     }
     syncFontPicker();
     if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
@@ -3259,6 +3568,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     setFontPickerOpen(false);
     syncControls();
+    updateProductShowcase();
+    updateStudioContext();
+    syncContentEditor();
     if (focusControls) $('#fontPickerTrigger')?.focus({preventScroll: true});
   }
 
@@ -3306,7 +3618,9 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   $$('#sceneTabs button').forEach((button) =>
-    button.addEventListener('click', () => setScene(button.dataset.scene))
+    button.addEventListener('click', () => {
+      if (state.panel === 'order') setScene(button.dataset.scene);
+    })
   );
 
   $$('#widthChoice button').forEach((button) =>
@@ -3341,6 +3655,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('studio:settings-product-change', (event) => {
     setActiveSettingsProduct(event.detail?.product);
+  });
+
+  document.addEventListener('studio:content-product-change', (event) => {
+    setActiveContentProduct(event.detail?.product);
+  });
+
+  const contentProductEditorViewport = window.matchMedia('(max-width: 700px)');
+  const syncContentProductEditorHost = () => {
+    const editor = $('#contentProductEditor');
+    const target = contentProductEditorViewport.matches ? 'mobile' : 'desktop';
+    const host = document.querySelector(
+      `[data-content-product-host="${target}"]`
+    );
+    if (editor && host && editor.parentElement !== host) {
+      host.appendChild(editor);
+    }
+  };
+  contentProductEditorViewport.addEventListener(
+    'change',
+    syncContentProductEditorHost
+  );
+  syncContentProductEditorHost();
+
+  $$('#contentProductChoice [data-content-product]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setActiveContentProduct(button.dataset.contentProduct);
+    });
   });
 
   document.addEventListener('studio:content-edit-request', (event) => {
@@ -3428,7 +3769,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('#editCommonText').addEventListener('click', () => {
     closeMobileTextEditor({restoreFocus: false});
+    activeTextTarget = 'common';
     showPanel('upload');
+    syncControls();
     $('#textInput').focus();
   });
 
@@ -3601,6 +3944,71 @@ document.addEventListener('DOMContentLoaded', () => {
     setPendingLogoTarget(event.detail?.target);
   });
 
+  $('#makeProductText').addEventListener('click', () => {
+    const product = state.activeContentProduct;
+    state.content.text[product] = {
+      mode: 'override',
+      value: getResolvedText(product),
+    };
+    activeTextTarget = product;
+    render();
+    syncControls();
+    $('#textInput').focus();
+  });
+
+  $('#restoreProductText').addEventListener('click', () => {
+    const product = state.activeContentProduct;
+    state.content.text[product] = {mode: 'inherit'};
+    activeTextTarget = 'common';
+    render();
+    syncControls();
+    updateFirstStepAvailability();
+  });
+
+  $('#removeProductText').addEventListener('click', () => {
+    const product = state.activeContentProduct;
+    state.content.text[product] = {mode: 'override', value: ''};
+    activeTextTarget = product;
+    render();
+    syncControls();
+    updateFirstStepAvailability();
+  });
+
+  $('#makeProductLogo').addEventListener('click', () => {
+    openLogoPicker(state.activeContentProduct);
+  });
+
+  $('#restoreProductLogo').addEventListener('click', () => {
+    clearLogoOverride(state.activeContentProduct);
+    updateFirstStepAvailability();
+  });
+
+  $('#removeProductLogo').addEventListener('click', () => {
+    state.content.logo[state.activeContentProduct] = {
+      mode: 'override',
+      value: null,
+    };
+    render();
+    updateFirstStepAvailability();
+  });
+
+  $('#editSettingsText').addEventListener('click', () => {
+    setActiveContentProduct(state.activeSettingsProduct, {renderPreview: false});
+    activeTextTarget =
+      state.content.text[state.activeSettingsProduct].mode === 'override'
+        ? state.activeSettingsProduct
+        : 'common';
+    showPanel('upload');
+    syncControls();
+    $('#textInput').focus();
+  });
+
+  $('#editSettingsLogo').addEventListener('click', () => {
+    setActiveContentProduct(state.activeSettingsProduct, {renderPreview: false});
+    showPanel('upload');
+    $('#dropZone').focus({preventScroll: true});
+  });
+
   $('#logoInput').addEventListener('change', (event) => {
     const file = event.target.files?.[0];
     const target = pendingLogoTarget;
@@ -3611,10 +4019,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const dropZone = $('#dropZone');
+  dropZone.addEventListener('click', (event) => {
+    if (event.target === $('#logoInput')) return;
+    const product = state.activeContentProduct;
+    setPendingLogoTarget(
+      state.content.logo[product].mode === 'override' ? product : 'common',
+    );
+  });
   dropZone.addEventListener('keydown', (event) => {
     if (!['Enter', ' '].includes(event.key)) return;
     event.preventDefault();
-    $('#logoInput').click();
+    const product = state.activeContentProduct;
+    openLogoPicker(
+      state.content.logo[product].mode === 'override' ? product : 'common',
+    );
   });
   ['dragenter', 'dragover'].forEach((type) =>
     dropZone.addEventListener(type, (event) => {
@@ -3631,16 +4049,35 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   dropZone.addEventListener('drop', (event) => {
-    hasUsedCommonLogoEditor = true;
-    loadFile(event.dataTransfer.files[0]);
+    const product = state.activeContentProduct;
+    const target =
+      state.content.logo[product].mode === 'override' ? product : 'common';
+    if (target === 'common') hasUsedCommonLogoEditor = true;
+    loadFile(event.dataTransfer.files[0], target);
   });
 
   $('#replaceCommonLogo').addEventListener('click', () => {
-    hasUsedCommonLogoEditor = true;
-    openLogoPicker('common');
+    const product = state.activeContentProduct;
+    const target =
+      state.content.logo[product].mode === 'override' ? product : 'common';
+    if (target === 'common') hasUsedCommonLogoEditor = true;
+    openLogoPicker(target);
   });
 
   $('#removeCommonLogo').addEventListener('click', () => {
+    const product = state.activeContentProduct;
+    if (state.content.logo[product].mode === 'override') {
+      state.content.logo[product] = {mode: 'override', value: null};
+      $('#fileCard').hidden = true;
+      $('#traceStatus').hidden = true;
+      setFileCardActionsVisible(false);
+      setUploadState('idle', '');
+      updateFirstStepAvailability();
+      render();
+      $('#dropZone').focus({preventScroll: true});
+      return;
+    }
+
     state.content.logo.common = null;
     syncLegacyContentAliasesFromContent();
     hasCompletedCommonLogoUpload = false;
@@ -3655,21 +4092,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#textInput').addEventListener('input', (event) => {
-    hasUsedCommonTextEditor = true;
     const normalized = event.target.value
       .replace(/[\r\n\t]+/g, ' ')
       .replace(/\s{2,}/g, ' ')
       .replace(/^\s+/, '');
     if (event.target.value !== normalized) event.target.value = normalized;
     const meaningful = normalized.trim();
-    state.commonTextAuthored = Boolean(meaningful);
-    setCommonText(meaningful);
+    if (activeTextTarget === 'common') {
+      hasUsedCommonTextEditor = true;
+      state.commonTextAuthored = Boolean(meaningful);
+      setCommonText(meaningful);
+    } else {
+      setTextOverride(state.activeContentProduct, meaningful);
+    }
     updateFirstStepAvailability();
   });
 
   $('#textInput').addEventListener('change', (event) => {
     event.target.value = event.target.value.trim();
-    setCommonText(event.target.value);
+    if (activeTextTarget === 'common') {
+      setCommonText(event.target.value);
+    } else {
+      setTextOverride(state.activeContentProduct, event.target.value);
+    }
     returnToMobilePreview();
   });
 
@@ -4111,6 +4556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncLegacyContentAliasesFromContent();
   }
   loadDefaultLogo();
+  setActiveContentProduct(state.activeContentProduct, {renderPreview: false});
   setActiveSettingsProduct(state.activeSettingsProduct);
   updateFirstStepAvailability();
   render();
