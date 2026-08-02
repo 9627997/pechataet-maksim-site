@@ -1,5 +1,5 @@
 .mobile-products-panel {
-  display: none;
+  display: block;
 }
 
 .mobile-text-editor {
@@ -15,6 +15,19 @@
     max-width: 100vw;
     overflow: visible;
   }
+
+  .mobile-products-switches-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:12px;
+    margin:0 8px 7px;
+  }
+
+  .mobile-products-switches-head strong,
+  .mobile-products-switches-head small{display:block}
+  .mobile-products-switches-head strong{font-size:12px}
+  .mobile-products-switches-head small{max-width:220px;color:#756b60;font-size:9px;text-align:right}
 
   .mobile-text-editor-backdrop {
     position: fixed;
@@ -162,6 +175,13 @@
     box-sizing: border-box;
   }
 
+  .mobile-products-edit-hint{
+    margin:-7px 8px 14px;
+    color:#756b60;
+    font-size:10px;
+    line-height:1.4;
+  }
+
   .mobile-products-switch {
     position: relative;
     display: inline-flex;
@@ -245,6 +265,18 @@
 
   .mobile-products-sample.is-settings-active .mobile-products-sample-label {
     color: #171717;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-sample.is-product-excluded {
+    opacity:.52;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-sample.is-product-excluded
+    .mobile-products-sample-label::after {
+    color:#756b60;
+    content:' · не в комплекте';
   }
 
   .mobile-products-ribbon.is-settings-active .mobile-products-ribbon-sample,
@@ -375,7 +407,7 @@
     min-height: 0;
     overflow: hidden;
     box-sizing: border-box;
-    padding: 5px 8px;
+    padding: 0;
   }
 
   .mobile-products-ribbon-logo-zone,
@@ -418,6 +450,86 @@
     line-height: 1.1;
     text-align: center;
     opacity: 0;
+    pointer-events: none;
+  }
+
+  .mobile-products-add-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .mobile-products-add-actions[hidden],
+  .mobile-products-add-actions button[hidden] {
+    display: none;
+  }
+
+  .mobile-products-add-actions button {
+    min-height: 44px;
+    padding: 9px 13px;
+    appearance: none;
+    border: 1px solid #cfc6bb;
+    border-radius: 11px;
+    background: #fff;
+    color: #171717;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-products-add-actions button:focus-visible {
+    outline: 3px solid rgba(46, 109, 246, 0.65);
+    outline-offset: 2px;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-zone-action {
+    display: none;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-switches-head,
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-switches,
+  .mobile-products-panel[data-interaction-mode='settings']
+    .mobile-products-edit-hint {
+    display:none;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    [data-mobile-products-safe-zone] {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    [data-mobile-products-safe-zone]:active {
+    cursor: grabbing;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    [data-mobile-products-safe-zone].is-transform-selected {
+    z-index: 5;
+    outline: 2px solid #d8323d;
+    outline-offset: 1px;
+  }
+
+  .mobile-products-panel[data-interaction-mode='settings']
+    [data-mobile-products-safe-zone].is-transform-selected::after {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    box-sizing: border-box;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #d8323d;
+    content: '';
     pointer-events: none;
   }
 
@@ -562,18 +674,6 @@
     white-space: normal;
     overflow-wrap: break-word;
   }
-@media (max-width: 700px) {
-  .mobile-products-panel {
-    display: block;
-  }
-}
-
-@media (min-width: 701px) {
-  body[data-active-panel='settings'] .mobile-products-panel {
-    display: block;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .mobile-products-switch-control,
   .mobile-products-switch-control::after,

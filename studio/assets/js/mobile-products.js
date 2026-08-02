@@ -11,6 +11,9 @@
 
     const switches = [...panel.querySelectorAll('[data-mobile-product]')];
     const samples = [...panel.querySelectorAll('[data-mobile-product-sample]')];
+    const addContentButtons = [
+      ...panel.querySelectorAll('[data-mobile-products-add]'),
+    ];
     const ribbonSurface = panel.querySelector('.mobile-products-ribbon-sample');
     const stickerSurface = panel.querySelector('.mobile-products-sticker-sample');
     let contentTextState = null;
@@ -30,6 +33,37 @@
     ribbonGuide.setAttribute('aria-hidden', 'true');
     stickerGuide.setAttribute('aria-hidden', 'true');
 
+    const requestProductSettings = (product) => {
+      document.dispatchEvent(
+        new CustomEvent('studio:settings-product-change', {
+          detail: {product},
+        }),
+      );
+    };
+
+    const requestTransformTarget = (product, target) => {
+      document.dispatchEvent(
+        new CustomEvent('studio:settings-transform-target-change', {
+          detail: {product, target},
+        }),
+      );
+    };
+
+    const requestContentEdit = (event, kind, product) => {
+      if (document.body.dataset.activePanel === 'settings') {
+        event.stopPropagation();
+        requestProductSettings(product);
+        requestTransformTarget(product, kind);
+        return;
+      }
+
+      document.dispatchEvent(
+        new CustomEvent('studio:content-edit-request', {
+          detail: {kind, product},
+        }),
+      );
+    };
+
     const createLogoZone = (product) => {
       const zone = document.createElement('button');
       const image = document.createElement('img');
@@ -40,12 +74,8 @@
       image.className = `mobile-products-${product}-logo`;
       image.alt = '';
       action.className = 'mobile-products-zone-action';
-      zone.addEventListener('click', () => {
-        document.dispatchEvent(
-          new CustomEvent('studio:content-edit-request', {
-            detail: { kind: 'logo', product },
-          }),
-        );
+      zone.addEventListener('click', (event) => {
+        requestContentEdit(event, 'logo', product);
       });
       zone.append(image, action);
       return { zone, image, action };
@@ -60,12 +90,8 @@
       zone.dataset.mobileProductsSafeZone = `${product}-text`;
       text.className = `mobile-products-${product}-text`;
       action.className = 'mobile-products-zone-action';
-      zone.addEventListener('click', () => {
-        document.dispatchEvent(
-          new CustomEvent('studio:content-edit-request', {
-            detail: { kind: 'text', product },
-          }),
-        );
+      zone.addEventListener('click', (event) => {
+        requestContentEdit(event, 'text', product);
       });
       zone.append(text, action);
       return { zone, text, action };
@@ -83,14 +109,90 @@
     stickerContent.append(stickerLogo.zone, stickerText.zone);
     stickerSurface.append(stickerContent, stickerGuide);
 
+    const installDirectTransform = (zone, product, target, surface) => {
+      const pointers = new Map();
+      let lastPinchDistance = null;
+
+      const dispatchDelta = (dx, dy) => {
+        const bounds = surface.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        document.dispatchEvent(
+          new CustomEvent('studio:settings-transform-delta', {
+            detail: {
+              product,
+              target,
+              dxRatio: dx / bounds.width,
+              dyRatio: dy / bounds.height,
+            },
+          }),
+        );
+      };
+
+      zone.addEventListener('pointerdown', (event) => {
+        if (document.body.dataset.activePanel !== 'settings') return;
+        event.preventDefault();
+        event.stopPropagation();
+        requestProductSettings(product);
+        requestTransformTarget(product, target);
+        pointers.set(event.pointerId, {x: event.clientX, y: event.clientY});
+        zone.setPointerCapture?.(event.pointerId);
+        if (pointers.size === 2) {
+          const [first, second] = [...pointers.values()];
+          lastPinchDistance = Math.hypot(second.x - first.x, second.y - first.y);
+        }
+      });
+
+      zone.addEventListener('pointermove', (event) => {
+        const previous = pointers.get(event.pointerId);
+        if (!previous || document.body.dataset.activePanel !== 'settings') return;
+        event.preventDefault();
+        const next = {x: event.clientX, y: event.clientY};
+        pointers.set(event.pointerId, next);
+        if (pointers.size >= 2) {
+          const [first, second] = [...pointers.values()];
+          const distance = Math.hypot(second.x - first.x, second.y - first.y);
+          if (lastPinchDistance && distance) {
+            document.dispatchEvent(
+              new CustomEvent('studio:settings-transform-scale', {
+                detail: {
+                  product,
+                  target,
+                  factor: distance / lastPinchDistance,
+                },
+              }),
+            );
+          }
+          lastPinchDistance = distance;
+        } else {
+          dispatchDelta(next.x - previous.x, next.y - previous.y);
+        }
+      });
+
+      const endPointer = (event) => {
+        pointers.delete(event.pointerId);
+        if (pointers.size < 2) lastPinchDistance = null;
+      };
+      zone.addEventListener('pointerup', endPointer);
+      zone.addEventListener('pointercancel', endPointer);
+    };
+
+    installDirectTransform(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface);
+    installDirectTransform(ribbonText.zone, 'ribbon', 'text', ribbonSurface);
+    installDirectTransform(stickerLogo.zone, 'sticker', 'logo', stickerSurface);
+    installDirectTransform(stickerText.zone, 'sticker', 'text', stickerSurface);
+
     const syncVisibility = () => {
+      const settingsMode = document.body.dataset.activePanel === 'settings';
       switches.forEach((productSwitch) => {
         const sample = samples.find(
           (item) =>
             item.dataset.mobileProductSample === productSwitch.dataset.mobileProduct,
         );
 
-        if (sample) sample.hidden = !productSwitch.checked;
+        if (sample) {
+          sample.hidden = settingsMode ? false : !productSwitch.checked;
+          sample.classList.toggle('is-product-excluded', !productSwitch.checked);
+        }
       });
     };
 
@@ -174,6 +276,8 @@
       const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
+      const sticker =
+        document.body.style.getPropertyValue('--sticker-live-color').trim() || '#ffffff';
       const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
       const stickerLogoSrc = stickerLogoSource.getAttribute('src') || '';
       const hasRibbonLogo = Boolean(ribbonLogoSrc && !ribbonLogoSource.hidden);
@@ -238,6 +342,7 @@
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
+      stickerSurface.style.backgroundColor = sticker;
       ribbonSurface.style.height = `${(ribbonWidth / 15) * 46}px`;
       const ribbonGeometry =
         window.RibbonStudioGeometry.getRibbonPrintableGeometry({
@@ -272,6 +377,9 @@
       ).textContent = `Стикер ${stickerSize} мм`;
       const applyLayout = (surface, logoPart, textPart, layout) => {
         if (!layout) return;
+        const visibleTextBox = layout.valid
+          ? layout.textBox
+          : layout.previewTextBox;
         surface.dataset.layout = JSON.stringify(layout);
         surface.dataset.layoutValid = String(layout.valid);
         logoPart.zone.dataset.layoutBox = JSON.stringify(layout.logoBox);
@@ -298,9 +406,64 @@
           );
           place(
             textPart.zone,
-            hasStickerText ? layout.textBox : null,
+            hasStickerText ? visibleTextBox : null,
             10,
           );
+        }
+        if (surface === ribbonSurface) {
+          const place = (zone, box) => {
+            for (const property of ['left', 'top', 'width', 'height']) {
+              zone.style.removeProperty(property);
+            }
+            if (!box) return;
+            zone.style.position = 'absolute';
+            zone.style.left = `${box.x * 100}%`;
+            zone.style.top = '0';
+            zone.style.width = `${box.width * 100}%`;
+            zone.style.height = '100%';
+          };
+          place(logoPart.zone, hasRibbonLogo ? layout.logoBox : null);
+          place(textPart.zone, hasRibbonText ? visibleTextBox : null);
+          if (layout.logoBox) {
+            const naturalRatio =
+              logoPart.image.naturalWidth / logoPart.image.naturalHeight;
+            const surfaceWidth = surface.getBoundingClientRect().width;
+            const desiredLogoWidth =
+              layout.logoBox.height * surfaceHeight * naturalRatio;
+            const layoutLogoWidth = layout.logoBox.width * surfaceWidth;
+            if (
+              Number.isFinite(naturalRatio) &&
+              naturalRatio > 0 &&
+              desiredLogoWidth > layoutLogoWidth &&
+              layout.printable?.width
+            ) {
+              const printableLeft = layout.printable.x * surfaceWidth;
+              const printableRight =
+                (layout.printable.x + layout.printable.width) * surfaceWidth;
+              const width = Math.min(
+                desiredLogoWidth,
+                printableRight - printableLeft,
+              );
+              const center =
+                (layout.logoBox.x + layout.logoBox.width / 2) * surfaceWidth;
+              const left = Math.min(
+                printableRight - width,
+                Math.max(printableLeft, center - width / 2),
+              );
+              logoPart.zone.style.left = `${left}px`;
+              logoPart.zone.style.width = `${width}px`;
+            }
+            logoPart.image.style.top =
+              `${(layout.logoBox.y + layout.logoBox.height / 2) * 100}%`;
+          }
+          if (visibleTextBox) {
+            textPart.text.style.position = 'absolute';
+            textPart.text.style.top =
+              `${(visibleTextBox.y + visibleTextBox.height / 2) * 100}%`;
+            textPart.text.style.left = '0';
+            textPart.text.style.width = '100%';
+            textPart.text.style.transform = 'translateY(-50%)';
+          }
         }
         if (layout.logoBox) {
           logoPart.image.style.width = '100%';
@@ -365,6 +528,68 @@
             : hasRibbonText
               ? 'text-only'
               : 'empty';
+
+      const settingsMode = document.body.dataset.activePanel === 'settings';
+      syncVisibility();
+      panel.dataset.interactionMode = settingsMode ? 'settings' : 'content';
+      samples.forEach((sample) => {
+        if (settingsMode) {
+          sample.setAttribute('role', 'button');
+          sample.tabIndex = 0;
+        } else {
+          sample.setAttribute('role', 'group');
+          sample.removeAttribute('tabindex');
+          sample.removeAttribute('aria-pressed');
+        }
+      });
+      [ribbonLogo, ribbonText, stickerLogo, stickerText].forEach(({zone}) => {
+        const product = zone.dataset.mobileProductsSafeZone.split('-')[0];
+        const target = zone.dataset.mobileProductsSafeZone.split('-')[1];
+        const empty = zone.dataset.empty === 'true';
+        zone.tabIndex = 0;
+        zone.disabled = settingsMode && empty;
+        zone.classList.toggle(
+          'is-transform-selected',
+          settingsMode &&
+            document.body.dataset.settingsTransformProduct === product &&
+            document.body.dataset.settingsTransformTarget === target,
+        );
+        if (settingsMode) {
+          zone.setAttribute(
+            'aria-label',
+            `Настроить ${target === 'logo' ? 'логотип' : 'текст'} на ${product === 'ribbon' ? 'ленте' : 'стикере'}`,
+          );
+        }
+      });
+
+      const demoMode = document.body.dataset.previewDemo === 'true';
+      const presence = {
+        ribbon: {
+          logo: demoMode || hasRibbonLogo,
+          text: demoMode || hasRibbonText,
+        },
+        sticker: {
+          logo: demoMode || hasStickerLogo,
+          text: demoMode || hasStickerText,
+        },
+      };
+      const showAddActions = document.body.dataset.activePanel === 'upload';
+      addContentButtons.forEach((button) => {
+        const product = button.dataset.product;
+        const kind = button.dataset.mobileProductsAdd;
+        const exists = presence[product]?.[kind] !== false;
+        button.hidden = !showAddActions;
+        button.dataset.actionMode = exists ? 'edit' : 'add';
+        button.textContent =
+          `${exists ? 'Изменить' : 'Добавить'} ${kind === 'logo' ? 'логотип' : 'текст'}`;
+      });
+      panel.querySelectorAll('[data-mobile-products-add-actions]').forEach(
+        (actions) => {
+          actions.hidden = ![...actions.querySelectorAll('button')].some(
+            (button) => !button.hidden,
+          );
+        },
+      );
     };
 
     let studioSyncFrame = null;
@@ -375,6 +600,9 @@
         syncStudioState();
       });
     };
+    [ribbonLogo.image, stickerLogo.image].forEach((image) => {
+      image.addEventListener('load', scheduleStudioSync);
+    });
 
     switches.forEach((productSwitch) => {
       productSwitch.addEventListener('change', () => {
@@ -394,20 +622,35 @@
       });
     });
 
-    const requestProductSettings = (sample) => {
-      document.dispatchEvent(
-        new CustomEvent('studio:settings-product-change', {
-          detail: {product: sample.dataset.mobileProductSample},
-        }),
-      );
-    };
-
     samples.forEach((sample) => {
-      sample.addEventListener('click', () => requestProductSettings(sample));
+      sample.addEventListener('click', () => {
+        if (document.body.dataset.activePanel !== 'settings') return;
+        requestProductSettings(sample.dataset.mobileProductSample);
+      });
       sample.addEventListener('keydown', (event) => {
+        if (document.body.dataset.activePanel !== 'settings') return;
         if (event.target !== sample || !['Enter', ' '].includes(event.key)) return;
         event.preventDefault();
-        requestProductSettings(sample);
+        requestProductSettings(sample.dataset.mobileProductSample);
+      });
+    });
+
+    addContentButtons.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        document.dispatchEvent(
+          new CustomEvent(
+            button.dataset.actionMode === 'edit'
+              ? 'studio:content-edit-request'
+              : 'studio:content-add-request',
+            {
+            detail: {
+              kind: button.dataset.mobileProductsAdd,
+              product: button.dataset.product,
+            },
+            },
+          ),
+        );
       });
     });
 
@@ -424,6 +667,7 @@
       effectiveLayouts = event.detail || {};
       syncStudioState();
     });
+    document.addEventListener('studio:settings-transform-state', syncStudioState);
 
     document.addEventListener('input', scheduleStudioSync);
     document.addEventListener('change', scheduleStudioSync);

@@ -1,5 +1,6 @@
 (() => {
   const MIN_PRINT_FONT_SIZE = 10;
+  const GOLDEN_RATIO = 1.618;
 
   function fitTextToArea({
     text,
@@ -49,7 +50,10 @@
     text,
     textMetrics,
     logoScale,
-    logoOffsetX,
+    logoOffsetX = 0,
+    logoOffsetY = 0,
+    textOffsetX = 0,
+    textOffsetY = 0,
     preferredFontSize,
   }) {
     const geometry = window.RibbonStudioGeometry;
@@ -57,30 +61,36 @@
     const hasText = Boolean(text);
     let logoBox = null;
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
+    const appliedOffsets = {logoX: 0, logoY: 0, textX: 0, textY: 0};
 
     if (hasLogo && hasText) {
-      const gap = bounds.width * 0.04;
-      const logoWidth = bounds.width * 0.42;
-      const textWidth = bounds.width - logoWidth - gap;
-      const logoBounds = {...bounds, width: logoWidth};
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
-      logoBox = geometry.fitRectToBounds(source, logoBounds, logoScale);
-      const clamped = geometry.clampRectOffsetToBounds(
-        logoBox,
-        logoBounds,
-        logoOffsetX,
+      logoBox = geometry.fitRectToBounds(source, bounds, logoScale);
+      logoBox = {
+        ...logoBox,
+        x: bounds.x,
+        y: centerY - logoBox.height / 2,
+      };
+      const gap = logoBox.width / GOLDEN_RATIO;
+      const targetTextHeight = logoBox.height / GOLDEN_RATIO;
+      const preferredTextSize = textMetrics.heightPerSize
+        ? targetTextHeight / textMetrics.heightPerSize
+        : preferredFontSize;
+      const expectedTextWidth = textMetrics.widthPerSize * preferredTextSize;
+      const textStartX = logoBox.x + logoBox.width + gap;
+      const textWidth = Math.max(
         0,
+        bounds.x + bounds.width - textStartX,
       );
-      logoBox = {...logoBox, x: clamped.x, y: clamped.y};
       textResult = fitTextToArea({
         text,
         metrics: textMetrics,
-        preferredSize: preferredFontSize,
-        maxWidth: textWidth * 0.94,
-        maxHeight: bounds.height,
-        centerX: bounds.x + logoWidth + gap + textWidth / 2,
+        preferredSize: preferredTextSize,
+        maxWidth: textWidth,
+        maxHeight: targetTextHeight,
+        centerX: textStartX + expectedTextWidth / 2,
         centerY,
         scaleToFitWidth: false,
       });
@@ -89,24 +99,47 @@
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
       logoBox = geometry.fitRectToBounds(source, bounds, logoScale);
-      const clamped = geometry.clampRectOffsetToBounds(
-        logoBox,
-        bounds,
-        logoOffsetX,
-        0,
-      );
-      logoBox = {...logoBox, x: clamped.x, y: clamped.y};
     } else if (hasText) {
+      const preferredTextSize = textMetrics.heightPerSize
+        ? bounds.height / textMetrics.heightPerSize
+        : preferredFontSize;
       textResult = fitTextToArea({
         text,
         metrics: textMetrics,
-        preferredSize: preferredFontSize,
+        preferredSize: preferredTextSize,
         maxWidth: bounds.width,
         maxHeight: bounds.height,
         centerX: bounds.x + bounds.width / 2,
         centerY,
         scaleToFitWidth: false,
       });
+    }
+
+    if (logoBox) {
+      const clamped = geometry.clampRectOffsetToBounds(
+        logoBox,
+        bounds,
+        logoOffsetX,
+        logoOffsetY,
+      );
+      appliedOffsets.logoX = clamped.offsetX;
+      appliedOffsets.logoY = clamped.offsetY;
+      logoBox = {...logoBox, x: clamped.x, y: clamped.y};
+    }
+    if (textResult.bbox) {
+      const clamped = geometry.clampRectOffsetToBounds(
+        textResult.bbox,
+        bounds,
+        textOffsetX,
+        textOffsetY,
+      );
+      appliedOffsets.textX = clamped.offsetX;
+      appliedOffsets.textY = clamped.offsetY;
+      textResult.bbox = {
+        ...textResult.bbox,
+        x: clamped.x,
+        y: clamped.y,
+      };
     }
 
     return {
@@ -116,6 +149,7 @@
       logoBox,
       textBox: textResult.bbox,
       fontSize: textResult.fontSize,
+      appliedOffsets,
     };
   }
 
@@ -125,6 +159,10 @@
     text,
     textMetrics,
     logoScale,
+    logoOffsetX = 0,
+    logoOffsetY = 0,
+    textOffsetX = 0,
+    textOffsetY = 0,
     preferredFontSize,
   }) {
     const geometry = window.RibbonStudioGeometry;
@@ -132,6 +170,7 @@
     const hasText = Boolean(text);
     let logoBox = null;
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
+    const appliedOffsets = {logoX: 0, logoY: 0, textX: 0, textY: 0};
 
     if (hasLogo && hasText) {
       const maxContentWidth = circle.radius * 1.72;
@@ -192,6 +231,33 @@
       });
     }
 
+    if (logoBox) {
+      const clamped = geometry.clampRectOffsetToCircle(
+        logoBox,
+        circle,
+        logoOffsetX,
+        logoOffsetY,
+      );
+      appliedOffsets.logoX = clamped.offsetX;
+      appliedOffsets.logoY = clamped.offsetY;
+      logoBox = {...logoBox, x: clamped.x, y: clamped.y};
+    }
+    if (textResult.bbox) {
+      const clamped = geometry.clampRectOffsetToCircle(
+        textResult.bbox,
+        circle,
+        textOffsetX,
+        textOffsetY,
+      );
+      appliedOffsets.textX = clamped.offsetX;
+      appliedOffsets.textY = clamped.offsetY;
+      textResult.bbox = {
+        ...textResult.bbox,
+        x: clamped.x,
+        y: clamped.y,
+      };
+    }
+
     const logoFits =
       !logoBox || geometry.areRectCornersInsideCircle(logoBox, circle, 0);
     const textFits =
@@ -208,6 +274,7 @@
       logoBox: logoFits ? logoBox : null,
       textBox: textResult.fits && textFits ? textResult.bbox : null,
       fontSize: textResult.fontSize,
+      appliedOffsets,
     };
   }
 

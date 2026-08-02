@@ -75,23 +75,33 @@ document.addEventListener('DOMContentLoaded', () => {
         print: '#171717',
         fontSize: 32,
         logoScale: 1,
-        logoOffsetX: 0
+        layoutMode: 'auto',
+        logoOffsetXMm: 0,
+        logoOffsetYMm: 0,
+        textOffsetXMm: 0,
+        textOffsetYMm: 0
       },
       sticker: {
         font: 'Manrope',
         print: '#171717',
         fontSize: 32,
         logoScale: 1,
-        logoOffsetX: 0
+        layoutMode: 'auto',
+        logoOffsetXMm: 0,
+        logoOffsetYMm: 0,
+        textOffsetXMm: 0,
+        textOffsetYMm: 0
       }
     },
     activeSettingsProduct: 'ribbon',
+    activeTransformTarget: 'logo',
     repeatMm: 100,
     bundle: 'bundle',
     stickerSize: 40,
     stickerBg: '#ffffff',
     showPrintGuides: false,
     commonTextAuthored: false,
+    separateProductTexts: false,
     commonLogoUploaded: false,
     meters: 100,
     stickerQty: 100,
@@ -115,17 +125,58 @@ document.addEventListener('DOMContentLoaded', () => {
     const print = PRINT_OPTIONS.includes(value?.print)
       ? value.print
       : PRINT_OPTIONS.includes(fallback.print) ? fallback.print : '#171717';
+    const legacyLogoOffsetMm = Number(value?.logoOffsetX) / 6.2 || 0;
+    const normalizeOffset = (key, fallbackValue = 0) =>
+      Math.min(
+        125,
+        Math.max(
+          -125,
+          Number(value?.[key] ?? fallback?.[key] ?? fallbackValue) || 0,
+        ),
+      );
     return {
       font,
       print,
       fontSize: Math.min(64, Math.max(16, Number(value?.fontSize ?? fallback.fontSize) || 32)),
       logoScale: Math.min(1.8, Math.max(0.5, Number(value?.logoScale ?? fallback.logoScale) || 1)),
-      logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0))
+      layoutMode: value?.layoutMode === 'manual' ? 'manual' : 'auto',
+      logoOffsetXMm: normalizeOffset('logoOffsetXMm', legacyLogoOffsetMm),
+      logoOffsetYMm: normalizeOffset('logoOffsetYMm'),
+      textOffsetXMm: normalizeOffset('textOffsetXMm'),
+      textOffsetYMm: normalizeOffset('textOffsetYMm')
     };
   }
 
   function getProductStyle(product) {
     return state.productStyles[product === 'sticker' ? 'sticker' : 'ribbon'];
+  }
+
+  function getAppliedOffsets(style) {
+    return style.layoutMode === 'manual'
+      ? {
+          logoX: style.logoOffsetXMm,
+          logoY: style.logoOffsetYMm,
+          textX: style.textOffsetXMm,
+          textY: style.textOffsetYMm,
+        }
+      : {logoX: 0, logoY: 0, textX: 0, textY: 0};
+  }
+
+  function syncClampedStyleOffsets(product, layout, printable) {
+    const style = getProductStyle(product);
+    if (style.layoutMode !== 'manual' || !layout?.appliedOffsets) return;
+    const unitsX = printable.unitsPerMmX || printable.unitsPerMm;
+    const unitsY = printable.unitsPerMmY || printable.unitsPerMm;
+    const toMillimeters = (value, units) =>
+      Number((value / Math.max(units, 1e-7)).toFixed(4));
+    if (layout.logoBox) {
+      style.logoOffsetXMm = toMillimeters(layout.appliedOffsets.logoX, unitsX);
+      style.logoOffsetYMm = toMillimeters(layout.appliedOffsets.logoY, unitsY);
+    }
+    if (layout.textBox) {
+      style.textOffsetXMm = toMillimeters(layout.appliedOffsets.textX, unitsX);
+      style.textOffsetYMm = toMillimeters(layout.appliedOffsets.textY, unitsY);
+    }
   }
 
   function syncLegacyStyleAliases(product = state.activeSettingsProduct) {
@@ -134,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.print = style.print;
     state.fontSize = style.fontSize;
     state.logoScale = style.logoScale;
-    state.logoOffsetX = style.logoOffsetX;
+    state.logoOffsetX = style.logoOffsetXMm;
   }
 
   function getPaintedLogo(product, asset) {
@@ -151,6 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasUsedCommonLogoEditor = false;
   let hasCompletedCommonLogoUpload = false;
   let pendingLogoTarget = 'common';
+  let pendingLogoCompositionMode = 'add';
+  let pendingLogoCompositionTarget = 'common';
+  let logoEditRequestMode = 'add';
+  let pendingTextCompositionMode = 'add';
+  let pendingTextCompositionTarget = 'common';
+  let textEditRequestMode = 'add';
   let cropModalOrigin = null;
   let orderModalOrigin = null;
 
@@ -309,9 +366,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setCommonText(value) {
     const common = typeof value === 'string' ? value : '';
+    if (common.trim()) state.activeTransformTarget = 'text';
     state.content.text.common = common;
     state.text = common;
     render();
+  }
+
+  function setTextMode(mode) {
+    const useSeparateTexts = mode === 'separate';
+    if (useSeparateTexts === state.separateProductTexts) return;
+
+    const textWasAuthored = state.commonTextAuthored || hasUsedCommonTextEditor;
+    const ribbonText = getResolvedText('ribbon');
+    const stickerText = getResolvedText('sticker');
+    if (useSeparateTexts) {
+      const initialRibbonText = ribbonText || (isDemoPreviewActive() ? DEMO_TEXT : '');
+      const initialStickerText = stickerText || (isDemoPreviewActive() ? DEMO_TEXT : '');
+      state.separateProductTexts = true;
+      state.content.text.ribbon = {mode: 'override', value: initialRibbonText};
+      state.content.text.sticker = {mode: 'override', value: initialStickerText};
+      state.commonTextAuthored =
+        textWasAuthored &&
+        Boolean(initialRibbonText.trim() || initialStickerText.trim());
+    } else {
+      const commonText = ribbonText || stickerText;
+      state.separateProductTexts = false;
+      state.content.text.common = commonText;
+      state.text = commonText;
+      state.content.text.ribbon = {mode: 'inherit'};
+      state.content.text.sticker = {mode: 'inherit'};
+      state.commonTextAuthored = textWasAuthored && Boolean(commonText.trim());
+    }
+
+    hasUsedCommonTextEditor = state.commonTextAuthored;
+    state.activeTransformTarget = 'text';
+    render();
+    syncControls();
+    updateFirstStepAvailability();
+  }
+
+  function setSeparateText(product, value) {
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    state.separateProductTexts = true;
+    state.content.text[product] = {
+      mode: 'override',
+      value: typeof value === 'string' ? value : '',
+    };
+    state.activeTransformTarget = 'text';
+    hasUsedCommonTextEditor = true;
+    state.commonTextAuthored = true;
+    clearDemoLogo();
+    render();
+    updateFirstStepAvailability();
   }
 
   function setTextOverride(product, value) {
@@ -356,8 +462,13 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingLogoTarget = normalizeLogoTarget(target);
   }
 
-  function openLogoPicker(target) {
+  function openLogoPicker(
+    target,
+    {compositionMode = 'add', compositionTarget = target} = {},
+  ) {
     setPendingLogoTarget(target);
+    pendingLogoCompositionMode = compositionMode === 'replace' ? 'replace' : 'add';
+    pendingLogoCompositionTarget = normalizeLogoTarget(compositionTarget);
     const input = $('#logoInput');
     input.value = '';
     input.click();
@@ -389,19 +500,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function commitLogoAsset(asset, target) {
     const normalizedTarget = normalizeLogoTarget(target);
+    state.activeTransformTarget = 'logo';
+    const compositionProducts =
+      pendingLogoCompositionTarget === 'common'
+        ? ['ribbon', 'sticker']
+        : [pendingLogoCompositionTarget];
     if (normalizedTarget === 'common') {
       if (!state.commonTextAuthored) {
         state.text = '';
         state.content.text.common = '';
       }
       state.content.logo.common = asset;
+      compositionProducts.forEach((product) => {
+        if (pendingLogoCompositionMode === 'replace') {
+          state.content.text[product] = {mode: 'override', value: ''};
+        } else if (
+          state.content.logo[product].mode === 'override' &&
+          state.content.logo[product].value === null
+        ) {
+          state.content.logo[product] = {mode: 'inherit'};
+        }
+      });
       hasCompletedCommonLogoUpload = true;
       state.commonLogoUploaded = true;
       syncLegacyContentAliasesFromContent();
       updateFirstStepAvailability();
     } else {
       state.content.logo[normalizedTarget] = {mode: 'override', value: asset};
+      if (pendingLogoCompositionMode === 'replace') {
+        state.content.text[normalizedTarget] = {mode: 'override', value: ''};
+      }
     }
+    pendingLogoCompositionMode = 'add';
+    pendingLogoCompositionTarget = 'common';
     render();
     returnToMobilePreview();
   }
@@ -532,6 +663,8 @@ document.addEventListener('DOMContentLoaded', () => {
       Object.assign(state, restored);
       state.activeSettingsProduct =
         restored.activeSettingsProduct === 'sticker' ? 'sticker' : 'ribbon';
+      state.activeTransformTarget =
+        restored.activeTransformTarget === 'text' ? 'text' : 'logo';
       state.productStyles = {
         ribbon: normalizeProductStyle(restored.productStyles?.ribbon, restored),
         sticker: normalizeProductStyle(restored.productStyles?.sticker, restored)
@@ -553,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'привет',
         'печатаетмаксим',
         'сделано красиво',
-        DEMO_TEXT,
+        DEMO_TEXT.toLowerCase(),
       ];
       if (legacyDemoTexts.includes((state.text || '').trim().toLowerCase())) {
         state.text = DEMO_TEXT;
@@ -563,6 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.commonTextAuthored =
         restored.commonTextAuthored === true ||
         Boolean(commonText && !legacyDemoTexts.includes(commonText.toLowerCase()));
+      state.separateProductTexts = restored.separateProductTexts === true;
       state.commonLogoUploaded = restored.commonLogoUploaded === true;
       syncLegacyContentAliasesFromContent();
 
@@ -764,6 +898,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id === 'order') setPrintGuidesEditing(false);
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
+    const productPreview = $('.mobile-products-panel');
+    const productPreviewSlot = $(
+      id === 'upload'
+        ? '#createProductPreviewSlot'
+        : id === 'settings'
+          ? '#settingsProductPreviewSlot'
+          : '#orderProductPreviewSlot'
+    );
+    if (productPreview && productPreviewSlot) {
+      productPreviewSlot.append(productPreview);
+    }
     if (id === 'settings') setActiveSettingsProduct(state.activeSettingsProduct);
     updateProductShowcase();
   }
@@ -779,9 +924,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function isFirstStepReady() {
+    const hasAuthoredText = ['ribbon', 'sticker'].some((product) =>
+      Boolean(getResolvedText(product).trim()),
+    );
     return (
       hasCompletedCommonLogoUpload ||
-      (hasUsedCommonTextEditor && Boolean(state.content.text.common.trim()))
+      (hasUsedCommonTextEditor && hasAuthoredText)
     );
   }
 
@@ -939,6 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
     textMetrics = getTextMetrics(text, 'ribbon'),
   ) {
     const style = getProductStyle('ribbon');
+    const offsets = getAppliedOffsets(style);
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
     const repeatWidth = Math.max(360, repeatMm * 6.2);
@@ -959,7 +1108,10 @@ document.addEventListener('DOMContentLoaded', () => {
       text,
       textMetrics,
       logoScale: style.logoScale,
-      logoOffsetX: style.logoOffsetX,
+      logoOffsetX: offsets.logoX * printable.unitsPerMmX,
+      logoOffsetY: offsets.logoY * printable.unitsPerMmY,
+      textOffsetX: offsets.textX * printable.unitsPerMmX,
+      textOffsetY: offsets.textY * printable.unitsPerMmY,
       preferredFontSize:
         (state.width === 20 ? 39 : 31) * (style.fontSize / 32),
     });
@@ -1117,6 +1269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const {printable} = ribbonLayout;
     currentLayouts.ribbon = ribbonLayout;
     currentPreviewLayouts.ribbon = previewLayout;
+    syncClampedStyleOffsets('ribbon', ribbonLayout, printable);
+    if (previewLayout !== ribbonLayout) {
+      syncClampedStyleOffsets('ribbon', previewLayout, printable);
+    }
 
     ['ribbonBase', 'ribbonShine', 'clipRect'].forEach((id) => {
       const element = $('#' + id);
@@ -1248,12 +1404,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getLayout = (logo) => {
       const hasLogo = Boolean(logo?.logo);
+      const offsets = getAppliedOffsets(style);
       return getStickerContentLayout({
         circle: printable.circle,
         logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
         text: hasText ? resolvedText : '',
         textMetrics: getTextMetrics(resolvedText, 'sticker'),
         logoScale: style.logoScale,
+        logoOffsetX: offsets.logoX * printable.unitsPerMm,
+        logoOffsetY: offsets.logoY * printable.unitsPerMm,
+        textOffsetX: offsets.textX * printable.unitsPerMm,
+        textOffsetY: offsets.textY * printable.unitsPerMm,
         preferredFontSize: hasLogo && hasText
           ? stickerPreferred.combined * (style.fontSize / 32)
           : stickerPreferred.textOnly * (style.fontSize / 32),
@@ -1273,6 +1434,10 @@ document.addEventListener('DOMContentLoaded', () => {
       outer: {x: 22, y: 22, width: 356, height: 356},
       printable,
     };
+    syncClampedStyleOffsets('sticker', stickerLayout, printable);
+    if (previewLayout !== stickerLayout) {
+      syncClampedStyleOffsets('sticker', previewLayout, printable);
+    }
 
     const productionContent = svgEl('g', {
       'data-production-content': '',
@@ -1762,7 +1927,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTextElements([macroStickerText, boxStickerText], stickerTextValue, stickerStyle);
 
     if (macroImage) {
-      macroImage.style.transform = `translateX(${ribbonStyle.logoOffsetX}px) scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
+      macroImage.style.transform = `translate(${ribbonStyle.logoOffsetXMm * 2}px, ${ribbonStyle.logoOffsetYMm * 2}px) scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
     }
     if (macroStickerImage) {
       macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo, 'sticker'), 1)})`;
@@ -1789,7 +1954,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stickerLogo
     );
     if (boxRibbonImage) {
-      boxRibbonImage.style.transform = `translateX(${ribbonStyle.logoOffsetX * 0.35}px) scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
+      boxRibbonImage.style.transform = `translate(${ribbonStyle.logoOffsetXMm * 0.7}px, ${ribbonStyle.logoOffsetYMm * 0.7}px) scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
     }
     if (boxStickerImage) {
       boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo, 'sticker')})`;
@@ -1904,6 +2069,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const kitTable = $('.kit-table');
     document.body.dataset.ribbonWidth = String(state.width);
     document.body.style.setProperty('--ribbon-live-color', state.ribbon);
+    document.body.style.setProperty('--sticker-live-color', state.stickerBg);
     document.body.dataset.stickerSize = String(state.stickerSize);
     document.body.style.setProperty('--ribbon-mm', String(state.width));
     document.body.style.setProperty('--sticker-mm', String(state.stickerSize));
@@ -1966,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateOrderProductControls();
 
+    syncTransformControls();
     saveState();
     publishContentState();
     publishProductSelection();
@@ -2809,18 +2976,157 @@ document.addEventListener('DOMContentLoaded', () => {
         ? ''
         : state.content.text.common;
     }
+    $$('[data-text-mode]').forEach((button) => {
+      const active = button.dataset.textMode ===
+        (state.separateProductTexts ? 'separate' : 'common');
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    $$('[data-text-mode-fields]').forEach((section) => {
+      section.hidden = section.dataset.textModeFields !==
+        (state.separateProductTexts ? 'separate' : 'common');
+    });
+    if ($('#ribbonTextInput')) {
+      $('#ribbonTextInput').value = getResolvedText('ribbon');
+    }
+    if ($('#stickerTextInput')) {
+      $('#stickerTextInput').value = getResolvedText('sticker');
+    }
     if ($('#fontSelect')) $('#fontSelect').value = style.font;
     if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
     if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
-    if ($('#fontSize')) $('#fontSize').value = style.fontSize;
+    if ($('#stickerColorSelect')) $('#stickerColorSelect').value = state.stickerBg;
     if ($('#repeatMm')) $('#repeatMm').value = state.repeatMm;
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
     if ($('#meters')) $('#meters').disabled = state.meters === 0;
     if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
-    if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
-    if ($('#logoOffsetX')) $('#logoOffsetX').value = style.logoOffsetX;
+    syncTransformControls();
+    syncSettingsInclusionControl();
     syncPrintGuideState();
+  }
+
+  function getTransformOffsetKeys(target = state.activeTransformTarget) {
+    return target === 'text'
+      ? {x: 'textOffsetXMm', y: 'textOffsetYMm'}
+      : {x: 'logoOffsetXMm', y: 'logoOffsetYMm'};
+  }
+
+  function getTransformLimits(product = state.activeSettingsProduct) {
+    if (product === 'sticker') {
+      const radius = Math.max(0, state.stickerSize / 2 - 2.5);
+      return {x: radius, y: radius};
+    }
+    return {
+      x: Math.max(0, state.repeatMm / 2 - 2.5),
+      y: Math.max(0, state.width / 2 - 2.5),
+    };
+  }
+
+  function formatMillimeters(value) {
+    const normalized = Math.abs(value) < 0.05 ? 0 : value;
+    return `${Number(normalized.toFixed(1)).toLocaleString('ru-RU')} мм`;
+  }
+
+  function syncTransformControls() {
+    const style = getProductStyle(state.activeSettingsProduct);
+    const presence = {
+      logo: Boolean(getResolvedLogo(state.activeSettingsProduct)?.logo),
+      text: Boolean(getResolvedText(state.activeSettingsProduct).trim()),
+    };
+    let target = state.activeTransformTarget;
+    if (!presence[target]) {
+      const availableTarget = ['logo', 'text'].find((kind) => presence[kind]);
+      if (availableTarget) {
+        state.activeTransformTarget = availableTarget;
+        target = availableTarget;
+      }
+    }
+    const keys = getTransformOffsetKeys(target);
+    const limits = getTransformLimits();
+    document.body.dataset.settingsTransformProduct = state.activeSettingsProduct;
+    document.body.dataset.settingsTransformTarget = target;
+    document.body.dataset.settingsLayoutMode = style.layoutMode;
+
+    if ($('#transformProductHint')) {
+      $('#transformProductHint').textContent =
+        `Настройка ${state.activeSettingsProduct === 'ribbon' ? 'ленты' : 'стикера'}`;
+    }
+    $$('[data-transform-target]').forEach((button) => {
+      const active = button.dataset.transformTarget === target;
+      const available = presence[button.dataset.transformTarget];
+      button.classList.toggle('active', active);
+      button.disabled = !available;
+      button.setAttribute('aria-pressed', String(active));
+      button.setAttribute('aria-disabled', String(!available));
+    });
+    $$('[data-transform-control]').forEach((row) => {
+      row.hidden = row.dataset.transformControl !== target;
+    });
+    $$('[data-layout-mode]').forEach((button) => {
+      const active = button.dataset.layoutMode === style.layoutMode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    if ($('#manualTransformControls')) {
+      $('#manualTransformControls').hidden = style.layoutMode !== 'manual';
+    }
+    if ($('#resetTransform')) {
+      $('#resetTransform').textContent =
+        `Сбросить ${target === 'logo' ? 'логотип' : 'текст'}`;
+    }
+
+    if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
+    if ($('#logoScaleValue')) {
+      $('#logoScaleValue').textContent = `${Math.round(style.logoScale * 100)}%`;
+    }
+    if ($('#fontSize')) $('#fontSize').value = style.fontSize;
+    if ($('#fontSizeValue')) $('#fontSizeValue').textContent = style.fontSize;
+
+    const offsetX = $('#logoOffsetX');
+    const offsetY = $('#logoOffsetY');
+    if (offsetX) {
+      offsetX.min = -limits.x;
+      offsetX.max = limits.x;
+      offsetX.value = clamp(style[keys.x], -limits.x, limits.x);
+    }
+    if (offsetY) {
+      offsetY.min = -limits.y;
+      offsetY.max = limits.y;
+      offsetY.value = clamp(style[keys.y], -limits.y, limits.y);
+    }
+    if ($('#transformOffsetXValue')) {
+      $('#transformOffsetXValue').textContent = formatMillimeters(style[keys.x]);
+    }
+    if ($('#transformOffsetYValue')) {
+      $('#transformOffsetYValue').textContent = formatMillimeters(style[keys.y]);
+    }
+
+    document.dispatchEvent(
+      new CustomEvent('studio:settings-transform-state', {
+        detail: {
+          product: state.activeSettingsProduct,
+          target,
+          mode: style.layoutMode,
+        },
+      }),
+    );
+  }
+
+  function syncSettingsInclusionControl() {
+    const input = $('#settingsProductIncluded');
+    if (!input) return;
+    const product = state.activeSettingsProduct;
+    const included = product === 'ribbon' ? state.meters > 0 : state.stickerQty > 0;
+    const otherIncluded = product === 'ribbon'
+      ? state.stickerQty > 0
+      : state.meters > 0;
+    input.checked = included;
+    input.disabled = included && !otherIncluded;
+    input.setAttribute(
+      'aria-label',
+      `${included ? 'Убрать' : 'Добавить'} ${product === 'ribbon' ? 'ленту' : 'стикер'} ${included ? 'из комплекта' : 'в комплект'}`,
+    );
   }
 
   function setActiveSettingsProduct(product, {focusControls = false} = {}) {
@@ -2846,9 +3152,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const printGuideEditingSelector = [
     '#textInput',
+    '#ribbonTextInput',
+    '#stickerTextInput',
     '#fontSelect',
     '#printColorSelect',
     '#ribbonColorSelect',
+    '#stickerColorSelect',
     '#panel-settings button',
     '#panel-settings input',
     '[data-mobile-products-safe-zone]',
@@ -2895,6 +3204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => {
       activate('#widthChoice', button);
       state.width = +button.dataset.value;
+      syncTransformControls();
       render();
     })
   );
@@ -2925,12 +3235,83 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveSettingsProduct(event.detail?.product);
   });
 
+  $('#settingsProductIncluded').addEventListener('change', (event) => {
+    const product = state.activeSettingsProduct;
+    const includeActive = event.target.checked;
+    const ribbon = product === 'ribbon' ? includeActive : state.meters > 0;
+    const sticker = product === 'sticker' ? includeActive : state.stickerQty > 0;
+    const updated = setProductSelection({ribbon, sticker});
+    if (!updated) {
+      syncSettingsInclusionControl();
+      return;
+    }
+    syncSettingsInclusionControl();
+  });
+
+  document.addEventListener('studio:settings-transform-target-change', (event) => {
+    const product = event.detail?.product;
+    const target = event.detail?.target;
+    if (['ribbon', 'sticker'].includes(product)) setActiveSettingsProduct(product);
+    if (!['logo', 'text'].includes(target)) return;
+    state.activeTransformTarget = target;
+    syncTransformControls();
+  });
+
+  document.addEventListener('studio:settings-transform-delta', (event) => {
+    const product = event.detail?.product;
+    const target = event.detail?.target;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    if (!['logo', 'text'].includes(target)) return;
+    setActiveSettingsProduct(product);
+    state.activeTransformTarget = target;
+    const style = getProductStyle(product);
+    const keys = getTransformOffsetKeys(target);
+    const physicalWidth = product === 'ribbon' ? state.repeatMm : state.stickerSize;
+    const physicalHeight = product === 'ribbon' ? state.width : state.stickerSize;
+    const limits = getTransformLimits(product);
+    style.layoutMode = 'manual';
+    style[keys.x] = clamp(
+      style[keys.x] + (Number(event.detail?.dxRatio) || 0) * physicalWidth,
+      -limits.x,
+      limits.x,
+    );
+    style[keys.y] = clamp(
+      style[keys.y] + (Number(event.detail?.dyRatio) || 0) * physicalHeight,
+      -limits.y,
+      limits.y,
+    );
+    syncLegacyStyleAliases();
+    syncTransformControls();
+    render();
+  });
+
+  document.addEventListener('studio:settings-transform-scale', (event) => {
+    const product = event.detail?.product;
+    const target = event.detail?.target;
+    const factor = Number(event.detail?.factor);
+    if (!['ribbon', 'sticker'].includes(product) || !['logo', 'text'].includes(target)) return;
+    if (!Number.isFinite(factor) || factor <= 0) return;
+    setActiveSettingsProduct(product);
+    state.activeTransformTarget = target;
+    const style = getProductStyle(product);
+    style.layoutMode = 'manual';
+    if (target === 'logo') {
+      style.logoScale = clamp(style.logoScale * factor, 0.5, 1.8);
+    } else {
+      style.fontSize = clamp(Math.round(style.fontSize * factor), 16, 64);
+    }
+    syncLegacyStyleAliases();
+    syncTransformControls();
+    render();
+  });
+
   document.addEventListener('studio:content-edit-request', (event) => {
     const kind = event.detail?.kind;
     const product = event.detail?.product;
     if (!['ribbon', 'sticker'].includes(product)) return;
 
     if (kind === 'logo') {
+      logoEditRequestMode = 'replace';
       const content = state.content.logo[product];
       const resolvedLogo = getResolvedLogo(product);
       if (
@@ -2938,7 +3319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         (!resolvedLogo || !hasUsedCommonLogoEditor)
       ) {
         if (resolvedLogo) hasUsedCommonLogoEditor = true;
-        openLogoPicker('common');
+        openLogoPicker('common', {
+          compositionMode: 'replace',
+          compositionTarget: 'common'
+        });
         return;
       }
       document.dispatchEvent(
@@ -2951,9 +3335,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (kind !== 'text') return;
 
+    textEditRequestMode = 'replace';
     const content = state.content.text[product];
     const resolvedText = getResolvedText(product);
     if (content.mode === 'inherit' && (!resolvedText || !hasUsedCommonTextEditor)) {
+      pendingTextCompositionMode = 'replace';
+      pendingTextCompositionTarget = 'common';
       $('#textInput').focus();
       if (resolvedText) hasUsedCommonTextEditor = true;
       return;
@@ -2964,6 +3351,43 @@ document.addEventListener('DOMContentLoaded', () => {
         detail: {product}
       })
     );
+  });
+
+  document.addEventListener('studio:content-add-request', (event) => {
+    const kind = event.detail?.kind;
+    const product = event.detail?.product;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+
+    if (kind === 'text') {
+      textEditRequestMode = 'add';
+      if (window.matchMedia('(max-width: 700px)').matches) {
+        document.dispatchEvent(
+          new CustomEvent('studio:text-edit-scope-required', {
+            detail: {product}
+          })
+        );
+      } else {
+        pendingTextCompositionMode = 'add';
+        pendingTextCompositionTarget = 'common';
+        $('#textInput').focus();
+      }
+      return;
+    }
+
+    if (kind !== 'logo') return;
+    logoEditRequestMode = 'add';
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      document.dispatchEvent(
+        new CustomEvent('studio:logo-edit-scope-required', {
+          detail: {product}
+        })
+      );
+    } else {
+      openLogoPicker('common', {
+        compositionMode: 'add',
+        compositionTarget: 'common'
+      });
+    }
   });
 
   const mobileTextEditor = $('#mobileTextEditor');
@@ -3009,6 +3433,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#editCommonText').addEventListener('click', () => {
+    pendingTextCompositionMode = textEditRequestMode;
+    pendingTextCompositionTarget = 'common';
+    textEditRequestMode = 'add';
     closeMobileTextEditor({restoreFocus: false});
     $('#textInput').focus();
   });
@@ -3017,6 +3444,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const product = mobileTextEditorProduct;
     if (!product) return;
     const override = state.content.text[product];
+    pendingTextCompositionMode = textEditRequestMode;
+    pendingTextCompositionTarget = product;
+    textEditRequestMode = 'add';
     mobileTextOverrideInput.value =
       override.mode === 'override' ? override.value : getResolvedText(product);
     mobileTextEditorChoices.hidden = true;
@@ -3028,7 +3458,12 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     const product = mobileTextEditorProduct;
     if (!product) return;
+    if (pendingTextCompositionMode === 'replace') {
+      state.content.logo[product] = {mode: 'override', value: null};
+    }
     setTextOverride(product, mobileTextOverrideInput.value);
+    pendingTextCompositionMode = 'add';
+    pendingTextCompositionTarget = 'common';
     closeMobileTextEditor();
     returnToMobilePreview();
   });
@@ -3107,15 +3542,25 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#editCommonLogo').addEventListener('click', () => {
+    const compositionMode = logoEditRequestMode;
     closeMobileLogoEditor({restoreFocus: false});
-    openLogoPicker('common');
+    openLogoPicker('common', {
+      compositionMode,
+      compositionTarget: 'common'
+    });
+    logoEditRequestMode = 'add';
   });
 
   $('#editProductLogo').addEventListener('click', () => {
     const product = mobileLogoEditorProduct;
     if (!product) return;
+    const compositionMode = logoEditRequestMode;
     closeMobileLogoEditor({restoreFocus: false});
-    openLogoPicker(product);
+    openLogoPicker(product, {
+      compositionMode,
+      compositionTarget: product
+    });
+    logoEditRequestMode = 'add';
   });
 
   $('#clearProductLogoOverride').addEventListener('click', () => {
@@ -3173,6 +3618,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => {
       activate('#stickerSizeChoice', button);
       state.stickerSize = +button.dataset.value;
+      syncTransformControls();
       render();
     })
   );
@@ -3186,6 +3632,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const target = pendingLogoTarget;
     event.target.value = '';
     setPendingLogoTarget('common');
+    if (!file) {
+      pendingLogoCompositionMode = 'add';
+      pendingLogoCompositionTarget = 'common';
+      return;
+    }
     if (file && target === 'common') hasUsedCommonLogoEditor = true;
     loadFile(file, target);
   });
@@ -3213,6 +3664,22 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZone.addEventListener('drop', (event) => loadFile(event.dataTransfer.files[0]));
 
   $('#textInput').addEventListener('input', (event) => {
+    const compositionProducts =
+      pendingTextCompositionTarget === 'common'
+        ? ['ribbon', 'sticker']
+        : [pendingTextCompositionTarget];
+    compositionProducts.forEach((product) => {
+      if (pendingTextCompositionMode === 'replace') {
+        state.content.logo[product] = {mode: 'override', value: null};
+      } else if (
+        state.content.text[product].mode === 'override' &&
+        state.content.text[product].value === ''
+      ) {
+        state.content.text[product] = {mode: 'inherit'};
+      }
+    });
+    pendingTextCompositionMode = 'add';
+    pendingTextCompositionTarget = 'common';
     hasUsedCommonTextEditor = true;
     state.commonTextAuthored = true;
     clearDemoLogo();
@@ -3221,6 +3688,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#textInput').addEventListener('change', returnToMobilePreview);
+
+  $$('[data-text-mode]').forEach((button) => {
+    button.addEventListener('click', () => setTextMode(button.dataset.textMode));
+  });
+
+  $('#ribbonTextInput').addEventListener('input', (event) => {
+    setSeparateText('ribbon', event.target.value);
+  });
+
+  $('#stickerTextInput').addEventListener('input', (event) => {
+    setSeparateText('sticker', event.target.value);
+  });
+
+  $('#ribbonTextInput').addEventListener('change', returnToMobilePreview);
+  $('#stickerTextInput').addEventListener('change', returnToMobilePreview);
 
   $('#fontSelect').addEventListener('change', (event) => {
     getProductStyle(state.activeSettingsProduct).font = event.target.value;
@@ -3242,9 +3724,18 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
+  $('#stickerColorSelect').addEventListener('change', (event) => {
+    state.stickerBg = event.target.value;
+    render();
+  });
+
   $('#fontSize').addEventListener('input', (event) => {
-    getProductStyle(state.activeSettingsProduct).fontSize = +event.target.value;
+    const style = getProductStyle(state.activeSettingsProduct);
+    state.activeTransformTarget = 'text';
+    style.layoutMode = 'manual';
+    style.fontSize = +event.target.value;
     syncLegacyStyleAliases();
+    syncTransformControls();
     render();
   });
 
@@ -3253,6 +3744,7 @@ document.addEventListener('DOMContentLoaded', () => {
       MAX_RIBBON_REPEAT_MM,
       Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
     );
+    syncTransformControls();
     render();
   });
 
@@ -3287,23 +3779,110 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#logoScale').addEventListener('input', (event) => {
-    getProductStyle(state.activeSettingsProduct).logoScale =
-      +event.target.value / 100;
+    const style = getProductStyle(state.activeSettingsProduct);
+    state.activeTransformTarget = 'logo';
+    style.layoutMode = 'manual';
+    style.logoScale = +event.target.value / 100;
     syncLegacyStyleAliases();
+    syncTransformControls();
     render();
   });
 
   $('#logoOffsetX').addEventListener('input', (event) => {
-    getProductStyle(state.activeSettingsProduct).logoOffsetX =
-      +event.target.value;
+    const style = getProductStyle(state.activeSettingsProduct);
+    const keys = getTransformOffsetKeys();
+    style.layoutMode = 'manual';
+    style[keys.x] = +event.target.value;
     syncLegacyStyleAliases();
+    syncTransformControls();
+    render();
+  });
+
+  $('#logoOffsetY').addEventListener('input', (event) => {
+    const style = getProductStyle(state.activeSettingsProduct);
+    const keys = getTransformOffsetKeys();
+    style.layoutMode = 'manual';
+    style[keys.y] = +event.target.value;
+    syncLegacyStyleAliases();
+    syncTransformControls();
+    render();
+  });
+
+  $$('[data-transform-target]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.activeTransformTarget = button.dataset.transformTarget;
+      syncTransformControls();
+    });
+  });
+
+  $$('[data-layout-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const style = getProductStyle(state.activeSettingsProduct);
+      style.layoutMode = button.dataset.layoutMode === 'manual' ? 'manual' : 'auto';
+      if (style.layoutMode === 'auto') {
+        style.logoOffsetXMm = 0;
+        style.logoOffsetYMm = 0;
+        style.textOffsetXMm = 0;
+        style.textOffsetYMm = 0;
+      }
+      syncTransformControls();
+      render();
+    });
+  });
+
+  $$('[data-transform-nudge-x], [data-transform-nudge-y]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const style = getProductStyle(state.activeSettingsProduct);
+      const keys = getTransformOffsetKeys();
+      const limits = getTransformLimits();
+      style.layoutMode = 'manual';
+      style[keys.x] = clamp(
+        style[keys.x] + (Number(button.dataset.transformNudgeX) || 0),
+        -limits.x,
+        limits.x,
+      );
+      style[keys.y] = clamp(
+        style[keys.y] + (Number(button.dataset.transformNudgeY) || 0),
+        -limits.y,
+        limits.y,
+      );
+      syncLegacyStyleAliases();
+      syncTransformControls();
+      render();
+    });
+  });
+
+  $('#centerTransform').addEventListener('click', () => {
+    const style = getProductStyle(state.activeSettingsProduct);
+    const keys = getTransformOffsetKeys();
+    style.layoutMode = 'manual';
+    style[keys.x] = 0;
+    style[keys.y] = 0;
+    syncLegacyStyleAliases();
+    syncTransformControls();
+    render();
+  });
+
+  $('#returnTransformAuto').addEventListener('click', () => {
+    const style = getProductStyle(state.activeSettingsProduct);
+    style.layoutMode = 'auto';
+    style.logoOffsetXMm = 0;
+    style.logoOffsetYMm = 0;
+    style.textOffsetXMm = 0;
+    style.textOffsetYMm = 0;
+    syncLegacyStyleAliases();
+    syncTransformControls();
     render();
   });
 
   $('#resetTransform').addEventListener('click', () => {
     const style = getProductStyle(state.activeSettingsProduct);
-    style.logoScale = 1;
-    style.logoOffsetX = 0;
+    const keys = getTransformOffsetKeys();
+    style.layoutMode = 'manual';
+    style[keys.x] = 0;
+    style[keys.y] = 0;
+    if (state.activeTransformTarget === 'logo') style.logoScale = 1;
+    else style.fontSize = 32;
     syncLegacyStyleAliases();
     syncControls();
     render();
@@ -3316,10 +3895,18 @@ document.addEventListener('DOMContentLoaded', () => {
     state.stickerSize = rec.stickerSize;
     state.productStyles.ribbon.fontSize = rec.width === 20 ? 34 : 28;
     state.productStyles.ribbon.logoScale = rec.logoScale;
-    state.productStyles.ribbon.logoOffsetX = 0;
+    state.productStyles.ribbon.layoutMode = 'auto';
+    state.productStyles.ribbon.logoOffsetXMm = 0;
+    state.productStyles.ribbon.logoOffsetYMm = 0;
+    state.productStyles.ribbon.textOffsetXMm = 0;
+    state.productStyles.ribbon.textOffsetYMm = 0;
     state.productStyles.sticker.fontSize = 32;
     state.productStyles.sticker.logoScale = rec.logoScale;
-    state.productStyles.sticker.logoOffsetX = 0;
+    state.productStyles.sticker.layoutMode = 'auto';
+    state.productStyles.sticker.logoOffsetXMm = 0;
+    state.productStyles.sticker.logoOffsetYMm = 0;
+    state.productStyles.sticker.textOffsetXMm = 0;
+    state.productStyles.sticker.textOffsetYMm = 0;
     syncLegacyStyleAliases();
     setProductSelection({ribbon: true, sticker: true});
   });
@@ -3450,10 +4037,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initCropInteractions();
   restoreState();
+  const restoredResolvedText = ['ribbon', 'sticker']
+    .map((product) => getResolvedText(product).trim())
+    .find(Boolean);
   hasUsedCommonTextEditor =
     state.commonTextAuthored ||
-    (Boolean(state.content.text.common.trim()) &&
-      state.content.text.common.trim().toLowerCase() !== DEMO_TEXT);
+    Boolean(
+      restoredResolvedText &&
+      restoredResolvedText.toLowerCase() !== DEMO_TEXT.toLowerCase(),
+    );
   state.commonTextAuthored = hasUsedCommonTextEditor;
   const restoredCommonLogo = state.content.logo.common;
   const restoredCommonLogoIsDefault =

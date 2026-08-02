@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/app.css?v=20260722.1">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260722.1">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260722.9">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260722.9">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -26,63 +26,98 @@
 </header>
 
 <div class="app-shell">
-  <aside class="sidebar">
+  <main class="sidebar">
+    <div class="studio-flow-head">
+      <p class="eyebrow">Студия фирменной упаковки</p>
+      <h1>Создайте ленту и стикер вашего бренда</h1>
+    </div>
+
     <nav class="main-nav" aria-label="Разделы конструктора">
       <button class="nav-item active" data-panel="upload"><span>01</span>Создать</button>
       <button class="nav-item" data-panel="settings"><span>02</span>Настроить</button>
       <button class="nav-item" data-panel="order"><span>03</span>Получить</button>
     </nav>
 
-    <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
-      <div class="mobile-products-switches">
-        <label class="mobile-products-switch">
-          <span>Лента</span>
-          <input type="checkbox" role="switch" data-mobile-product="ribbon" checked>
-          <span class="mobile-products-switch-control" aria-hidden="true"></span>
-        </label>
-        <label class="mobile-products-switch">
-          <span>Стикер</span>
-          <input type="checkbox" role="switch" data-mobile-product="sticker" checked>
-          <span class="mobile-products-switch-control" aria-hidden="true"></span>
-        </label>
-      </div>
-
-      <div class="mobile-products-preview">
-        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
-          <span class="mobile-products-sample-label">Лента 15 мм</span>
-          <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
-          <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
-            <div class="ribbon-overflow-head">
-              <span>Полная надпись</span>
-              <strong data-ribbon-overflow-measure></strong>
-            </div>
-            <div class="ribbon-overflow-full" data-ribbon-overflow-full role="img" aria-label="Полный макет надписи на ленте">
-              <img data-ribbon-overflow-logo alt="" hidden>
-              <span data-ribbon-overflow-text></span>
-            </div>
-            <p data-ribbon-overflow-message aria-live="polite"></p>
-            <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
-          </section>
-        </div>
-        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Настроить стикер">
-          <span class="mobile-products-sample-label">Стикер 40 мм</span>
-          <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
-        </div>
-      </div>
-    </section>
-
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Загрузите логотип или просто введите название. Через несколько секунд вы увидите готовый комплект.</p>
 
+      <div class="product-preview-slot" id="createProductPreviewSlot">
+        <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
+          <div class="mobile-products-switches-head">
+            <strong>Что создаём?</strong>
+            <small>Оставьте в комплекте одно или оба изделия</small>
+          </div>
+          <div class="mobile-products-switches">
+            <label class="mobile-products-switch">
+              <span>Лента</span>
+              <input type="checkbox" role="switch" data-mobile-product="ribbon" checked>
+              <span class="mobile-products-switch-control" aria-hidden="true"></span>
+            </label>
+            <label class="mobile-products-switch">
+              <span>Стикер</span>
+              <input type="checkbox" role="switch" data-mobile-product="sticker" checked>
+              <span class="mobile-products-switch-control" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <p class="mobile-products-edit-hint">Нажмите на логотип или текст либо используйте кнопки под образцом.</p>
+          <div class="mobile-products-preview">
+            <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
+              <span class="mobile-products-sample-label">Лента 15 мм</span>
+              <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
+              <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
+                <div class="ribbon-overflow-head">
+                  <span>Полная надпись</span>
+                  <strong data-ribbon-overflow-measure></strong>
+                </div>
+                <div class="ribbon-overflow-full" data-ribbon-overflow-full role="img" aria-label="Полный макет надписи на ленте">
+                  <img data-ribbon-overflow-logo alt="" hidden>
+                  <span data-ribbon-overflow-text></span>
+                </div>
+                <p data-ribbon-overflow-message aria-live="polite"></p>
+                <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
+              </section>
+              <div class="mobile-products-add-actions" data-mobile-products-add-actions>
+                <button type="button" data-mobile-products-add="logo" data-product="ribbon">Изменить логотип</button>
+                <button type="button" data-mobile-products-add="text" data-product="ribbon">Изменить текст</button>
+              </div>
+            </div>
+            <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Настроить стикер">
+              <span class="mobile-products-sample-label">Стикер 40 мм</span>
+              <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
+              <div class="mobile-products-add-actions" data-mobile-products-add-actions>
+                <button type="button" data-mobile-products-add="logo" data-product="sticker">Изменить логотип</button>
+                <button type="button" data-mobile-products-add="text" data-product="sticker">Изменить текст</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <div class="upload-text-card">
         <div class="upload-text-head">
           <strong>Введите название</strong>
-          <span>Надпись можно использовать отдельно или вместе с логотипом</span>
+          <span>Используйте общий текст или задайте отдельный для каждого изделия</span>
         </div>
 
-        <label for="textInput">Текст на ленте и стикере</label>
-        <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
+        <div class="segmented text-mode-choice" id="textModeChoice" aria-label="Режим текста">
+          <button class="active" data-text-mode="common" type="button">Одинаковый</button>
+          <button data-text-mode="separate" type="button">Разный текст</button>
+        </div>
+
+        <div data-text-mode-fields="common">
+          <label for="textInput">Текст на ленте и стикере</label>
+          <input class="input" id="textInput" type="text" placeholder="Например: ленты по любви">
+        </div>
+
+        <div class="separate-text-fields" data-text-mode-fields="separate" hidden>
+          <label for="ribbonTextInput">Текст на ленте</label>
+          <input class="input" id="ribbonTextInput" type="text" placeholder="Например: ленты по любви">
+          <label for="stickerTextInput">Текст на стикере</label>
+          <input class="input" id="stickerTextInput" type="text" placeholder="Например: спасибо за заказ">
+          <small>Одно из полей можно оставить пустым.</small>
+        </div>
       </div>
 
       <label class="upload upload-large" id="dropZone" role="button" tabindex="0" aria-controls="logoInput">
@@ -130,9 +165,17 @@
       <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
       <p class="panel-copy">Выберите образец, чтобы открыть его индивидуальные настройки.</p>
 
+      <div class="product-preview-slot" id="settingsProductPreviewSlot"></div>
+
       <div class="settings-context-head" aria-live="polite">
-        <span>Индивидуальные настройки</span>
-        <strong id="activeSettingsTitle">Лента</strong>
+        <div>
+          <span>Настраиваем изделие</span>
+          <strong id="activeSettingsTitle">Лента</strong>
+        </div>
+        <label class="settings-inclusion" for="settingsProductIncluded">
+          <span>В комплекте</span>
+          <input id="settingsProductIncluded" type="checkbox" role="switch" checked>
+        </label>
       </div>
 
       <label for="fontSelect">Шрифт надписи</label>
@@ -187,10 +230,20 @@
           <button class="active" data-value="40">40 мм</button>
           <button data-value="50">50 мм</button>
         </div>
+
+        <label for="stickerColorSelect">Цвет стикера</label>
+        <select class="input settings-select" id="stickerColorSelect">
+          <option value="#ffffff">Белый</option>
+          <option value="#f3eadc">Молочный</option>
+          <option value="#e5c5c4">Пудровый</option>
+          <option value="#b7202d">Красный</option>
+          <option value="#6b1f2d">Бордовый</option>
+          <option value="#0c6a4f">Изумрудный</option>
+          <option value="#274d83">Синий</option>
+          <option value="#171717">Чёрный</option>
+        </select>
       </div>
 
-      <label for="fontSize">Размер текста</label>
-      <input class="settings-range" id="fontSize" type="range" min="16" max="64" value="32">
       <p class="artwork-validation" id="artworkValidation" role="status" hidden></p>
 <div id="stickerBgChoice" class="visually-hidden"><button class="active" data-value="#ffffff"></button></div>
 
@@ -205,20 +258,61 @@
       
       <div class="transform-card">
         <div class="transform-head">
-          <strong>Положение логотипа</strong>
+          <div>
+            <strong>Положение и размер</strong>
+            <small id="transformProductHint">Настройка ленты</small>
+          </div>
           <button class="mini-button" id="resetTransform" type="button">Сбросить</button>
         </div>
-        <label for="logoScale">Масштаб</label>
-        <input id="logoScale" type="range" min="50" max="180" value="100">
-        <label for="logoOffsetX">Смещение по горизонтали</label>
-        <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+        <p class="transform-help">Выберите элемент или перетащите его прямо на образце.</p>
+        <div class="segmented transform-target-choice" id="transformTargetChoice" aria-label="Что настроить">
+          <button class="active" data-transform-target="logo" type="button">Логотип</button>
+          <button data-transform-target="text" type="button">Текст</button>
+        </div>
+
+        <div class="transform-scale-row" data-transform-control="logo">
+          <label for="logoScale">Размер логотипа <output id="logoScaleValue">100%</output></label>
+          <input id="logoScale" type="range" min="50" max="180" value="100">
+        </div>
+        <div class="transform-scale-row" data-transform-control="text" hidden>
+          <label for="fontSize">Размер текста <output id="fontSizeValue">32</output></label>
+          <input class="settings-range" id="fontSize" type="range" min="16" max="64" value="32">
+        </div>
+
+        <div class="transform-mode-row">
+          <span>Композиция</span>
+          <div class="segmented transform-mode-choice" id="layoutModeChoice">
+            <button class="active" data-layout-mode="auto" type="button">Авто</button>
+            <button data-layout-mode="manual" type="button">Вручную</button>
+          </div>
+        </div>
+
+        <div class="manual-transform-controls" id="manualTransformControls" hidden>
+          <div class="transform-coordinate-row">
+            <label for="logoOffsetX">По горизонтали <output id="transformOffsetXValue">0 мм</output></label>
+            <input id="logoOffsetX" type="range" min="-50" max="50" step="0.5" value="0">
+          </div>
+          <div class="transform-coordinate-row">
+            <label for="logoOffsetY">По вертикали <output id="transformOffsetYValue">0 мм</output></label>
+            <input id="logoOffsetY" type="range" min="-10" max="10" step="0.5" value="0">
+          </div>
+
+          <div class="transform-nudge" aria-label="Точное перемещение">
+            <button type="button" data-transform-nudge-y="-0.5" aria-label="Поднять на 0,5 мм">↑</button>
+            <button type="button" data-transform-nudge-x="-0.5" aria-label="Сдвинуть влево на 0,5 мм">←</button>
+            <button class="transform-center" id="centerTransform" type="button">В центр</button>
+            <button type="button" data-transform-nudge-x="0.5" aria-label="Сдвинуть вправо на 0,5 мм">→</button>
+            <button type="button" data-transform-nudge-y="0.5" aria-label="Опустить на 0,5 мм">↓</button>
+          </div>
+          <button class="transform-auto-button" id="returnTransformAuto" type="button">Вернуть автоматическую композицию</button>
+        </div>
       </div>
 
       <div class="recommend-card" id="recommendCard">
         <div class="recommend-card-head">
           <div>
-            <span>Автоматический подбор</span>
-            <strong>Рекомендовано для вашего бренда</strong>
+            <span>Для всего комплекта</span>
+            <strong>Автоматический подбор размеров</strong>
           </div>
           <button class="recommend-apply" id="makeBeautiful" type="button">Применить</button>
         </div>
@@ -230,11 +324,16 @@
         <p id="recommendReason">Подходит для большинства логотипов и надписей.</p>
       </div>
 
-      <button class="button primary wide next-panel" data-next="order">Далее: получить</button>
+      <div class="settings-action-bar">
+        <span class="settings-save-status">✓ Изменения сохраняются автоматически</span>
+        <button class="button primary wide next-panel" data-next="order">Далее: получить</button>
+      </div>
     </section>
 
 <section class="panel" id="panel-order">
       <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
+
+      <div class="product-preview-slot" id="orderProductPreviewSlot"></div>
 
       <div class="order-card">
         <div class="order-product-row" id="orderRibbonRow">
@@ -277,9 +376,9 @@
 
       <button class="button primary wide" id="openOrder">Отправить Максиму</button>
     </section>
-  </aside>
+  </main>
 
-  <main class="studio">
+  <div class="studio studio-render-engine" aria-hidden="true" inert>
     <div class="studio-head">
       <div>
         <p class="eyebrow">Студия фирменной упаковки</p>
@@ -459,7 +558,7 @@
       </div>
     </section>
 
-  </main>
+  </div>
 </div>
 
 
@@ -554,9 +653,9 @@
   </section>
 </div>
 
-<script src="assets/js/geometry.js?v=20260722.1"></script>
-<script src="assets/js/layout.js?v=20260722.1"></script>
-<script src="assets/js/app.js?v=20260722.1"></script>
-<script src="assets/js/mobile-products.js?v=20260722.1"></script>
+<script src="assets/js/geometry.js?v=20260722.9"></script>
+<script src="assets/js/layout.js?v=20260722.9"></script>
+<script src="assets/js/app.js?v=20260722.9"></script>
+<script src="assets/js/mobile-products.js?v=20260722.9"></script>
 </body>
 </html>
