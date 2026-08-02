@@ -194,7 +194,13 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
       page.locator('.mobile-products-printable-guide.sticker-guide'),
     ).toBeAttached();
   } else {
+    await page.locator('.nav-item[data-panel="order"]').click();
+    await expect(page.locator('#sceneTabs')).toBeVisible();
+    await expect(page.locator('#studioContextTitle')).toHaveText(
+      'Проверьте комплект перед заявкой',
+    );
     await page.locator('#sceneTabs button[data-scene="macro"]').click();
+    await expect(page.locator('#scene-macro')).toBeVisible();
     await expect(page.locator('.macro-sticker-printable-guide')).toBeAttached();
   }
 

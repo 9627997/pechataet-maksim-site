@@ -55,6 +55,25 @@
       );
     };
 
+    const requestContentProduct = (product) => {
+      if (panelMode !== 'upload' || !['ribbon', 'sticker'].includes(product))
+        return;
+      document.dispatchEvent(
+        new CustomEvent('studio:content-product-change', {
+          detail: {product},
+        }),
+      );
+    };
+
+    const requestContentEdit = (product, kind) => {
+      requestContentProduct(product);
+      document.dispatchEvent(
+        new CustomEvent('studio:content-edit-request', {
+          detail: {product, kind},
+        }),
+      );
+    };
+
     const createLogoZone = (product) => {
       const zone = document.createElement('button');
       const image = document.createElement('img');
@@ -76,12 +95,7 @@
         }
         if (panelMode === 'order') return;
         if (panelMode === 'upload') {
-          document.dispatchEvent(
-            new CustomEvent('studio:logo-upload-target-set', {
-              detail: {target: 'common'},
-            }),
-          );
-          logoInput.click();
+          requestContentEdit(product, 'logo');
           return;
         }
         requestProductSettings(product);
@@ -110,7 +124,7 @@
         }
         if (panelMode === 'order') return;
         if (panelMode === 'upload') {
-          textInput.focus();
+          requestContentEdit(product, 'text');
           return;
         }
         requestProductSettings(product);
@@ -266,12 +280,17 @@
       hasText,
       font,
       print,
+      fitSingleRepeat = false,
     }) => {
       if (!layout) return;
       const surfaceBounds = ribbonSurface.getBoundingClientRect();
       if (surfaceBounds.width <= 0 || surfaceBounds.height <= 0) return;
 
-      const repeatWidth = (repeatMm / ribbonWidth) * surfaceBounds.height;
+      const naturalRepeatWidth =
+        (repeatMm / ribbonWidth) * surfaceBounds.height;
+      const repeatWidth = fitSingleRepeat
+        ? Math.min(naturalRepeatWidth, surfaceBounds.width)
+        : naturalRepeatWidth;
       const centerLeft = (surfaceBounds.width - repeatWidth) / 2;
       ribbonInteractionCell.style.left = `${centerLeft}px`;
       ribbonInteractionCell.style.width = `${repeatWidth}px`;
@@ -350,6 +369,9 @@
       ribbonSurface.dataset.ribbonRepeatCount = String(repeatCount);
       ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
       ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
+      ribbonSurface.dataset.ribbonRepeatScaled = String(
+        repeatWidth < naturalRepeatWidth,
+      );
     };
 
     const syncStudioState = () => {
@@ -378,11 +400,15 @@
       const fallbackPrint =
         document.querySelector('#printColorSelect')?.value || '#171717';
       const ribbonStyle = {
-        font: productStyles.ribbon?.font || fallbackFont,
+        font: demoArtwork
+          ? 'Comfortaa'
+          : productStyles.ribbon?.font || fallbackFont,
         print: productStyles.ribbon?.print || fallbackPrint,
       };
       const stickerStyle = {
-        font: productStyles.sticker?.font || fallbackFont,
+        font: demoArtwork
+          ? 'Comfortaa'
+          : productStyles.sticker?.font || fallbackFont,
         print: productStyles.sticker?.print || fallbackPrint,
       };
       const ribbonWidth =
@@ -662,6 +688,7 @@
         hasText: hasRibbonText,
         font: ribbonStyle.font,
         print: ribbonStyle.print,
+        fitSingleRepeat: demoArtwork,
       });
       applyLayout(
         ribbonSurface,
@@ -797,7 +824,7 @@
       host.appendChild(panelSlot);
       panelSlot.dataset.hosted = 'true';
 
-      const interactiveSamples = panelMode === 'settings';
+      const interactiveSamples = ['upload', 'settings'].includes(panelMode);
       samples.forEach((sample) => {
         if (interactiveSamples) {
           sample.setAttribute('role', 'button');
@@ -848,13 +875,19 @@
     });
 
     samples.forEach((sample) => {
-      sample.addEventListener('click', () => {
-        requestProductSettings(sample.dataset.mobileProductSample);
+      sample.addEventListener('click', (event) => {
+        if (event.target.closest('button[data-mobile-products-safe-zone]'))
+          return;
+        const product = sample.dataset.mobileProductSample;
+        requestContentProduct(product);
+        requestProductSettings(product);
       });
       sample.addEventListener('keydown', (event) => {
         if (event.target !== sample || !['Enter', ' '].includes(event.key)) return;
         event.preventDefault();
-        requestProductSettings(sample.dataset.mobileProductSample);
+        const product = sample.dataset.mobileProductSample;
+        requestContentProduct(product);
+        requestProductSettings(product);
       });
     });
 

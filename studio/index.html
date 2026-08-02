@@ -66,8 +66,8 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=20260723.10">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260724.2">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260802.2">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260802.2">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -97,7 +97,17 @@
         <strong id="previewContextTitle">Пример оформления</strong>
         <span id="previewContextCopy">Введите название или загрузите логотип — результат появится здесь.</span>
       </div>
-      <p class="mobile-products-choice-label">Что оформляем?</p>
+      <div class="content-product-editor-host content-product-editor-host-mobile" data-content-product-host="mobile">
+        <div class="content-product-editor" id="contentProductEditor" aria-labelledby="contentProductEditorLabel">
+          <span id="contentProductEditorLabel">Редактировать изделие</span>
+          <div class="segmented" id="contentProductChoice">
+            <button class="active" data-content-product="ribbon" type="button">Лента</button>
+            <button data-content-product="sticker" type="button">Стикер</button>
+          </div>
+          <small id="contentProductEditorHint">Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.</small>
+        </div>
+      </div>
+      <p class="mobile-products-choice-label">В комплекте</p>
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
           <span>Лента</span>
@@ -116,7 +126,7 @@
       </div>
 
       <div class="mobile-products-preview" id="mobileProductsPreview">
-        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
+        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Редактировать ленту">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
           <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
@@ -132,7 +142,7 @@
             <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
           </section>
         </div>
-        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Настроить стикер">
+        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Редактировать стикер">
           <span class="mobile-products-sample-label">Стикер 40 мм</span>
           <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
         </div>
@@ -142,13 +152,8 @@
 
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
-      <p class="panel-copy">Добавьте название, логотип или оба элемента. Результат сразу появится на ленте и стикере.</p>
+      <p class="panel-copy">Добавьте название, логотип или оба элемента.</p>
       <div class="mobile-products-host" data-products-host="upload"></div>
-
-      <div class="create-intro" aria-label="Как создать макет">
-        <strong>Достаточно одного варианта</strong>
-        <span>Название и логотип можно объединить на следующем шаге</span>
-      </div>
 
       <div class="upload-text-card create-option">
         <div class="upload-text-head">
@@ -156,7 +161,10 @@
           <span>Надпись можно использовать отдельно или вместе с логотипом</span>
         </div>
 
-        <label for="textInput">Текст на ленте и стикере</label>
+        <div class="content-scope-head">
+          <label for="textInput" id="textInputLabel">Надпись на ленте</label>
+          <span class="content-scope-status" id="textScopeStatus">Общая для обоих</span>
+        </div>
         <input class="input" id="textInput" type="text" autocomplete="organization" placeholder="Например: ленты по любви" aria-describedby="textInputMeta">
         <div class="text-input-meta" id="textInputMeta">
           <span>Рекомендуем до 60 знаков</span>
@@ -165,6 +173,11 @@
         <p class="text-length-warning" id="textLengthWarning" hidden>
           Надпись длиннее рекомендации. На ленте покажем сокращённый вариант и полный макет ниже.
         </p>
+        <div class="content-scope-actions">
+          <button id="makeProductText" type="button">Сделать отдельной для ленты</button>
+          <button id="restoreProductText" type="button" hidden>Вернуть общую надпись</button>
+          <button id="removeProductText" type="button" hidden>Убрать с ленты</button>
+        </div>
       </div>
 
       <label class="upload upload-large create-option" id="dropZone" role="button" tabindex="0" aria-controls="logoInput" aria-describedby="uploadFormats" data-upload-state="idle">
@@ -174,6 +187,18 @@
         <span id="uploadFormats">SVG, PNG, JPEG или PDF · до 20 МБ</span>
         <small>Перетащите файл сюда или нажмите · для PDF используем первую страницу</small>
       </label>
+
+      <div class="content-logo-scope" aria-live="polite">
+        <div class="content-scope-head">
+          <strong id="logoInputLabel">Логотип на ленте</strong>
+          <span class="content-scope-status" id="logoScopeStatus">Общий для обоих</span>
+        </div>
+        <div class="content-scope-actions">
+          <button id="makeProductLogo" type="button">Заменить только на ленте</button>
+          <button id="restoreProductLogo" type="button" hidden>Вернуть общий логотип</button>
+          <button id="removeProductLogo" type="button" hidden>Убрать с ленты</button>
+        </div>
+      </div>
 
       <p class="upload-feedback" id="uploadFeedback" role="alert" hidden></p>
 
@@ -226,6 +251,17 @@
       <div class="settings-context-head" aria-live="polite">
         <span>Индивидуальные настройки</span>
         <strong id="activeSettingsTitle">Лента</strong>
+      </div>
+
+      <div class="settings-content-summary">
+        <div>
+          <span>Содержимое выбранного изделия</span>
+          <strong id="settingsContentStatus">Общие надпись и логотип</strong>
+        </div>
+        <div>
+          <button id="editSettingsText" type="button">Изменить надпись</button>
+          <button id="editSettingsLogo" type="button">Заменить логотип</button>
+        </div>
       </div>
 
       <span class="settings-field-label" id="fontSelectLabel">Шрифт надписи на ленте</span>
@@ -435,8 +471,9 @@
   <main class="studio">
     <div class="studio-head">
       <div>
-        <p class="eyebrow">Студия фирменной упаковки</p>
-        <h1>Создайте ленту и стикер вашего бренда</h1>
+        <p class="eyebrow" id="studioContextEyebrow">Живой образец</p>
+        <h1 id="studioContextTitle">Так будет выглядеть ваш комплект</h1>
+        <div class="content-product-editor-host content-product-editor-host-desktop" data-content-product-host="desktop"></div>
       </div>
       <div class="studio-tabs scene-tabs" id="sceneTabs">
         <button class="active" data-scene="kit">Комплект</button>
@@ -449,8 +486,8 @@
     <section class="canvas render-canvas" id="canvas">
       <div class="scene active" id="scene-kit">
         <div class="scene-caption">
-          <span>Фирменный комплект</span>
-          <strong>Сатиновая лента и круглый стикер</strong>
+          <span id="sceneKitLabel">Фирменный комплект</span>
+          <strong id="sceneKitTitle">Сатиновая лента и круглый стикер</strong>
         </div>
 
 
@@ -709,7 +746,7 @@
 
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
-<script src="assets/js/app.js?v=20260723.10"></script>
-<script src="assets/js/mobile-products.js?v=20260724.2"></script>
+<script src="assets/js/app.js?v=20260802.2"></script>
+<script src="assets/js/mobile-products.js?v=20260802.2"></script>
 </body>
 </html>

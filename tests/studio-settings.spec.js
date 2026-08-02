@@ -28,6 +28,19 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
+  await expect(page.locator('#studioContextTitle')).toHaveText(
+    'Настройте ленту',
+  );
+  await expect(page.locator('#sceneKitTitle')).toHaveText('Сатиновая лента');
+  await expect(page.locator('#sceneTabs')).toBeHidden();
+  if ((await page.viewportSize()).width > 700) {
+    await expect(
+      page.locator('#productShowcase .showcase-ribbon:visible'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('#productShowcase .showcase-sticker:visible'),
+    ).toHaveCount(0);
+  }
   await expect(page.locator('#fontSelect')).toHaveJSProperty(
     'tagName',
     'SELECT',
@@ -82,6 +95,18 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await stickerSample.click();
   await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('#studioContextTitle')).toHaveText(
+    'Настройте стикер',
+  );
+  await expect(page.locator('#sceneKitTitle')).toHaveText('Круглый стикер');
+  if ((await page.viewportSize()).width > 700) {
+    await expect(
+      page.locator('#productShowcase .showcase-ribbon:visible'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#productShowcase .showcase-sticker:visible'),
+    ).toHaveCount(1);
+  }
   await expect(page.locator('#mobileTextEditor')).toBeHidden();
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
   await expect(
@@ -150,6 +175,50 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(page.locator('#fontSelect')).toHaveValue('Pacifico');
   await expect(page.locator('#printColorSelect')).toHaveValue('#b69249');
   await expect(page.locator('#ribbonColorSelect')).toHaveValue('#b7202d');
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('settings keep product focus and link back to its content editor', async ({
+  page,
+}) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+
+  const stickerSample = page.locator('[data-mobile-product-sample="sticker"]');
+  await stickerSample.click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('#settingsContentStatus')).toHaveText(
+    'общая надпись · логотип не добавлен',
+  );
+
+  await page.locator('#editSettingsText').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-panel',
+    'upload',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-content-product',
+    'sticker',
+  );
+  await expect(page.locator('#textInputLabel')).toHaveText(
+    'Надпись на стикере',
+  );
+  await expect(page.locator('#textInput')).toBeFocused();
+
+  await openSettings(page);
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await page.locator('#editSettingsLogo').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-panel',
+    'upload',
+  );
+  await expect(page.locator('#logoInputLabel')).toHaveText(
+    'Логотип на стикере',
+  );
+  await expect(page.locator('#dropZone')).toBeFocused();
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -428,11 +497,16 @@ test('mobile product switches control the static previews', async ({
   await expect(ribbonSwitch).toBeChecked();
   await expect(stickerSwitch).toBeChecked();
   await expect(ribbonSample).toBeVisible();
-  await expect(stickerSample).toBeVisible();
+  await expect(stickerSample).toBeHidden();
 
   await ribbonSwitch.uncheck();
-  await expect(ribbonSample).toBeVisible();
+  await expect(ribbonSample).toBeHidden();
   await expect(ribbonSample).toHaveClass(/is-product-disabled/);
+  await expect(stickerSample).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-content-product',
+    'sticker',
+  );
   await expect(page.locator('body')).toHaveAttribute(
     'data-has-ribbon',
     'false',

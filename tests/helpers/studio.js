@@ -37,11 +37,11 @@ export const expectMobilePreviewVisible = async (page) => {
 };
 
 export const expectMobileLogosToMatch = async (page, expectedSrc) => {
-  await ensureProductSettingsVisible(page);
-  for (const selector of [
-    '.mobile-products-ribbon-logo',
-    '.mobile-products-sticker-logo',
+  for (const [product, selector] of [
+    ['ribbon', '.mobile-products-ribbon-logo'],
+    ['sticker', '.mobile-products-sticker-logo'],
   ]) {
+    await ensureProductSettingsVisible(page, product);
     const logo = page.locator(selector);
     await expect(logo).toBeVisible();
     await expect.poll(() => logo.getAttribute('src')).toBe(expectedSrc);
@@ -125,7 +125,14 @@ export const ensureProductSettingsVisible = async (
   if (!(await panel.isVisible())) await openSettings(page);
   const sample = panel.locator(`[data-mobile-product-sample="${product}"]`);
   if ((await sample.getAttribute('aria-pressed')) !== 'true') {
-    await sample.click({ position: { x: 4, y: 4 } });
+    const activePanel = await page
+      .locator('body')
+      .getAttribute('data-active-panel');
+    if (activePanel === 'upload') {
+      await page.locator(`[data-content-product="${product}"]`).click();
+    } else {
+      await sample.click({ position: { x: 4, y: 4 } });
+    }
   }
   await expect(panel).toBeVisible();
 };

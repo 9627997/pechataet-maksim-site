@@ -37,11 +37,29 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   };
   const textInput = page.locator('#textInput');
   const logoInput = page.locator('#logoInput');
+  const contentChoices = {
+    ribbon: page.locator('[data-content-product="ribbon"]'),
+    sticker: page.locator('[data-content-product="sticker"]'),
+  };
+  const selectContentProduct = async (product) => {
+    await contentChoices[product].click();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-active-content-product',
+      product,
+    );
+  };
 
   for (const [name, zone] of Object.entries(zones)) {
-    await expect(zone, `${name} must stay visible`).toBeVisible();
     await expect(zone).toHaveJSProperty('tagName', 'BUTTON');
     await expect(zone).toHaveAttribute('type', 'button');
+    if (name.startsWith('ribbon')) {
+      await expect(zone, `${name} must stay visible`).toBeVisible();
+    } else {
+      await expect(
+        zone,
+        `${name} belongs to the inactive product`,
+      ).toBeHidden();
+    }
   }
   await expect(zones.ribbonLogo).toHaveAttribute(
     'data-mobile-products-safe-zone',
@@ -83,9 +101,11 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     'Добавить надпись',
   );
   await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
-  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
   await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await selectContentProduct('sticker');
+  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
   await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
+  await selectContentProduct('ribbon');
   await expect(page.locator('#previewContextTitle')).toHaveText(
     'Пример оформления',
   );
@@ -99,28 +119,40 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
 
   await textInput.fill('временная надпись');
   await textInput.fill('');
-  for (const zone of [zones.ribbonText, zones.stickerText]) {
+  for (const [product, zone] of [
+    ['ribbon', zones.ribbonText],
+    ['sticker', zones.stickerText],
+  ]) {
+    await selectContentProduct(product);
     await expect(zone).toBeVisible();
     await expect(zone).toHaveAttribute('aria-label', 'Добавить надпись');
     await expect(zone.locator('.mobile-products-zone-action')).toHaveText(
       'Добавить надпись',
     );
   }
+  await selectContentProduct('ribbon');
   await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await selectContentProduct('sticker');
   await expect(page.locator('.mobile-products-sticker-text')).toBeVisible();
 
+  await selectContentProduct('ribbon');
   await zones.ribbonText.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
   await expect(
     zones.ribbonText.locator('.mobile-products-zone-action'),
   ).toHaveCSS('opacity', '1');
 
   await zones.ribbonText.click();
   await expect(textInput).toBeFocused();
+  await selectContentProduct('sticker');
   await zones.stickerText.click();
   await expect(textInput).toBeFocused();
+  await selectContentProduct('ribbon');
   await zones.ribbonText.focus();
   await zones.ribbonText.press('Enter');
   await expect(textInput).toBeFocused();
+  await selectContentProduct('sticker');
   await zones.stickerText.focus();
   await zones.stickerText.press('Space');
   await expect(textInput).toBeFocused();
@@ -163,30 +195,44 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     ),
   ).toHaveCount(0);
 
-  for (const [zone, surface] of [
-    [zones.ribbonLogo, page.locator('.mobile-products-ribbon-sample')],
-    [zones.ribbonText, page.locator('.mobile-products-ribbon-sample')],
-    [zones.stickerLogo, page.locator('.mobile-products-sticker-sample')],
-    [zones.stickerText, page.locator('.mobile-products-sticker-sample')],
+  for (const [product, pairs] of [
+    [
+      'ribbon',
+      [
+        [zones.ribbonLogo, page.locator('.mobile-products-ribbon-sample')],
+        [zones.ribbonText, page.locator('.mobile-products-ribbon-sample')],
+      ],
+    ],
+    [
+      'sticker',
+      [
+        [zones.stickerLogo, page.locator('.mobile-products-sticker-sample')],
+        [zones.stickerText, page.locator('.mobile-products-sticker-sample')],
+      ],
+    ],
   ]) {
-    const inside = await zone.evaluate(
-      (element, surfaceSelector) => {
-        const bounds = element.getBoundingClientRect();
-        const surfaceBounds = document
-          .querySelector(surfaceSelector)
-          .getBoundingClientRect();
-        return (
-          bounds.left >= surfaceBounds.left - 1 &&
-          bounds.right <= surfaceBounds.right + 1 &&
-          bounds.top >= surfaceBounds.top - 1 &&
-          bounds.bottom <= surfaceBounds.bottom + 1
-        );
-      },
-      await surface.evaluate((element) => `.${element.classList[0]}`),
-    );
-    expect(inside).toBe(true);
+    await selectContentProduct(product);
+    for (const [zone, surface] of pairs) {
+      const inside = await zone.evaluate(
+        (element, surfaceSelector) => {
+          const bounds = element.getBoundingClientRect();
+          const surfaceBounds = document
+            .querySelector(surfaceSelector)
+            .getBoundingClientRect();
+          return (
+            bounds.left >= surfaceBounds.left - 1 &&
+            bounds.right <= surfaceBounds.right + 1 &&
+            bounds.top >= surfaceBounds.top - 1 &&
+            bounds.bottom <= surfaceBounds.bottom + 1
+          );
+        },
+        await surface.evaluate((element) => `.${element.classList[0]}`),
+      );
+      expect(inside).toBe(true);
+    }
   }
 
+  await selectContentProduct('ribbon');
   for (const zone of [zones.ribbonLogo, zones.ribbonText]) {
     await expect
       .poll(() =>
@@ -238,18 +284,28 @@ test('mobile previews stay synchronized with Studio state', async ({
   const ribbonText = page.locator('.mobile-products-ribbon-text');
   const stickerText = page.locator('.mobile-products-sticker-text');
   const stickerContent = page.locator('.mobile-products-sticker-content');
+  const selectContentProduct = async (product) => {
+    await page.locator(`[data-content-product="${product}"]`).click();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-active-content-product',
+      product,
+    );
+  };
 
-  await expect(stickerLogo).toBeVisible();
   await expect(ribbonText).toBeVisible();
+  await expect(stickerLogo).toBeHidden();
+  await expect(stickerText).toBeHidden();
+  await selectContentProduct('sticker');
+  await expect(stickerLogo).toBeVisible();
   await expect(stickerText).toBeVisible();
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
     'logo-and-text',
   );
+  await selectContentProduct('ribbon');
 
   await page.locator('#textInput').fill('новая длинная надпись для упаковки');
   await expect(ribbonText).toBeVisible();
-  await expect(stickerText).toBeVisible();
   await expect(ribbonText).toHaveText(await readRibbonPreviewText(page));
   await expect(stickerText).toHaveText('новая длинная надпись для упаковки');
 
@@ -311,6 +367,7 @@ test('mobile previews stay synchronized with Studio state', async ({
     .toBeGreaterThan(initialLogoWidth);
 
   await page.locator('.nav-item[data-panel="upload"]').click();
+  await selectContentProduct('sticker');
   await page.locator('#textInput').fill('');
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
@@ -340,31 +397,39 @@ test('mobile previews stay synchronized with Studio state', async ({
     'logo-and-text',
   );
 
-  for (const selector of [
-    '.mobile-products-ribbon-logo',
-    '.mobile-products-ribbon-text',
-    '.mobile-products-sticker-logo',
-    '.mobile-products-sticker-text',
+  for (const [product, selectors] of [
+    [
+      'ribbon',
+      ['.mobile-products-ribbon-logo', '.mobile-products-ribbon-text'],
+    ],
+    [
+      'sticker',
+      ['.mobile-products-sticker-logo', '.mobile-products-sticker-text'],
+    ],
   ]) {
-    const geometry = await page.locator(selector).evaluate((element) => {
-      const bounds = element.getBoundingClientRect();
-      const safeBounds = element.parentElement.getBoundingClientRect();
-      return {
-        bounds: bounds.toJSON(),
-        safeBounds: safeBounds.toJSON(),
-        inside:
-          bounds.left >= safeBounds.left - 1 &&
-          bounds.right <= safeBounds.right + 1 &&
-          bounds.top >= safeBounds.top - 1 &&
-          bounds.bottom <= safeBounds.bottom + 1,
-      };
-    });
-    expect(
-      geometry.inside,
-      `${selector} must stay inside its safe zone: ${JSON.stringify(geometry)}`,
-    ).toBe(true);
+    await selectContentProduct(product);
+    for (const selector of selectors) {
+      const geometry = await page.locator(selector).evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const safeBounds = element.parentElement.getBoundingClientRect();
+        return {
+          bounds: bounds.toJSON(),
+          safeBounds: safeBounds.toJSON(),
+          inside:
+            bounds.left >= safeBounds.left - 1 &&
+            bounds.right <= safeBounds.right + 1 &&
+            bounds.top >= safeBounds.top - 1 &&
+            bounds.bottom <= safeBounds.bottom + 1,
+        };
+      });
+      expect(
+        geometry.inside,
+        `${selector} must stay inside its safe zone: ${JSON.stringify(geometry)}`,
+      ).toBe(true);
+    }
   }
 
+  await selectContentProduct('sticker');
   const stickerContentInsideCircle = await stickerContent.evaluate(
     (element) => {
       const bounds = element.getBoundingClientRect();
@@ -713,9 +778,15 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     await expect(
       panel.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
-    await expect(
-      panel.locator('[data-mobile-product-sample="sticker"]'),
-    ).toBeVisible();
+    if (step === 'upload') {
+      await expect(
+        panel.locator('[data-mobile-product-sample="sticker"]'),
+      ).toBeHidden();
+    } else {
+      await expect(
+        panel.locator('[data-mobile-product-sample="sticker"]'),
+      ).toBeVisible();
+    }
 
     const dockBounds = await panel.boundingBox();
     expect(dockBounds).not.toBeNull();
