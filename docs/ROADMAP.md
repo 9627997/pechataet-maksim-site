@@ -85,7 +85,7 @@
 1. Зафиксировать публичные события и shape состояния контрактными тестами.
 2. Выделить `state/storage`, `upload/sanitize`, `crop/trace`, `render`, `order/export`.
 3. Подключать модули по одному без параллельной смены UX.
-4. Удалить или мигрировать неиспользуемые `studio/components/`.
+4. Удаление неиспользуемых `studio/components/` выполнено отдельной очисткой.
 5. Разделить `app.css` на tokens, layout, controls, previews и dialogs.
 
 Готово, когда:
