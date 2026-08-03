@@ -8,7 +8,8 @@
 - `studio/` — актуальный конфигуратор ленты и стикеров.
 - `tests/` — Playwright-проверки главной страницы и Studio.
 - `docs/` — архитектура, UX-правила, changelog и план развития.
-- `constructor.html` и `ribbon-studio-design-system-v1.html` — исторические прототипы; они не являются production-runtime Studio.
+- старые URL `/constructor.html` и `/ribbon-studio-design-system-v1.html`
+  создаются deployment-сборкой как переходы на актуальную `/studio/`.
 
 ## Локальный запуск
 

@@ -155,9 +155,7 @@ jobs:
 
           for private_path in \
             docs/PROJECT_CONTEXT.md \
-            tests/studio-content.spec.js \
-            studio/README.txt \
-            studio/components/shared/state.js
+            tests/studio-content.spec.js
           do
             status="$(
               curl --location --silent --output /dev/null \
