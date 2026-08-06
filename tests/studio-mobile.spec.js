@@ -550,6 +550,9 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
     .toMatch(/^data:image\/svg\+xml;base64,/);
 
   const finalSrc = await macroLogo.getAttribute('src');
+  const tracedSvg = Buffer.from(finalSrc.split(',')[1], 'base64').toString();
+  expect(tracedSvg).toMatch(/<path\b/);
+  expect(tracedSvg).not.toMatch(/<rect\b/);
   await expectMobileLogosToMatch(page, finalSrc);
   await expectInterfaceResponsive(page);
   await expectNoHorizontalOverflow(page);

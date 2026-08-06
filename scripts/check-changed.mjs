@@ -55,12 +55,15 @@ const prettierFiles = existingFiles.filter(
 
 const eslintFiles = existingFiles.filter(
   (file) =>
-    /^studio\/.+\.js$/.test(file) ||
-    /^scripts\/.+\.mjs$/.test(file) ||
-    /^tests\/.+\.js$/.test(file) ||
-    ['eslint.config.js', 'prettier.config.js', 'playwright.config.js'].includes(
-      file,
-    ),
+    !/^studio\/assets\/vendor\//.test(file) &&
+    (/^studio\/.+\.js$/.test(file) ||
+      /^scripts\/.+\.mjs$/.test(file) ||
+      /^tests\/.+\.js$/.test(file) ||
+      [
+        'eslint.config.js',
+        'prettier.config.js',
+        'playwright.config.js',
+      ].includes(file)),
 );
 
 run(process.execPath, ['scripts/check-project-docs.mjs']);
