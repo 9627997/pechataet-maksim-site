@@ -8,6 +8,7 @@ export default [
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
+      'studio/assets/vendor/**',
     ],
   },
   {

@@ -2799,7 +2799,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
-  function rasterToSvg(image, fileType) {
+  async function rasterToSvg(image, fileType) {
     const maxSide = 900;
     const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
     const width = Math.max(1, Math.round(image.width * scale));
@@ -2819,12 +2819,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Adaptive threshold: preserve visible alpha for transparent PNG,
     // otherwise separate foreground from the sampled edge background.
     const threshold = transparent ? 24 : 58;
-    const runs = [];
+    const binaryData = new Uint8ClampedArray(width * height * 4);
     let foregroundPixels = 0;
 
     for (let y = 0; y < height; y++) {
-      let runStart = -1;
-
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
         const r = imageData.data[i];
@@ -2844,26 +2842,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (foreground) {
           foregroundPixels++;
-          if (runStart < 0) runStart = x;
         }
-
-        if ((!foreground || x === width - 1) && runStart >= 0) {
-          const endX = foreground && x === width - 1 ? x + 1 : x;
-          runs.push([runStart, y, endX - runStart, 1]);
-          runStart = -1;
-        }
+        const binaryValue = foreground ? 0 : 255;
+        binaryData[i] = binaryValue;
+        binaryData[i + 1] = binaryValue;
+        binaryData[i + 2] = binaryValue;
+        binaryData[i + 3] = 255;
       }
     }
 
     const ratio = width / height;
-    const rects = runs.map(([x,y,w,h]) =>
-      `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`
-    ).join('');
-
-    const svgSource =
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-      `width="${width}" height="${height}">` +
-      `<g fill="${state.print}" stroke="none">${rects}</g></svg>`;
+    const tracer = window.RibbonStudioTrace;
+    if (!tracer?.traceBinaryImage) {
+      throw new Error('Модуль трассировки недоступен.');
+    }
+    const traced = await tracer.traceBinaryImage(
+      {data: binaryData, width, height},
+      {preset: 'faithful'},
+    );
+    const svgSource = traced?.svgSource;
+    if (!svgSource || !/<path\b/i.test(svgSource)) {
+      throw new Error('Трассировка не создала векторные контуры.');
+    }
+    const pathCount = (svgSource.match(/<path\b/gi) || []).length;
 
     const coverage = foregroundPixels / (width * height);
     let quality = 'Контуры определены автоматически.';
@@ -2886,7 +2887,12 @@ document.addEventListener('DOMContentLoaded', () => {
       coverage,
       quality,
       warning,
-      fileType
+      fileType,
+      engine: traced.engine,
+      engineVersion: traced.engineVersion,
+      preset: traced.preset,
+      durationMs: traced.durationMs,
+      pathCount,
     };
   }
 
@@ -3079,7 +3085,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeCropModal();
   }
 
-  function processRasterAfterCrop(
+  async function processRasterAfterCrop(
     file,
     image,
     croppedDataUrl,
@@ -3089,7 +3095,22 @@ document.addEventListener('DOMContentLoaded', () => {
     originalSize = {width: image.width, height: image.height}
   ) {
     const ext = file.name.split('.').pop().toLowerCase();
-    const result = rasterToSvg(image, ext);
+    let result;
+    try {
+      result = await rasterToSvg(image, ext);
+    } catch {
+      setUploadState(
+        'error',
+        'Не удалось построить контуры. Попробуйте другой файл или загрузите готовый SVG.',
+      );
+      showFileCard(
+        file,
+        `${ext.toUpperCase()} · ${image.width} × ${image.height} px`,
+        'Предыдущий макет сохранён — новый файл не применён',
+        true,
+      );
+      return;
+    }
 
     if (!result || !result.svgSource) {
       showFileCard(
