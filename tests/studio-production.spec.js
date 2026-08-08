@@ -278,6 +278,11 @@ test('uploaded wide logo paints at the full ribbon safe height on mobile', async
         '<rect width="400" height="100" fill="#111"/></svg>',
     ),
   });
+  await expect(page.locator('#fileCardName')).toHaveText('wide-logo.svg');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-preview-demo',
+    'false',
+  );
   await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
 
   const result = await page.evaluate(() => {
