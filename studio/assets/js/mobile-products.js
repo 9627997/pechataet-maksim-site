@@ -30,7 +30,10 @@
     let dockFrame = null;
     let dockExpanded = false;
     let dockFloating = false;
+    let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
+
+    panel.dataset.presentation = 'flow';
 
     ribbonSurface.removeAttribute('aria-hidden');
     stickerSurface.removeAttribute('aria-hidden');
@@ -257,10 +260,12 @@
                 ribbon: {
                   mode: snapshot.logo.ribbon?.mode || 'inherit',
                   hasLogo: Boolean(snapshot.logo.resolvedRibbon?.hasLogo),
+                  ratio: snapshot.logo.resolvedRibbon?.ratio ?? null,
                 },
                 sticker: {
                   mode: snapshot.logo.sticker?.mode || 'inherit',
                   hasLogo: Boolean(snapshot.logo.resolvedSticker?.hasLogo),
+                  ratio: snapshot.logo.resolvedSticker?.ratio ?? null,
                 },
               }
             : null,
@@ -281,6 +286,7 @@
       font,
       print,
       fitSingleRepeat = false,
+      singleRepeat = false,
     }) => {
       if (!layout) return;
       const surfaceBounds = ribbonSurface.getBoundingClientRect();
@@ -288,12 +294,19 @@
 
       const naturalRepeatWidth =
         (repeatMm / ribbonWidth) * surfaceBounds.height;
-      const repeatWidth = fitSingleRepeat
-        ? Math.min(naturalRepeatWidth, surfaceBounds.width)
-        : naturalRepeatWidth;
+      const repeatWidthScale = fitSingleRepeat
+        ? Math.min(1, surfaceBounds.width / naturalRepeatWidth)
+        : 1;
+      const repeatScale = singleRepeat ? repeatWidthScale : 1;
+      const repeatWidth = naturalRepeatWidth * repeatWidthScale;
+      const repeatHeight = surfaceBounds.height * repeatScale;
+      const repeatTop = (surfaceBounds.height - repeatHeight) / 2;
       const centerLeft = (surfaceBounds.width - repeatWidth) / 2;
       ribbonInteractionCell.style.left = `${centerLeft}px`;
+      ribbonInteractionCell.style.top = `${repeatTop}px`;
+      ribbonInteractionCell.style.bottom = 'auto';
       ribbonInteractionCell.style.width = `${repeatWidth}px`;
+      ribbonInteractionCell.style.height = `${repeatHeight}px`;
       ribbonTrack.replaceChildren();
 
       let firstLeft = centerLeft;
@@ -304,11 +317,11 @@
       const fontSizeRatio = layout.valid
         ? layout.fontSizeRatio
         : layout.previewFontSizeRatio;
-      let repeatCount = 0;
+      let repeatCount = singleRepeat ? 1 : 0;
 
       for (
         let left = firstLeft;
-        left < surfaceBounds.width;
+        !singleRepeat && left < surfaceBounds.width;
         left += repeatWidth
       ) {
         repeatCount += 1;
@@ -317,7 +330,10 @@
         const cell = document.createElement('span');
         cell.className = 'mobile-products-ribbon-repeat-cell';
         cell.style.left = `${left}px`;
+        cell.style.top = `${repeatTop}px`;
+        cell.style.bottom = 'auto';
         cell.style.width = `${repeatWidth}px`;
+        cell.style.height = `${repeatHeight}px`;
 
         const boxIsFullyVisible = (box) => {
           if (!box) return false;
@@ -359,7 +375,7 @@
           text.style.height = `${textBox.height * 100}%`;
           text.style.color = print;
           text.style.fontFamily = font;
-          text.style.fontSize = `${fontSizeRatio * surfaceBounds.height}px`;
+          text.style.fontSize = `${fontSizeRatio * repeatHeight}px`;
           cell.appendChild(text);
         }
 
@@ -369,8 +385,10 @@
       ribbonSurface.dataset.ribbonRepeatCount = String(repeatCount);
       ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
       ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
+      ribbonSurface.dataset.ribbonRepeatScale = repeatScale.toFixed(4);
+      ribbonSurface.dataset.ribbonSingleRepeat = String(singleRepeat);
       ribbonSurface.dataset.ribbonRepeatScaled = String(
-        repeatWidth < naturalRepeatWidth,
+        repeatWidthScale < 1,
       );
     };
 
@@ -444,8 +462,11 @@
       }
 
       const updateLogo = ({zone, image, action}, src, hasLogo, mode, product) => {
-        if (hasLogo && src) image.src = src;
-        else image.removeAttribute('src');
+        if (hasLogo && src) {
+          if (image.getAttribute('src') !== src) image.src = src;
+        } else {
+          image.removeAttribute('src');
+        }
         image.hidden = !hasLogo;
         const label =
           panelMode === 'settings'
@@ -538,6 +559,14 @@
       ribbonGuide.style.bottom =
         `${(ribbonGeometry.bounds.y / ribbonWidth) * 100}%`;
       stickerSurface.style.width = `${stickerSize * 2.5}px`;
+      panel.style.setProperty(
+        '--mobile-products-sticker-size',
+        `${Math.min(104, Math.max(88, stickerSize * 2.5))}px`,
+      );
+      panel.style.setProperty(
+        '--mobile-products-sticker-size-expanded',
+        `${Math.min(132, Math.max(104, stickerSize * 3))}px`,
+      );
       const stickerGeometry =
         window.RibbonStudioGeometry.getStickerPrintableGeometry({
           diameterMm: stickerSize,
@@ -571,16 +600,17 @@
         const positioningRoot = sticker ? surface : ribbonInteractionCell;
         const rootBounds = positioningRoot.getBoundingClientRect();
         if (rootBounds.width <= 0) return;
+        const layoutHeight = sticker ? surfaceHeight : rootBounds.height;
 
         const place = (zone, box, minHeight = 0) => {
           for (const property of ['left', 'top', 'width', 'height']) {
             zone.style.removeProperty(property);
           }
           if (!box) return;
-          const height = Math.max(box.height * surfaceHeight, minHeight);
+          const height = Math.max(box.height * layoutHeight, minHeight);
           zone.style.left = `${box.x * rootBounds.width}px`;
           zone.style.top =
-            `${(box.y + box.height / 2) * surfaceHeight - height / 2}px`;
+            `${(box.y + box.height / 2) * layoutHeight - height / 2}px`;
           zone.style.width = `${box.width * rootBounds.width}px`;
           zone.style.height = `${height}px`;
         };
@@ -592,9 +622,9 @@
             height: 1,
           };
           const printableLeft = printable.x * rootBounds.width;
-          const printableTop = printable.y * surfaceHeight;
+          const printableTop = printable.y * layoutHeight;
           const printableWidth = printable.width * rootBounds.width;
-          const printableHeight = printable.height * surfaceHeight;
+          const printableHeight = printable.height * layoutHeight;
           const scale = Math.min(
             1,
             printableWidth / Math.max(width, 1),
@@ -603,7 +633,7 @@
           const paintedWidth = width * scale;
           const paintedHeight = height * scale;
           const centerX = (box.x + box.width / 2) * rootBounds.width;
-          const centerY = (box.y + box.height / 2) * surfaceHeight;
+          const centerY = (box.y + box.height / 2) * layoutHeight;
           const left = Math.min(
             printableLeft + printableWidth - paintedWidth,
             Math.max(printableLeft, centerX - paintedWidth / 2),
@@ -654,16 +684,21 @@
             ? layout.fontSizeRatio
             : layout.previewFontSizeRatio;
           textPart.text.style.fontSize =
-            `${fontSizeRatio * surfaceHeight}px`;
+            `${fontSizeRatio * layoutHeight}px`;
         }
         if (hasProductLogo && layout.logoBox) {
+          const contentRatio = sticker
+            ? contentLogoState?.sticker?.ratio
+            : contentLogoState?.ribbon?.ratio;
           const ratio =
-            logoPart.image.naturalWidth > 0 &&
-            logoPart.image.naturalHeight > 0
-              ? logoPart.image.naturalWidth / logoPart.image.naturalHeight
-              : null;
+            Number(contentRatio) > 0
+              ? Number(contentRatio)
+              : logoPart.image.naturalWidth > 0 &&
+                  logoPart.image.naturalHeight > 0
+                ? logoPart.image.naturalWidth / logoPart.image.naturalHeight
+                : null;
           if (ratio) {
-            const height = layout.logoBox.height * surfaceHeight;
+            const height = layout.logoBox.height * layoutHeight;
             placePainted(
               logoPart.zone,
               layout.logoBox,
@@ -678,6 +713,7 @@
           placePainted(textPart.zone, textBox, ink.width, ink.height);
         }
       };
+      const focusSingleRibbonRepeat = panelMode === 'upload' && dockFloating;
       renderRibbonRepeats({
         layout: effectiveLayouts?.ribbon,
         repeatMm,
@@ -688,7 +724,8 @@
         hasText: hasRibbonText,
         font: ribbonStyle.font,
         print: ribbonStyle.print,
-        fitSingleRepeat: demoArtwork,
+        fitSingleRepeat: demoArtwork || focusSingleRibbonRepeat,
+        singleRepeat: focusSingleRibbonRepeat,
       });
       applyLayout(
         ribbonSurface,
@@ -741,13 +778,30 @@
       );
     };
 
-    const setDockExpanded = (expanded) => {
-      dockExpanded = dockFloating && Boolean(expanded);
-      panel.classList.toggle('is-expanded', dockExpanded);
-      dockToggle.setAttribute('aria-expanded', String(dockExpanded));
-      dockToggle.querySelector('strong').textContent = dockExpanded
+    const syncDockPresentation = () => {
+      const presentation = !dockFloating
+        ? 'flow'
+        : keyboardCompact
+          ? 'dock-keyboard'
+          : dockExpanded
+            ? 'dock-expanded'
+            : 'dock-compact';
+      const visiblyExpanded = presentation === 'dock-expanded';
+      panel.dataset.presentation = presentation;
+      panel.classList.toggle('is-expanded', visiblyExpanded);
+      panel.classList.toggle(
+        'is-keyboard-compact',
+        presentation === 'dock-keyboard',
+      );
+      dockToggle.setAttribute('aria-expanded', String(visiblyExpanded));
+      dockToggle.querySelector('strong').textContent = visiblyExpanded
         ? 'Свернуть'
         : 'Развернуть';
+    };
+
+    const setDockExpanded = (expanded) => {
+      dockExpanded = dockFloating && Boolean(expanded);
+      syncDockPresentation();
       requestAnimationFrame(() => {
         updateDockMetrics();
         scheduleStudioSync();
@@ -768,8 +822,10 @@
       document.body.classList.toggle('mobile-products-floating', dockFloating);
       if (!dockFloating) {
         document.body.style.removeProperty('--mobile-products-dock-height');
-        setDockExpanded(false);
+        dockExpanded = false;
+        keyboardCompact = false;
       }
+      syncDockPresentation();
 
       requestAnimationFrame(() => {
         updateDockMetrics();
@@ -784,15 +840,19 @@
           viewport &&
           window.innerHeight - viewport.height > 140,
       );
-      panel.classList.toggle('is-keyboard-compact', keyboardVisible);
-      if (keyboardVisible && dockExpanded) setDockExpanded(false);
+      if (keyboardVisible === keyboardCompact) return;
+      keyboardCompact = keyboardVisible;
+      syncDockPresentation();
+      requestAnimationFrame(() => {
+        updateDockMetrics();
+        scheduleStudioSync();
+      });
     };
 
     const updateFloatingDock = () => {
       dockFrame = null;
       if (!mobileViewport.matches) {
         setDockFloating(false);
-        panel.classList.remove('is-keyboard-compact');
         return;
       }
 

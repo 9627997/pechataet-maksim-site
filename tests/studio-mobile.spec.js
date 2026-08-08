@@ -840,8 +840,6 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     );
     const ribbonSwitch = panel.locator('[data-mobile-product="ribbon"]');
     const stickerSwitch = panel.locator('[data-mobile-product="sticker"]');
-    await expect(ribbonSwitch).toBeVisible();
-    await expect(stickerSwitch).toBeVisible();
     await expect(
       panel.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
@@ -855,6 +853,16 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       ).toBeVisible();
     }
 
+    if (step === 'upload' && isFloating) {
+      await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
+      await expect(ribbonSwitch).toBeHidden();
+      await expect(stickerSwitch).toBeHidden();
+      await expect(panel.locator('.mobile-products-choice-label')).toBeHidden();
+    } else {
+      await expect(ribbonSwitch).toBeVisible();
+      await expect(stickerSwitch).toBeVisible();
+    }
+
     const dockBounds = await panel.boundingBox();
     expect(dockBounds).not.toBeNull();
     expect(dockBounds.x).toBeGreaterThanOrEqual(8);
@@ -865,7 +873,7 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       viewportHeight + 2,
     );
 
-    if (isFloating) {
+    if (isFloating && step !== 'upload') {
       const toolbarCenters = await panel
         .locator('.mobile-products-switches')
         .evaluate((toolbar) =>
@@ -884,20 +892,151 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     }
 
     if (step === 'upload' && isFloating) {
+      const ribbonFit = await panel.evaluate((element) => {
+        const preview = element.querySelector('.mobile-products-preview');
+        const sample = element.querySelector(
+          '[data-mobile-product-sample="ribbon"]',
+        );
+        const surface = element.querySelector('.mobile-products-ribbon-sample');
+        const cell = element.querySelector(
+          '.mobile-products-ribbon-interaction-cell',
+        );
+        const previewBounds = preview.getBoundingClientRect();
+        const sampleBounds = sample.getBoundingClientRect();
+        const surfaceBounds = surface.getBoundingClientRect();
+        const cellBounds = cell.getBoundingClientRect();
+        return {
+          sampleWidthRatio: sampleBounds.width / previewBounds.width,
+          cellInside:
+            cellBounds.left >= surfaceBounds.left - 1 &&
+            cellBounds.right <= surfaceBounds.right + 1 &&
+            cellBounds.top >= surfaceBounds.top - 1 &&
+            cellBounds.bottom <= surfaceBounds.bottom + 1,
+          actualAspect: cellBounds.width / cellBounds.height,
+          expectedAspect:
+            Number(surface.dataset.ribbonRepeatMm) /
+            Number(
+              document.querySelector('#widthChoice button.active').dataset
+                .value,
+            ),
+          repeatCount: surface.dataset.ribbonRepeatCount,
+          singleRepeat: surface.dataset.ribbonSingleRepeat,
+        };
+      });
+      expect(ribbonFit.sampleWidthRatio).toBeGreaterThanOrEqual(0.98);
+      expect(ribbonFit.cellInside).toBe(true);
+      expect(
+        Math.abs(ribbonFit.actualAspect - ribbonFit.expectedAspect),
+      ).toBeLessThan(0.05);
+      expect(ribbonFit.repeatCount).toBe('1');
+      expect(ribbonFit.singleRepeat).toBe('true');
+
+      await panel.locator('[data-content-product="sticker"]').click();
+      await expect(page.locator('body')).toHaveAttribute(
+        'data-active-content-product',
+        'sticker',
+      );
+      const stickerFit = await panel.evaluate((element) => {
+        const preview = element.querySelector('.mobile-products-preview');
+        const sample = element.querySelector(
+          '[data-mobile-product-sample="sticker"]',
+        );
+        const sticker = element.querySelector(
+          '.mobile-products-sticker-sample',
+        );
+        const previewBounds = preview.getBoundingClientRect();
+        const sampleBounds = sample.getBoundingClientRect();
+        const stickerBounds = sticker.getBoundingClientRect();
+        return {
+          sampleWidthRatio: sampleBounds.width / previewBounds.width,
+          stickerWidth: stickerBounds.width,
+          centerOffset:
+            stickerBounds.left +
+            stickerBounds.width / 2 -
+            (previewBounds.left + previewBounds.width / 2),
+        };
+      });
+      expect(stickerFit.sampleWidthRatio).toBeGreaterThanOrEqual(0.98);
+      expect(stickerFit.stickerWidth).toBeGreaterThanOrEqual(88);
+      expect(stickerFit.stickerWidth).toBeLessThanOrEqual(104);
+      expect(Math.abs(stickerFit.centerOffset)).toBeLessThanOrEqual(1);
+
+      await panel.locator('[data-content-product="ribbon"]').click();
       await dockToggle.click();
       await expect(panel).toHaveClass(/is-expanded/);
+      await expect(panel).toHaveAttribute('data-presentation', 'dock-expanded');
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'true');
       await expect(dockToggle).toContainText('Свернуть');
+      await expect(ribbonSwitch).toBeVisible();
+      await expect(stickerSwitch).toBeVisible();
+      await expect(
+        panel.locator('.mobile-products-choice-label'),
+      ).toBeVisible();
       await dockToggle.click();
       await expect(panel).not.toHaveClass(/is-expanded/);
+      await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(ribbonSwitch).toBeHidden();
+      await expect(stickerSwitch).toBeHidden();
     }
   }
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(panel).not.toHaveClass(/is-floating/);
   await expect(panel).toHaveAttribute('data-floating', 'false');
+  await expect(panel).toHaveAttribute('data-presentation', 'flow');
   await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('step one dock becomes a compact live strip while the keyboard is open', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+  const panel = page.locator('.mobile-products-panel');
+  const dockToggle = page.locator('#mobileProductsDockToggle');
+  const switches = panel.locator('.mobile-products-switches');
+  const ribbonSurface = panel.locator('.mobile-products-ribbon-sample');
+  await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
+
+  await dockToggle.click();
+  await expect(panel).toHaveAttribute('data-presentation', 'dock-expanded');
+  await expect(switches).toBeVisible();
+
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    Object.defineProperty(viewport, 'height', {
+      configurable: true,
+      value: window.innerHeight - 200,
+    });
+    viewport.dispatchEvent(new Event('resize'));
+  });
+  await expect(panel).toHaveAttribute('data-presentation', 'dock-keyboard');
+  await expect(panel).not.toHaveClass(/is-expanded/);
+  await expect(dockToggle).toBeHidden();
+  await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(switches).toBeHidden();
+  await expect(ribbonSurface).toHaveCSS('height', '32px');
+
+  await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    Object.defineProperty(viewport, 'height', {
+      configurable: true,
+      value: window.innerHeight,
+    });
+    viewport.dispatchEvent(new Event('resize'));
+  });
+  await expect(panel).toHaveAttribute('data-presentation', 'dock-expanded');
+  await expect(panel).toHaveClass(/is-expanded/);
+  await expect(dockToggle).toBeVisible();
+  await expect(dockToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(switches).toBeVisible();
   expect(runtimeErrors).toEqual([]);
 });
 
