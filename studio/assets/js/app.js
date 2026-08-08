@@ -198,7 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
     startOffsetY: 0,
     startFrame: null,
     activeHandle: null,
-    target: 'common'
+    target: 'common',
+    analysisToken: 0,
+    suggestion: null,
+    manuallyAdjusted: false
   };
 
   const DEFAULT_LOGO_SVG = `<?xml version="1.0" encoding="UTF-8"?>
@@ -2917,9 +2920,17 @@ document.addEventListener('DOMContentLoaded', () => {
     cropState.offsetX = 0;
     cropState.offsetY = 0;
     cropState.target = normalizeLogoTarget(target);
+    cropState.suggestion = null;
+    cropState.manuallyAdjusted = false;
+    const analysisToken = cropState.analysisToken + 1;
+    cropState.analysisToken = analysisToken;
 
     $('#cropZoom').value = 100;
     resetCropFrame();
+    setCropSuggestionStatus(
+      'analyzing',
+      'Ищем логотип или главный объект…',
+    );
 
     cropModalOrigin =
       document.activeElement instanceof HTMLElement
@@ -2931,11 +2942,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     requestAnimationFrame(() => {
       drawCropCanvas();
+      suggestCropArea(image, analysisToken);
       $('#cropCancel').focus({preventScroll: true});
     });
   }
 
   function closeCropModal({restoreFocus = true} = {}) {
+    cropState.analysisToken += 1;
     $('#cropModal').classList.remove('open');
     $('#cropModal').setAttribute('aria-hidden', 'true');
     cropState.target = 'common';
@@ -2952,6 +2965,89 @@ document.addEventListener('DOMContentLoaded', () => {
     frame.style.top = '18%';
     frame.style.width = '64%';
     frame.style.height = '64%';
+  }
+
+  function setCropSuggestionStatus(stateName, message) {
+    const status = $('#cropSuggestionStatus');
+    if (!status) return;
+    status.dataset.state = stateName;
+    status.textContent = message;
+  }
+
+  function applyCropSuggestionBounds(bounds) {
+    if (!bounds || !cropState.image) return;
+    const stageRect = $('#cropStage').getBoundingClientRect();
+    const frame = $('#cropFrame');
+    const imageWidth = cropState.image.width;
+    const imageHeight = cropState.image.height;
+    const baseScale = Math.min(
+      stageRect.width / imageWidth,
+      stageRect.height / imageHeight,
+    );
+    const drawWidth = imageWidth * baseScale;
+    const drawHeight = imageHeight * baseScale;
+    const imageLeft = (stageRect.width - drawWidth) / 2;
+    const imageTop = (stageRect.height - drawHeight) / 2;
+    const left = ((imageLeft + bounds.x * drawWidth) / stageRect.width) * 100;
+    const top = ((imageTop + bounds.y * drawHeight) / stageRect.height) * 100;
+    const width = (bounds.width * drawWidth / stageRect.width) * 100;
+    const height = (bounds.height * drawHeight / stageRect.height) * 100;
+    const safeWidth = Math.max(12, Math.min(100, width));
+    const safeHeight = Math.max(12, Math.min(100, height));
+
+    frame.style.left = `${Math.max(0, Math.min(100 - safeWidth, left))}%`;
+    frame.style.top = `${Math.max(0, Math.min(100 - safeHeight, top))}%`;
+    frame.style.width = `${safeWidth}%`;
+    frame.style.height = `${safeHeight}%`;
+  }
+
+  async function suggestCropArea(image, analysisToken) {
+    const smartCrop = window.RibbonStudioSmartCrop;
+    if (!smartCrop?.suggest) {
+      setCropSuggestionStatus(
+        'manual',
+        'Настройте область вручную — автоматический анализ недоступен.',
+      );
+      return;
+    }
+
+    try {
+      const suggestion = await smartCrop.suggest(image);
+      if (
+        cropState.analysisToken !== analysisToken ||
+        cropState.manuallyAdjusted ||
+        !$('#cropModal').classList.contains('open')
+      ) {
+        return;
+      }
+
+      cropState.suggestion = suggestion;
+      if (!suggestion?.bounds || suggestion.confidence < 0.5) {
+        setCropSuggestionStatus(
+          'manual',
+          'Не удалось уверенно определить объект. Настройте рамку вручную.',
+        );
+        return;
+      }
+
+      applyCropSuggestionBounds(suggestion.bounds);
+      const message = ['face', 'faces'].includes(suggestion.method)
+        ? 'Лица найдены. Проверьте предложенную область.'
+        : 'Область предложена автоматически. Проверьте рамку.';
+      setCropSuggestionStatus('ready', message);
+    } catch {
+      setCropSuggestionStatus(
+        'manual',
+        'Не удалось уверенно определить объект. Настройте рамку вручную.',
+      );
+    }
+  }
+
+  function markCropManuallyAdjusted() {
+    if (cropState.manuallyAdjusted) return;
+    cropState.manuallyAdjusted = true;
+    cropState.analysisToken += 1;
+    setCropSuggestionStatus('manual', 'Область скорректирована вручную.');
   }
 
   function getCropCanvasMetrics() {
@@ -3066,7 +3162,14 @@ document.addEventListener('DOMContentLoaded', () => {
       height:selection.height/stageRect.height,
       rotation:cropState.rotation,
       zoom:cropState.zoom,
-      usedWhole:useWhole
+      usedWhole:useWhole,
+      smartCrop: cropState.suggestion
+        ? {
+            method: cropState.suggestion.method,
+            confidence: cropState.suggestion.confidence,
+            manuallyAdjusted: cropState.manuallyAdjusted || useWhole
+          }
+        : null
     };
 
     croppedImage.onload = () => {
@@ -3169,6 +3272,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     stage.addEventListener('pointerdown', (event) => {
       if (!cropState.image) return;
+      markCropManuallyAdjusted();
       const handle = event.target.closest('.crop-handle');
       const p = pointer(event);
 
@@ -3259,6 +3363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#cropRotate').addEventListener('click', () => {
+      markCropManuallyAdjusted();
       cropState.rotation = (cropState.rotation+90)%360;
       cropState.offsetX = 0;
       cropState.offsetY = 0;
@@ -3278,7 +3383,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('resize', () => {
-      if ($('#cropModal').classList.contains('open')) drawCropCanvas();
+      if (!$('#cropModal').classList.contains('open')) return;
+      drawCropCanvas();
+      if (cropState.suggestion?.bounds && !cropState.manuallyAdjusted) {
+        applyCropSuggestionBounds(cropState.suggestion.bounds);
+      }
     });
   }
 
