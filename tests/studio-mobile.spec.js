@@ -559,6 +559,51 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('smart crop finds artwork and declines a flat image', async ({ page }) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+
+  const result = await page.evaluate(async () => {
+    const analyzeCanvas = async (draw) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 240;
+      const context = canvas.getContext('2d');
+      draw(context, canvas);
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = canvas.toDataURL('image/png');
+      });
+      return window.RibbonStudioSmartCrop.suggest(image);
+    };
+
+    const artwork = await analyzeCanvas((context, canvas) => {
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = '#111111';
+      context.fillRect(120, 75, 160, 90);
+    });
+    const flat = await analyzeCanvas((context, canvas) => {
+      context.fillStyle = '#dddddd';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    return { artwork, flat };
+  });
+
+  expect(result.artwork.method).toBe('foreground');
+  expect(result.artwork.confidence).toBeGreaterThanOrEqual(0.56);
+  expect(result.artwork.bounds.x).toBeGreaterThan(0.2);
+  expect(result.artwork.bounds.x).toBeLessThan(0.3);
+  expect(result.artwork.bounds.width).toBeGreaterThan(0.4);
+  expect(result.artwork.bounds.width).toBeLessThan(0.5);
+  expect(result.flat.bounds).toBeNull();
+  expect(result.flat.method).toBe('manual');
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('opaque PNG crop triggers tracing and updates both mobile product logos', async ({
   page,
 }, testInfo) => {
@@ -577,6 +622,25 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   await expect(cropModal).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('#cropCanvas')).toBeVisible();
   await expect(page.locator('#cropFrame')).toBeVisible();
+  await expect(page.locator('#cropSuggestionStatus')).toHaveAttribute(
+    'data-state',
+    'ready',
+  );
+  await expect(page.locator('#cropSuggestionStatus')).toContainText(
+    'Область предложена автоматически',
+  );
+  const automaticFrame = await page.locator('#cropFrame').evaluate((frame) => ({
+    left: Number.parseFloat(frame.style.left),
+    top: Number.parseFloat(frame.style.top),
+    width: Number.parseFloat(frame.style.width),
+    height: Number.parseFloat(frame.style.height),
+  }));
+  expect(automaticFrame).not.toEqual({
+    left: 18,
+    top: 18,
+    width: 64,
+    height: 64,
+  });
   await expect(cropModal.locator('input[type="range"]')).toHaveCount(0);
   await expect(cropModal.getByText('Масштаб', { exact: true })).toHaveCount(0);
   await expect(page.locator('.crop-actions .button')).toHaveText([

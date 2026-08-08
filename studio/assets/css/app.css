@@ -879,6 +879,40 @@ body[data-sticker-print="silver"] .box-sticker{
 .crop-handle.ne{right:-12px;top:-12px;cursor:nesw-resize}
 .crop-handle.sw{left:-12px;bottom:-12px;cursor:nesw-resize}
 .crop-handle.se{right:-12px;bottom:-12px;cursor:nwse-resize}
+.crop-suggestion-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:34px;
+  margin:10px 0 0;
+  padding:8px 11px;
+  border:1px solid #d9d4cb;
+  border-radius:10px;
+  background:#faf9f7;
+  color:#655f57;
+  font-size:11px;
+  line-height:1.4;
+}
+.crop-suggestion-status:before{
+  content:"";
+  flex:0 0 auto;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#b28d52;
+}
+.crop-suggestion-status[data-state="ready"]{
+  border-color:#c7dfcc;
+  background:#f2faf4;
+  color:#315e3c;
+}
+.crop-suggestion-status[data-state="ready"]:before{background:#3a8a50}
+.crop-suggestion-status[data-state="manual"]{
+  border-color:#ead9b7;
+  background:#fff9ec;
+  color:#765b26;
+}
+.crop-suggestion-status[data-state="manual"]:before{background:#b17a19}
 .crop-actions{
   display:flex;
   justify-content:flex-end;

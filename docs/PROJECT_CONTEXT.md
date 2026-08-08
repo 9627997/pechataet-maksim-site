@@ -65,12 +65,15 @@ Production-скрипты Studio подключаются как обычные 
 
 1. `studio/assets/js/geometry.js`
 2. `studio/assets/js/layout.js`
-3. `studio/assets/js/trace-engine.js`
-4. `studio/assets/js/app.js`
-5. `studio/assets/js/mobile-products.js`
+3. `studio/assets/js/smart-crop.js`
+4. `studio/assets/js/trace-engine.js`
+5. `studio/assets/js/app.js`
+6. `studio/assets/js/mobile-products.js`
 
 `geometry.js` публикует `window.RibbonStudioGeometry`, а `layout.js` использует
-его и публикует `window.RibbonStudioLayout`. `trace-engine.js` публикует
+его и публикует `window.RibbonStudioLayout`. `smart-crop.js` локально анализирует
+растровое изображение, предлагает рамку по лицам, фону или визуально значимой
+области и публикует `window.RibbonStudioSmartCrop`. `trace-engine.js` публикует
 `window.RibbonStudioTrace` и выполняет построение контуров через отдельный
 `trace-worker.js`; worker загружает локальную копию ImageTracerJS 1.2.6.
 Главный `app.js` зависит от geometry, layout и trace-engine. Менять порядок
@@ -120,6 +123,8 @@ Production-скрипты Studio подключаются как обычные 
   вернуть к общему значению;
 - поддержка SVG, PNG, JPEG и первой страницы PDF;
 - crop для непрозрачного растра;
+- автоматическое предложение области crop с ручной корректировкой и явным
+  fallback при низкой уверенности;
 - одноцветная автоматическая трассировка настоящими SVG-контурами в Web Worker;
 - пользователь может оставить только текст или только логотип и добавить
   отсутствующий объект позже;
@@ -213,7 +218,8 @@ render() в app.js
 - состояние проекта;
 - нормализацию и миграцию сохранённого состояния;
 - загрузку и обработку файлов;
-- crop и подготовку бинарной маски для отдельного движка трассировки;
+- координацию crop и подготовку бинарной маски для отдельного движка
+  трассировки; анализ предлагаемой области выполняет `smart-crop.js`;
 - синхронизацию контролов;
 - вызов layout;
 - отрисовку ленты и стикера;
@@ -326,11 +332,11 @@ hotspot проекта: в нём около 4,5 тысячи строк, а и�
 | `studio:layout-updated`            | `app.js`             | готовые layout ленты и стикера       |
 | `studio:product-selection-updated` | `app.js`             | фактический состав заказа            |
 | `studio:product-selection-change`  | `mobile-products.js` | пользователь переключил ленту/стикер |
-| `studio:content-product-change`    | `mobile-products.js` | выбран объект содержимого шага 01     |
-| `studio:content-edit-request`      | `mobile-products.js` | запрошен текст или логотип изделия    |
+| `studio:content-product-change`    | `mobile-products.js` | выбран объект содержимого шага 01    |
+| `studio:content-edit-request`      | `mobile-products.js` | запрошен текст или логотип изделия   |
 | `studio:settings-product-change`   | `mobile-products.js` | выбран объект для шага 02            |
 | `studio:transform-delta`           | `mobile-products.js` | drag изменил позицию или шаг         |
-| `studio:logo-upload-target-set`    | тестовый интерфейс   | задан target загрузки логотипа        |
+| `studio:logo-upload-target-set`    | тестовый интерфейс   | задан target загрузки логотипа       |
 
 При добавлении нового события документировать `detail`, направление и владельца
 состояния. `mobile-products.js` не должен становиться вторым независимым store.
@@ -437,6 +443,7 @@ npm run dev
 ```bash
 npm run check:fast
 npm run benchmark:trace
+npm run test:smart-crop
 npm run check:pr
 npm run check:full
 npm run test:smoke
@@ -455,6 +462,8 @@ npm test
   трассировки, VTracer и ImageTracerJS; отчёт, SVG и сравнительный лист
   записываются в игнорируемый каталог `test-results/trace-benchmark/` и не
   подключаются к Studio или deployment artifact;
+- `test:smart-crop` проверяет локальный анализ центрального и смещённого
+  объекта, fallback на ручную рамку и ветку обнаружения лица;
 - `check:pr` выполняет общую проверку, сборку artifact и критические сценарии
   `@smoke`;
 - `check:full` выполняет весь regression и используется отдельным workflow;
