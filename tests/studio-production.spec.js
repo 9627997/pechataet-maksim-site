@@ -716,6 +716,45 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       'data-ribbon-repeat-mm',
       String(logoRepeat.repeatMm),
     );
+    await expect
+      .poll(() =>
+        ribbon.evaluate((surface) =>
+          [
+            surface.querySelector('.mobile-products-ribbon-logo'),
+            surface.querySelector('.mobile-products-ribbon-repeat-logo'),
+          ].every(
+            (image) =>
+              image instanceof HTMLImageElement &&
+              image.complete &&
+              image.naturalWidth > 0 &&
+              image.naturalHeight > 0,
+          ),
+        ),
+      )
+      .toBe(true);
+    const logoSizes = await ribbon.evaluate((surface) => {
+      const paintedSize = (image) => {
+        const bounds = image.getBoundingClientRect();
+        const ratio = image.naturalWidth / image.naturalHeight;
+        const width = Math.min(bounds.width, bounds.height * ratio);
+        const height = Math.min(bounds.height, bounds.width / ratio);
+        return { width, height };
+      };
+      return {
+        central: paintedSize(
+          surface.querySelector('.mobile-products-ribbon-logo'),
+        ),
+        repeat: paintedSize(
+          surface.querySelector('.mobile-products-ribbon-repeat-logo'),
+        ),
+      };
+    });
+    expect(
+      Math.abs(logoSizes.repeat.width - logoSizes.central.width),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(logoSizes.repeat.height - logoSizes.central.height),
+    ).toBeLessThanOrEqual(1);
   } else {
     await expect
       .poll(() =>

@@ -275,11 +275,56 @@
       }
     };
 
+    const getPaintedRect = (
+      layout,
+      box,
+      rootWidth,
+      rootHeight,
+      width,
+      height,
+    ) => {
+      if (!layout || !box || rootWidth <= 0 || rootHeight <= 0) return null;
+      const printable = layout.printable || {
+        x: 0,
+        y: 0,
+        width: 1,
+        height: 1,
+      };
+      const printableLeft = printable.x * rootWidth;
+      const printableTop = printable.y * rootHeight;
+      const printableWidth = printable.width * rootWidth;
+      const printableHeight = printable.height * rootHeight;
+      const scale = Math.min(
+        1,
+        printableWidth / Math.max(width, 1),
+        printableHeight / Math.max(height, 1),
+      );
+      const paintedWidth = width * scale;
+      const paintedHeight = height * scale;
+      const centerX = (box.x + box.width / 2) * rootWidth;
+      const centerY = (box.y + box.height / 2) * rootHeight;
+      const left = Math.min(
+        printableLeft + printableWidth - paintedWidth,
+        Math.max(printableLeft, centerX - paintedWidth / 2),
+      );
+      const top = Math.min(
+        printableTop + printableHeight - paintedHeight,
+        Math.max(printableTop, centerY - paintedHeight / 2),
+      );
+      return {
+        left,
+        top,
+        width: paintedWidth,
+        height: paintedHeight,
+      };
+    };
+
     const renderRibbonRepeats = ({
       layout,
       repeatMm,
       ribbonWidth,
       logoSrc,
+      logoRatio,
       textValue,
       hasLogo,
       hasText,
@@ -317,6 +362,18 @@
       const fontSizeRatio = layout.valid
         ? layout.fontSizeRatio
         : layout.previewFontSizeRatio;
+      const logoHeight = layout.logoBox?.height * repeatHeight;
+      const paintedLogoRect =
+        Number(logoRatio) > 0 && logoHeight > 0
+          ? getPaintedRect(
+              layout,
+              layout.logoBox,
+              repeatWidth,
+              repeatHeight,
+              logoHeight * Number(logoRatio),
+              logoHeight,
+            )
+          : null;
       let repeatCount = singleRepeat ? 1 : 0;
 
       for (
@@ -341,22 +398,39 @@
           const boxRight = left + (box.x + box.width) * repeatWidth;
           return boxLeft >= 0.5 && boxRight <= surfaceBounds.width - 0.5;
         };
+        const rectIsFullyVisible = (rect) => {
+          if (!rect) return false;
+          const rectLeft = left + rect.left;
+          const rectRight = rectLeft + rect.width;
+          return rectLeft >= 0.5 && rectRight <= surfaceBounds.width - 0.5;
+        };
 
         if (
           hasLogo &&
           logoSrc &&
           layout.logoBox &&
-          boxIsFullyVisible(layout.logoBox)
+          (paintedLogoRect
+            ? rectIsFullyVisible(paintedLogoRect)
+            : boxIsFullyVisible(layout.logoBox))
         ) {
           const image = document.createElement('img');
           const box = layout.logoBox;
           image.className = 'mobile-products-ribbon-repeat-logo';
           image.alt = '';
           image.src = logoSrc;
-          image.style.left = `${(box.x + box.width / 2) * 100}%`;
-          image.style.top = `${(box.y + box.height / 2) * 100}%`;
-          image.style.width = `${box.width * 100}%`;
-          image.style.height = `${box.height * 100}%`;
+          if (paintedLogoRect) {
+            image.style.left =
+              `${paintedLogoRect.left + paintedLogoRect.width / 2}px`;
+            image.style.top =
+              `${paintedLogoRect.top + paintedLogoRect.height / 2}px`;
+            image.style.width = `${paintedLogoRect.width}px`;
+            image.style.height = `${paintedLogoRect.height}px`;
+          } else {
+            image.style.left = `${(box.x + box.width / 2) * 100}%`;
+            image.style.top = `${(box.y + box.height / 2) * 100}%`;
+            image.style.width = `${box.width * 100}%`;
+            image.style.height = `${box.height * 100}%`;
+          }
           cell.appendChild(image);
         }
 
@@ -615,37 +689,19 @@
           zone.style.height = `${height}px`;
         };
         const placePainted = (zone, box, width, height) => {
-          const printable = layout.printable || {
-            x: 0,
-            y: 0,
-            width: 1,
-            height: 1,
-          };
-          const printableLeft = printable.x * rootBounds.width;
-          const printableTop = printable.y * layoutHeight;
-          const printableWidth = printable.width * rootBounds.width;
-          const printableHeight = printable.height * layoutHeight;
-          const scale = Math.min(
-            1,
-            printableWidth / Math.max(width, 1),
-            printableHeight / Math.max(height, 1),
+          const paintedRect = getPaintedRect(
+            layout,
+            box,
+            rootBounds.width,
+            layoutHeight,
+            width,
+            height,
           );
-          const paintedWidth = width * scale;
-          const paintedHeight = height * scale;
-          const centerX = (box.x + box.width / 2) * rootBounds.width;
-          const centerY = (box.y + box.height / 2) * layoutHeight;
-          const left = Math.min(
-            printableLeft + printableWidth - paintedWidth,
-            Math.max(printableLeft, centerX - paintedWidth / 2),
-          );
-          const top = Math.min(
-            printableTop + printableHeight - paintedHeight,
-            Math.max(printableTop, centerY - paintedHeight / 2),
-          );
-          zone.style.left = `${left}px`;
-          zone.style.top = `${top}px`;
-          zone.style.width = `${paintedWidth}px`;
-          zone.style.height = `${paintedHeight}px`;
+          if (!paintedRect) return;
+          zone.style.left = `${paintedRect.left}px`;
+          zone.style.top = `${paintedRect.top}px`;
+          zone.style.width = `${paintedRect.width}px`;
+          zone.style.height = `${paintedRect.height}px`;
         };
         const measureTextInk = (element, fontSize) => {
           const canvas = measureTextInk.canvas ||
@@ -714,11 +770,19 @@
         }
       };
       const focusSingleRibbonRepeat = panelMode === 'upload' && dockFloating;
+      const ribbonLogoRatio =
+        Number(contentLogoState?.ribbon?.ratio) > 0
+          ? Number(contentLogoState.ribbon.ratio)
+          : ribbonLogoSource.naturalWidth > 0 &&
+              ribbonLogoSource.naturalHeight > 0
+            ? ribbonLogoSource.naturalWidth / ribbonLogoSource.naturalHeight
+            : null;
       renderRibbonRepeats({
         layout: effectiveLayouts?.ribbon,
         repeatMm,
         ribbonWidth,
         logoSrc: ribbonLogoSrc,
+        logoRatio: ribbonLogoRatio,
         textValue: ribbonTextValueTrimmed,
         hasLogo: hasRibbonLogo,
         hasText: hasRibbonText,
