@@ -752,44 +752,89 @@ test('order product controls remove, restore, and persist products', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('order dialog validates contact and downloads an accessible request @smoke', async ({
+test('order dialog sends production files, retries safely and keeps a local copy @smoke', async ({
   page,
 }) => {
   test.setTimeout(60_000);
   const runtimeErrors = watchRuntimeErrors(page);
+  const requests = [];
+  await page.route('**/api/orders/', async (route) => {
+    requests.push(route.request().postDataJSON());
+    if (requests.length === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'rejected',
+          code: 'receiver_unavailable',
+          message: 'Временная ошибка',
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'accepted',
+        orderId: 'PM-20260812-ABCDEF01',
+        acceptedAt: '2026-08-12T10:00:00Z',
+        duplicate: false,
+      }),
+    });
+  });
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('#continueUpload').click();
   await page.locator('#panel-settings .next-panel').click();
 
   const openOrder = page.locator('#openOrder');
-  await expect(openOrder).toHaveText('Сформировать заявку');
+  await expect(openOrder).toHaveText('Перейти к отправке');
   await openOrder.click();
 
-  const dialog = page.getByRole('dialog', { name: 'Сформировать заявку' });
+  const dialog = page.getByRole('dialog', { name: 'Отправить заявку' });
   const customerName = page.getByLabel('Имя');
   const customerPhone = page.getByLabel('Телефон');
-  const downloadOrder = page.getByRole('button', { name: 'Скачать заявку' });
+  const submitOrder = page.getByRole('button', { name: 'Отправить заявку' });
   await expect(dialog).toBeVisible();
   await expect(customerName).toBeFocused();
 
   await customerName.fill('Максим');
-  await downloadOrder.click();
+  await submitOrder.click();
   await expect(page.locator('#orderFormStatus')).toHaveText(
     'Укажите телефон или Telegram.',
   );
   await expect(customerPhone).toBeFocused();
 
   await customerPhone.fill('+7 900 000-00-00');
-  const downloadPromise = page.waitForEvent('download');
-  await downloadOrder.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe(
-    'zayavka-studio-pechataet-maksim.txt',
-  );
+  await submitOrder.click();
   await expect(page.locator('#orderFormStatus')).toContainText(
-    'Заявка скачана.',
+    'Не удалось отправить заявку.',
   );
+  expect(runtimeErrors).toEqual([
+    expect.stringContaining('server responded with a status of 503'),
+  ]);
+  runtimeErrors.length = 0;
+  await expect(
+    page.getByRole('button', { name: 'Повторить отправку' }),
+  ).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Повторить отправку' }).click();
+  await expect(page.locator('#orderFormStatus')).toContainText(
+    'Заявка PM-20260812-ABCDEF01 принята.',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Заявка отправлена' }),
+  ).toBeDisabled();
+  expect(requests).toHaveLength(2);
+  expect(requests[0].requestId).toBe(requests[1].requestId);
+  expect(requests[1].artifacts.ribbonSvg).toContain('<svg');
+  expect(requests[1].artifacts.stickerSvg).toContain('<svg');
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Скачать копию' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('zayavka-pm-20260812-abcdef01.txt');
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

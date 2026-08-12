@@ -466,6 +466,7 @@ npm run check:fast
 npm run benchmark:trace
 npm run test:smart-crop
 npm run test:trace-mask
+npm run test:order-receiver
 npm run check:pr
 npm run check:full
 npm run test:smoke
@@ -488,6 +489,8 @@ npm test
   объекта, fallback на ручную рамку и ветку обнаружения лица;
 - `test:trace-mask` проверяет положительную полярность для тёмного и светлого
   знака, прозрачный PNG, полупрозрачную плашку и настоящий рамочный логотип;
+- `test:order-receiver` проверяет синтаксис PHP-приёмника и обязательные поля
+  публичного ответа;
 - `check:pr` выполняет общую проверку, сборку artifact и критические сценарии
   `@smoke`;
 - `check:full` выполняет весь regression и используется отдельным workflow;
@@ -557,6 +560,12 @@ Playwright-конфигурация:
   ровно один переход для каждого HTTP-, `www`- и альтернативного домена;
 - production deployment выполняются последовательно; новая публикация не
   прерывает уже начатую синхронизацию;
+- Studio отправляет шаг 03 в `POST /api/orders/`; приёмник сохраняет заявку и
+  production-SVG в приватном каталоге вне web-root, после чего возвращает номер;
+- повтор одного `requestId` идемпотентен, уведомления Telegram, MAX и Google не
+  определяют факт приёма, а локальная текстовая копия остаётся fallback;
+- приватная конфигурация каналов хранится только на REG.RU по пути вне web-root;
+  runtime-настройка описана в `docs/ORDER_RECEIVER_RUNBOOK.md`;
 - служебные каталоги `docs`, `tests`, `scripts`, `.github` и исходные файлы
   разработки не должны попадать в web-root;
 - прежние публичные URL `constructor.html` и
@@ -564,6 +573,8 @@ Playwright-конфигурация:
   переходы на актуальную `/studio/`, без исторического runtime;
 - workflow deployment также поддерживает ручной `workflow_dispatch` и связан с
   GitHub Environment `production`.
+- production-проверка требует HTTP 405 от `GET /api/orders/`, подтверждая, что
+  REG.RU исполняет PHP endpoint, а не отдаёт его исходный файл;
 
 Секреты REG.RU находятся в GitHub Actions. Их нельзя копировать в код,
 документацию, сообщения или локальные `.env`.

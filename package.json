@@ -9,9 +9,10 @@
     "benchmark:trace": "node scripts/trace-benchmark.mjs",
     "test:smart-crop": "node scripts/check-smart-crop.mjs",
     "test:trace-mask": "node scripts/check-trace-mask.mjs",
+    "test:order-receiver": "node scripts/check-order-receiver.mjs",
     "check:fast": "node scripts/check-changed.mjs",
-    "check:pr": "node scripts/check-project-docs.mjs && prettier --check package.json eslint.config.js prettier.config.js playwright.config.js .github/workflows/*.yml scripts/**/*.mjs tests/**/*.js && eslint . && node scripts/build-deploy.mjs && npm run test:smart-crop && npm run test:trace-mask && playwright test --grep @smoke",
-    "check:full": "node scripts/check-project-docs.mjs && prettier --check package.json eslint.config.js prettier.config.js playwright.config.js .github/workflows/*.yml scripts/**/*.mjs tests/**/*.js && eslint . && node scripts/build-deploy.mjs && npm run test:smart-crop && npm run test:trace-mask && playwright test",
+    "check:pr": "node scripts/check-project-docs.mjs && prettier --check package.json eslint.config.js prettier.config.js playwright.config.js .github/workflows/*.yml scripts/**/*.mjs tests/**/*.js && eslint . && node scripts/build-deploy.mjs && npm run test:smart-crop && npm run test:trace-mask && npm run test:order-receiver && playwright test --grep @smoke",
+    "check:full": "node scripts/check-project-docs.mjs && prettier --check package.json eslint.config.js prettier.config.js playwright.config.js .github/workflows/*.yml scripts/**/*.mjs tests/**/*.js && eslint . && node scripts/build-deploy.mjs && npm run test:smart-crop && npm run test:trace-mask && npm run test:order-receiver && playwright test",
     "docs:check": "node scripts/check-project-docs.mjs",
     "test": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
@@ -26,14 +27,15 @@
     "test:desktop": "playwright test --project=desktop"
   },
   "devDependencies": {
-    "@visioncortex/vtracer": "1.0.0-alpha.3",
     "@eslint/js": "latest",
     "@playwright/test": "latest",
+    "@visioncortex/vtracer": "1.0.0-alpha.3",
     "eslint": "latest",
     "globals": "latest",
     "http-server": "latest",
     "imagetracerjs": "1.2.6",
     "pdfjs-dist": "6.1.200",
+    "php-parser": "^3.2.5",
     "prettier": "latest",
     "sharp": "0.34.4"
   }

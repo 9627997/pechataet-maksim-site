@@ -379,7 +379,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
           .locator('[data-product-type="ribbon"] .dynamic-showcase-text')
           .first();
   await expect(clippedPreview).toHaveText(before.layout.previewText);
-  await expect(page.locator('#downloadOrder')).toBeDisabled();
+  await expect(page.locator('#submitOrder')).toBeDisabled();
 
   await card.locator('[data-apply-ribbon-repeat]').click();
   await expect(page.locator('#repeatMm')).toHaveValue(
@@ -399,7 +399,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   );
   expect(production).toContain(fullText);
   expect(production).not.toContain('…');
-  await expect(page.locator('#downloadOrder')).toBeEnabled();
+  await expect(page.locator('#submitOrder')).toBeEnabled();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -513,7 +513,7 @@ test('long production text is invalid and is not rendered outside printable area
   await expect(page.locator('#artworkValidation')).toContainText(
     'Сократите надпись',
   );
-  await expect(page.locator('#downloadOrder')).toBeDisabled();
+  await expect(page.locator('#submitOrder')).toBeDisabled();
   if (testInfo.project.name === 'mobile') {
     await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
     await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(/…$/);
@@ -550,7 +550,7 @@ test('long production text is invalid and is not rendered outside printable area
   );
   await expect(page.locator('#ribbonContent text').first()).toBeAttached();
   await expect(page.locator('#stickerContent text').first()).toBeAttached();
-  await expect(page.locator('#downloadOrder')).toBeEnabled();
+  await expect(page.locator('#submitOrder')).toBeEnabled();
   await expect(overflowCard).toBeHidden();
 });
 

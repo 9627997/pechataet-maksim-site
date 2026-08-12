@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy static site
+    name: Deploy site
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -90,6 +90,16 @@ jobs:
           curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/sitemap.xml" >/dev/null
+
+          order_api_status="$(
+            curl --silent --show-error --output /dev/null \
+              --write-out '%{http_code}' \
+              "${PRODUCTION_URL}/api/orders/"
+          )"
+          if [ "${order_api_status}" != "405" ]; then
+            echo "Order API is not executing PHP: HTTP ${order_api_status}" >&2
+            exit 1
+          fi
 
           canonical_host="xn--80aaarctnodv3agc9d.xn--p1ai"
           canonical_target="https://${canonical_host}/studio/?redirect-check=1"
