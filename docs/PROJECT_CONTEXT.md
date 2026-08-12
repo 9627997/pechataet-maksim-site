@@ -569,6 +569,9 @@ Playwright-конфигурация:
   определяют факт приёма, а локальная текстовая копия остаётся fallback;
 - приватная конфигурация каналов хранится только на REG.RU по пути вне web-root;
   runtime-настройка описана в `docs/ORDER_RECEIVER_RUNBOOK.md`;
+- deployment требует environment-secrets `PM_TELEGRAM_BOT_TOKEN` и
+  `PM_TELEGRAM_CHAT_ID`, проверяет бота и чат через Telegram API, а затем по SSH
+  устанавливает приватную конфигурацию приёмника с правами `600`;
 - служебные каталоги `docs`, `tests`, `scripts`, `.github` и исходные файлы
   разработки не должны попадать в web-root;
 - прежние публичные URL `constructor.html` и

@@ -66,6 +66,18 @@ return [
 `PM_MAX_CHAT_ID`, `PM_GOOGLE_WEBHOOK_URL`, `PM_GOOGLE_SHARED_SECRET` и
 `PM_ORDER_STORAGE_DIR`.
 
+Production Telegram настраивается через environment `production` в GitHub:
+
+1. добавить environment-secret `PM_TELEGRAM_BOT_TOKEN`;
+2. добавить environment-secret `PM_TELEGRAM_CHAT_ID`;
+3. запустить deployment из `main`;
+4. workflow без вывода значений проверит методы Telegram `getMe` и `getChat`,
+   передаст конфигурацию по SSH и установит её вне web-root с правами `600`.
+
+Если токен отсутствует, недействителен или пользователь не запустил бота,
+deployment останавливается до изменения production. Секреты нельзя передавать
+через сообщения, хранить в Git или печатать в журналах Actions.
+
 ## Google Drive и Google Sheets
 
 1. Создать приватную папку Drive для заявок.

@@ -58,6 +58,61 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HOST }}" >> ~/.ssh/known_hosts
 
+      - name: Configure Telegram order notifications
+        shell: bash
+        env:
+          PM_TELEGRAM_BOT_TOKEN: ${{ secrets.PM_TELEGRAM_BOT_TOKEN }}
+          PM_TELEGRAM_CHAT_ID: ${{ secrets.PM_TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${PM_TELEGRAM_BOT_TOKEN}" ] || [ -z "${PM_TELEGRAM_CHAT_ID}" ]; then
+            echo "Telegram production secrets are not configured." >&2
+            exit 1
+          fi
+
+          telegram_api="https://api.telegram.org/bot${PM_TELEGRAM_BOT_TOKEN}"
+          curl --fail --silent --show-error \
+            "${telegram_api}/getMe" | jq --exit-status '.ok == true' >/dev/null
+          curl --fail --silent --show-error \
+            --data-urlencode "chat_id=${PM_TELEGRAM_CHAT_ID}" \
+            "${telegram_api}/getChat" | jq --exit-status '.ok == true' >/dev/null
+
+          config_file="$(mktemp)"
+          remote_stage=".pechataet-maksim-orders-${GITHUB_RUN_ID}.php"
+          trap 'rm -f "${config_file}"' EXIT
+
+          CONFIG_FILE="${config_file}" node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+
+          const quotePhp = (value) =>
+            `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+          const token = process.env.PM_TELEGRAM_BOT_TOKEN;
+          const chatId = process.env.PM_TELEGRAM_CHAT_ID;
+
+          writeFileSync(
+            process.env.CONFIG_FILE,
+            `<?php
+
+          return [
+              'telegram' => [
+                  'bot_token' => ${quotePhp(token)},
+                  'chat_id' => ${quotePhp(chatId)},
+              ],
+          ];
+          `,
+            { mode: 0o600 },
+          );
+          NODE
+
+          scp -q -i ~/.ssh/deploy_key "${config_file}" \
+            "${{ secrets.USERNAME }}@${{ secrets.HOST }}:${remote_stage}"
+          ssh -i ~/.ssh/deploy_key \
+            "${{ secrets.USERNAME }}@${{ secrets.HOST }}" \
+            "set -eu; \
+              install -d -m 700 '/var/www/u2767403/data/www/private'; \
+              install -m 600 '${remote_stage}' \
+                '/var/www/u2767403/data/www/private/pechataet-maksim-orders.php'; \
+              rm -f '${remote_stage}'"
+
       - name: Upload site to REG.RU
         shell: bash
         run: |
