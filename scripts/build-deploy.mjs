@@ -41,6 +41,7 @@ const requiredOutput = [
   'studio/assets/css/app.css',
   'studio/assets/js/app.js',
   'studio/assets/js/smart-crop.js',
+  'studio/assets/js/trace-mask.js',
   'studio/assets/js/trace-engine.js',
   'studio/assets/js/trace-worker.js',
   'studio/assets/js/mobile-products.js',

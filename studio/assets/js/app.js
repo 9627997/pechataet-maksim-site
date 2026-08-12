@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.baseURI
   ).href;
   let pdfJsPromise = null;
+  let tracePolaritySession = null;
 
   const state = {
     panel: 'upload',
@@ -583,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   }
 
-  function commitLogoAsset(asset, target) {
+  function commitLogoAsset(asset, target, {returnToPreview = true} = {}) {
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
       if (!state.commonTextAuthored) {
@@ -602,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateFirstStepAvailability();
     render();
-    returnToMobilePreview();
+    if (returnToPreview) returnToMobilePreview();
   }
 
   function hydrateLogoAsset(asset, color = state.print) {
@@ -2770,38 +2771,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  function estimateBackground(imageData, width, height) {
-    const samples = [];
-    const points = [
-      [0,0], [width-1,0], [0,height-1], [width-1,height-1],
-      [Math.floor(width/2),0], [Math.floor(width/2),height-1],
-      [0,Math.floor(height/2)], [width-1,Math.floor(height/2)]
-    ];
-
-    points.forEach(([x,y]) => {
-      const i = (y * width + x) * 4;
-      samples.push([
-        imageData.data[i],
-        imageData.data[i+1],
-        imageData.data[i+2]
-      ]);
-    });
-
-    return samples.reduce((acc, rgb) => [
-      acc[0] + rgb[0] / samples.length,
-      acc[1] + rgb[1] / samples.length,
-      acc[2] + rgb[2] / samples.length
-    ], [0,0,0]);
-  }
-
-  function colorDistance(r, g, b, bg) {
-    return Math.sqrt(
-      Math.pow(r - bg[0], 2) +
-      Math.pow(g - bg[1], 2) +
-      Math.pow(b - bg[2], 2)
-    );
-  }
-
   async function rasterToSvg(image, fileType) {
     const maxSide = 900;
     const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
@@ -2817,85 +2786,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const imageData = ctx.getImageData(0, 0, width, height);
     const transparent = hasTransparency(imageData);
-    const bg = estimateBackground(imageData, width, height);
-
-    // Adaptive threshold: preserve visible alpha for transparent PNG,
-    // otherwise separate foreground from the sampled edge background.
-    const threshold = transparent ? 24 : 58;
-    const binaryData = new Uint8ClampedArray(width * height * 4);
-    let foregroundPixels = 0;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        const r = imageData.data[i];
-        const g = imageData.data[i+1];
-        const b = imageData.data[i+2];
-        const a = imageData.data[i+3];
-
-        let foreground;
-        if (transparent) {
-          foreground = a > 40;
-        } else {
-          const distance = colorDistance(r, g, b, bg);
-          const luminance = (0.2126*r + 0.7152*g + 0.0722*b);
-          const bgLum = (0.2126*bg[0] + 0.7152*bg[1] + 0.0722*bg[2]);
-          foreground = distance > threshold && Math.abs(luminance - bgLum) > 20;
-        }
-
-        if (foreground) {
-          foregroundPixels++;
-        }
-        const binaryValue = foreground ? 0 : 255;
-        binaryData[i] = binaryValue;
-        binaryData[i + 1] = binaryValue;
-        binaryData[i + 2] = binaryValue;
-        binaryData[i + 3] = 255;
-      }
-    }
-
     const ratio = width / height;
     const tracer = window.RibbonStudioTrace;
+    const maskEngine = window.RibbonStudioTraceMask;
+    if (!maskEngine?.analyze || !maskEngine?.toBinaryImageData) {
+      throw new Error('Модуль печатной маски недоступен.');
+    }
     if (!tracer?.traceBinaryImage) {
       throw new Error('Модуль трассировки недоступен.');
     }
-    const traced = await tracer.traceBinaryImage(
-      {data: binaryData, width, height},
-      {preset: 'faithful'},
-    );
-    const svgSource = traced?.svgSource;
-    if (!svgSource || !/<path\b/i.test(svgSource)) {
-      throw new Error('Трассировка не создала векторные контуры.');
+
+    const maskAnalysis = maskEngine.analyze(imageData);
+    const traceVariant = async (polarity, mask, metrics) => {
+      if (!metrics?.count) return null;
+      const traced = await tracer.traceBinaryImage(
+        maskEngine.toBinaryImageData(mask, width, height),
+        {preset: 'faithful'},
+      );
+      const svgSource = traced?.svgSource;
+      if (!svgSource || !/<path\b/i.test(svgSource)) {
+        throw new Error('Трассировка не создала векторные контуры.');
+      }
+      return {
+        polarity,
+        svgSource,
+        coverage: metrics.count / (width * height),
+        frameRisk: metrics.frameRisk,
+        pathCount: (svgSource.match(/<path\b/gi) || []).length,
+        engine: traced.engine,
+        engineVersion: traced.engineVersion,
+        preset: traced.preset,
+        durationMs: traced.durationMs,
+      };
+    };
+
+    const [signVariant, backgroundVariant] = await Promise.all([
+      traceVariant('sign', maskAnalysis.signMask, maskAnalysis.signMetrics),
+      maskAnalysis.alternativesAvailable
+        ? traceVariant(
+            'background',
+            maskAnalysis.backgroundMask,
+            maskAnalysis.backgroundMetrics,
+          )
+        : null,
+    ]);
+    if (!signVariant) {
+      throw new Error('Не удалось отделить знак от фона.');
     }
-    const pathCount = (svgSource.match(/<path\b/gi) || []).length;
 
-    const coverage = foregroundPixels / (width * height);
-    let quality = 'Контуры определены автоматически.';
-    let warning = false;
-
-    if (coverage < 0.008) {
+    let quality = 'Фон удалён — печатаются только элементы знака.';
+    let warning = maskAnalysis.warning;
+    if (signVariant.coverage < 0.008) {
       quality = 'Обнаружено мало деталей — файл обязательно проверим вручную.';
       warning = true;
-    } else if (coverage > 0.72) {
-      quality = 'Фон может быть сложным — перед производством потребуется проверка.';
+    } else if (signVariant.frameRisk) {
+      quality = 'В макете осталась крупная заливка — проверьте выбор печатной области.';
+      warning = true;
+    } else if (maskAnalysis.confidence < 0.62) {
+      quality = 'Фон отделён с невысокой уверенностью — сравните варианты ниже.';
       warning = true;
     }
 
     return {
-      svgSource,
+      svgSource: signVariant.svgSource,
       ratio,
       width,
       height,
       transparent,
-      coverage,
+      coverage: signVariant.coverage,
       quality,
       warning,
       fileType,
-      engine: traced.engine,
-      engineVersion: traced.engineVersion,
-      preset: traced.preset,
-      durationMs: traced.durationMs,
-      pathCount,
+      engine: signVariant.engine,
+      engineVersion: signVariant.engineVersion,
+      preset: signVariant.preset,
+      durationMs: signVariant.durationMs,
+      pathCount: signVariant.pathCount,
+      polarity: 'sign',
+      maskMethod: maskAnalysis.method,
+      polarityConfidence: maskAnalysis.confidence,
+      alternativesAvailable: Boolean(backgroundVariant),
+      frameRisk: signVariant.frameRisk,
+      variants: {
+        sign: signVariant,
+        background: backgroundVariant,
+      },
     };
   }
 
@@ -2906,9 +2881,32 @@ document.addEventListener('DOMContentLoaded', () => {
     status.hidden = false;
     status.classList.toggle('warning', result.warning);
 
+    const polarityControl = $('#tracePolarityControl');
+    const polarityHint = $('#tracePolarityHint');
+    if (polarityControl) {
+      polarityControl.hidden = !result.alternativesAvailable;
+      polarityControl
+        .querySelectorAll('[data-trace-polarity]')
+        .forEach((button) => {
+          const active = button.dataset.tracePolarity === result.polarity;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+    }
+    if (polarityHint) {
+      polarityHint.textContent =
+        result.polarity === 'background'
+          ? 'Выбрана заливка фона. Используйте её только если плашка является частью логотипа.'
+          : 'По умолчанию фон удалён: на ленту переносятся буквы и элементы логотипа.';
+    }
+    const preparation =
+      result.maskMethod === 'alpha'
+        ? 'Прозрачность сохранена'
+        : result.polarity === 'background'
+          ? 'Выбрана фоновая заливка'
+          : 'Фон удалён';
     $('#traceDetails').textContent =
-      `${result.transparent ? 'Прозрачность сохранена' : 'Фон удалён автоматически'} · ` +
-      `${result.width} × ${result.height} · ${result.quality}`;
+      `${preparation} · ${result.width} × ${result.height} · ${result.quality}`;
   }
 
   function openCropModal(file, image, dataUrl, target) {
@@ -3225,38 +3223,97 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const asset = {
+    tracePolaritySession = {
+      file,
+      imageWidth: image.width,
+      imageHeight: image.height,
       originalRaster: {
         name: file.name,
         type: file.type,
         width: originalSize.width || image.width,
         height: originalSize.height || image.height,
         data: originalDataUrl,
-        crop: cropMeta
+        crop: cropMeta,
       },
-      traceInfo: result,
-      logoSvgSource: result.svgSource,
+      result,
+      target,
+    };
+    applyTracePolarity('sign');
+  }
+
+  function traceInfoForPolarity(result, polarity) {
+    const variant = result.variants?.[polarity] || result.variants?.sign;
+    if (!variant) return null;
+    const backgroundSelected = polarity === 'background';
+    const warning = backgroundSelected || result.warning || variant.frameRisk;
+    return {
+      ratio: result.ratio,
+      width: result.width,
+      height: result.height,
+      transparent: result.transparent,
+      coverage: variant.coverage,
+      quality: backgroundSelected
+        ? 'Выбрана печать фоновой плашки.'
+        : result.quality,
+      warning,
+      fileType: result.fileType,
+      engine: variant.engine,
+      engineVersion: variant.engineVersion,
+      preset: variant.preset,
+      durationMs: variant.durationMs,
+      pathCount: variant.pathCount,
+      polarity,
+      maskMethod: result.maskMethod,
+      polarityConfidence: result.polarityConfidence,
+      alternativesAvailable: result.alternativesAvailable,
+      frameRisk: variant.frameRisk,
+    };
+  }
+
+  function applyTracePolarity(polarity) {
+    const session = tracePolaritySession;
+    if (!session) return;
+    const normalizedPolarity =
+      polarity === 'background' && session.result.variants?.background
+        ? 'background'
+        : 'sign';
+    const variant = session.result.variants?.[normalizedPolarity];
+    const traceInfo = traceInfoForPolarity(
+      session.result,
+      normalizedPolarity,
+    );
+    if (!variant?.svgSource || !traceInfo) return;
+
+    const asset = {
+      originalRaster: session.originalRaster,
+      traceInfo,
+      logoSvgSource: variant.svgSource,
       logoType: 'svg-auto',
       logo: {
-        data: recolorSvgSource(result.svgSource),
-        ratio: result.ratio
-      }
+        data: recolorSvgSource(variant.svgSource),
+        ratio: session.result.ratio,
+      },
     };
 
-    const minSide = Math.min(image.width, image.height);
-    const warning = minSide < 700 || result.warning;
+    const minSide = Math.min(session.imageWidth, session.imageHeight);
+    const warning = minSide < 700 || traceInfo.warning;
 
     showFileCard(
-      file,
-      `${ext.toUpperCase()} · выделено ${image.width} × ${image.height} px`,
+      session.file,
+      `${traceInfo.fileType.toUpperCase()} · выделено ${session.imageWidth} × ${session.imageHeight} px`,
       warning
-        ? 'Макет преобразован в SVG — контуры проверим вручную'
+        ? normalizedPolarity === 'background'
+          ? 'Выбрана фоновая плашка — перед печатью обязательно проверим макет'
+          : 'Макет преобразован в SVG — контуры проверим вручную'
         : 'Изображение автоматически преобразовано в SVG',
-      warning
+      warning,
     );
 
-    showTraceStatus(result);
-    commitLogoAsset(asset, target);
+    showTraceStatus(traceInfo);
+    commitLogoAsset(asset, session.target, {
+      returnToPreview: !session.applied,
+    });
+    session.applied = true;
     updateShowcaseContent();
     updateProductShowcase();
   }
@@ -3467,6 +3524,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setUploadState('error', validationMessage);
       return;
     }
+    tracePolaritySession = null;
     setUploadState('processing', 'Проверяем логотип…');
     const logoTarget = normalizeLogoTarget(target);
 
@@ -4195,6 +4253,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#removeCommonLogo').addEventListener('click', () => {
+    tracePolaritySession = null;
     const product = state.activeContentProduct;
     if (state.content.logo[product].mode === 'override') {
       state.content.logo[product] = {mode: 'override', value: null};
@@ -4219,6 +4278,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateFirstStepAvailability();
     render();
     $('#dropZone').focus({preventScroll: true});
+  });
+
+  $$('#tracePolarityControl [data-trace-polarity]').forEach((button) => {
+    button.addEventListener('click', () => {
+      applyTracePolarity(button.dataset.tracePolarity);
+    });
   });
 
   $('#textInput').addEventListener('input', (event) => {

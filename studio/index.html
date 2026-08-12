@@ -66,7 +66,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=20260806.2">
+  <link rel="stylesheet" href="assets/css/app.css?v=20260812.1">
   <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260808.1">
 </head>
 <body data-active-panel="upload">
@@ -217,10 +217,18 @@
 
       <div class="trace-status" id="traceStatus" hidden>
         <div class="trace-status-icon">✓</div>
-        <div>
+        <div class="trace-status-copy">
           <strong>Макет автоматически подготовлен</strong>
           <p>Изображение переведено в одноцветный макет. Перед производством мы проверим контуры и качество печати.</p>
           <small id="traceDetails"></small>
+          <div class="trace-polarity" id="tracePolarityControl" hidden>
+            <span>Что печатать</span>
+            <div class="trace-polarity-actions" role="group" aria-label="Выбор печатной области">
+              <button class="active" type="button" data-trace-polarity="sign" aria-pressed="true">Печатать знак</button>
+              <button type="button" data-trace-polarity="background" aria-pressed="false">Печатать фон</button>
+            </div>
+            <small id="tracePolarityHint">По умолчанию фон удалён: на ленту переносятся буквы и элементы логотипа.</small>
+          </div>
         </div>
       </div>
 
@@ -751,8 +759,9 @@
 <script src="assets/js/geometry.js?v=20260722.1"></script>
 <script src="assets/js/layout.js?v=20260722.1"></script>
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
+<script src="assets/js/trace-mask.js?v=20260812.1"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=20260806.2"></script>
+<script src="assets/js/app.js?v=20260812.1"></script>
 <script src="assets/js/mobile-products.js?v=20260808.1"></script>
 </body>
 </html>
