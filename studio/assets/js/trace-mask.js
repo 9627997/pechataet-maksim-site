@@ -359,5 +359,71 @@
     return {data, width, height};
   }
 
-  window.RibbonStudioTraceMask = Object.freeze({analyze, toBinaryImageData});
+  function trimMask(mask, width, height, options = {}) {
+    if (!(mask instanceof Uint8Array) || mask.length !== width * height) {
+      throw new TypeError('Размер маски не совпадает с изображением.');
+    }
+
+    const artworkBounds = getMaskBounds(mask, width, height);
+    if (!artworkBounds) {
+      return {
+        mask: new Uint8Array(0),
+        width: 0,
+        height: 0,
+        artworkBounds: null,
+        cropBounds: null,
+        padding: 0,
+        ratio: 0,
+      };
+    }
+
+    const padding = clamp(
+      Math.round(Number(options.padding ?? 1) || 0),
+      0,
+      12,
+    );
+    const left = Math.max(0, artworkBounds.x - padding);
+    const top = Math.max(0, artworkBounds.y - padding);
+    const right = Math.min(
+      width,
+      artworkBounds.x + artworkBounds.width + padding,
+    );
+    const bottom = Math.min(
+      height,
+      artworkBounds.y + artworkBounds.height + padding,
+    );
+    const trimmedWidth = right - left;
+    const trimmedHeight = bottom - top;
+    const trimmedMask = new Uint8Array(trimmedWidth * trimmedHeight);
+
+    for (let y = 0; y < trimmedHeight; y += 1) {
+      const sourceStart = (top + y) * width + left;
+      const targetStart = y * trimmedWidth;
+      trimmedMask.set(
+        mask.subarray(sourceStart, sourceStart + trimmedWidth),
+        targetStart,
+      );
+    }
+
+    return {
+      mask: trimmedMask,
+      width: trimmedWidth,
+      height: trimmedHeight,
+      artworkBounds,
+      cropBounds: {
+        x: left,
+        y: top,
+        width: trimmedWidth,
+        height: trimmedHeight,
+      },
+      padding,
+      ratio: trimmedWidth / trimmedHeight,
+    };
+  }
+
+  window.RibbonStudioTraceMask = Object.freeze({
+    analyze,
+    toBinaryImageData,
+    trimMask,
+  });
 })();

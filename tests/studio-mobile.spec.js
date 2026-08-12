@@ -560,6 +560,76 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test('traced wide artwork is trimmed to its ink and fills the ribbon safe height @smoke', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const bars = Array.from(
+    { length: 18 },
+    (_, index) =>
+      `<rect x="${30 + index * 36}" y="100" width="24" height="100" fill="#111"/>`,
+  ).join('');
+  const sourceSvg = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+      ${bars}
+    </svg>
+  `);
+  const png = await sharp(sourceSvg).png().toBuffer();
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles({
+    name: 'wide-logo-with-air.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await expect(page.locator('#fileCardName')).toHaveText(
+    'wide-logo-with-air.png',
+  );
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeVisible();
+
+  const result = await page.evaluate(() => {
+    const saved = JSON.parse(
+      localStorage.getItem('ribbon-studio-v042') || '{}',
+    );
+    const asset = saved.content?.logo?.common;
+    const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+    const surface = document
+      .querySelector('.mobile-products-ribbon-sample')
+      .getBoundingClientRect();
+    const imageBounds = document
+      .querySelector('.mobile-products-ribbon-logo')
+      .getBoundingClientRect();
+    return {
+      ratio: asset?.logo?.ratio,
+      tracedWidth: asset?.traceInfo?.width,
+      tracedHeight: asset?.traceInfo?.height,
+      artworkHeight: asset?.traceInfo?.artworkBounds?.height,
+      paintedHeight: imageBounds.height,
+      safeHeight: surface.height * layout.printable.height,
+      layoutLogoHeight: layout.logoBox.height,
+      layoutSafeHeight: layout.printable.height,
+      svgSource: asset?.logoSvgSource,
+    };
+  });
+
+  expect(result.ratio).toBeGreaterThan(6);
+  expect(result.tracedWidth / result.tracedHeight).toBeCloseTo(result.ratio, 5);
+  expect(result.artworkHeight / result.tracedHeight).toBeGreaterThanOrEqual(
+    0.98,
+  );
+  expect(result.paintedHeight / result.safeHeight).toBeGreaterThanOrEqual(0.98);
+  expect(result.layoutLogoHeight).toBeCloseTo(result.layoutSafeHeight, 5);
+  expect(result.svgSource).toContain(
+    `viewBox="0 0 ${result.tracedWidth} ${result.tracedHeight}"`,
+  );
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test('white letters on a dark PNG plaque are traced as the printable sign', async ({
   page,
 }, testInfo) => {

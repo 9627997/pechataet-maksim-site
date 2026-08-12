@@ -2786,10 +2786,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const imageData = ctx.getImageData(0, 0, width, height);
     const transparent = hasTransparency(imageData);
-    const ratio = width / height;
     const tracer = window.RibbonStudioTrace;
     const maskEngine = window.RibbonStudioTraceMask;
-    if (!maskEngine?.analyze || !maskEngine?.toBinaryImageData) {
+    if (
+      !maskEngine?.analyze ||
+      !maskEngine?.toBinaryImageData ||
+      !maskEngine?.trimMask
+    ) {
       throw new Error('Модуль печатной маски недоступен.');
     }
     if (!tracer?.traceBinaryImage) {
@@ -2799,8 +2802,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const maskAnalysis = maskEngine.analyze(imageData);
     const traceVariant = async (polarity, mask, metrics) => {
       if (!metrics?.count) return null;
+      const trimmed = maskEngine.trimMask(mask, width, height);
+      if (!trimmed.width || !trimmed.height) return null;
       const traced = await tracer.traceBinaryImage(
-        maskEngine.toBinaryImageData(mask, width, height),
+        maskEngine.toBinaryImageData(
+          trimmed.mask,
+          trimmed.width,
+          trimmed.height,
+        ),
         {preset: 'faithful'},
       );
       const svgSource = traced?.svgSource;
@@ -2810,6 +2819,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return {
         polarity,
         svgSource,
+        width: trimmed.width,
+        height: trimmed.height,
+        ratio: trimmed.ratio,
+        artworkBounds: trimmed.artworkBounds,
+        cropBounds: trimmed.cropBounds,
+        padding: trimmed.padding,
         coverage: metrics.count / (width * height),
         frameRisk: metrics.frameRisk,
         pathCount: (svgSource.match(/<path\b/gi) || []).length,
@@ -2849,9 +2864,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return {
       svgSource: signVariant.svgSource,
-      ratio,
-      width,
-      height,
+      ratio: signVariant.ratio,
+      width: signVariant.width,
+      height: signVariant.height,
       transparent,
       coverage: signVariant.coverage,
       quality,
@@ -3247,9 +3262,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const backgroundSelected = polarity === 'background';
     const warning = backgroundSelected || result.warning || variant.frameRisk;
     return {
-      ratio: result.ratio,
-      width: result.width,
-      height: result.height,
+      ratio: variant.ratio,
+      width: variant.width,
+      height: variant.height,
+      artworkBounds: variant.artworkBounds,
+      cropBounds: variant.cropBounds,
+      padding: variant.padding,
       transparent: result.transparent,
       coverage: variant.coverage,
       quality: backgroundSelected
@@ -3291,7 +3309,7 @@ document.addEventListener('DOMContentLoaded', () => {
       logoType: 'svg-auto',
       logo: {
         data: recolorSvgSource(variant.svgSource),
-        ratio: session.result.ratio,
+        ratio: variant.ratio,
       },
     };
 
