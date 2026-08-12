@@ -472,7 +472,7 @@
         <strong id="totalPrice">1 790 ₽</strong>
       </div>
 
-      <button class="button primary wide" id="openOrder">Сформировать заявку</button>
+      <button class="button primary wide" id="openOrder">Перейти к отправке</button>
     </section>
   </aside>
 
@@ -699,17 +699,18 @@
 <div class="modal" id="orderModal" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle" aria-hidden="true">
   <form class="modal-card" id="orderForm">
     <div class="modal-head">
-      <div><p class="eyebrow">Заявка</p><h2 id="orderModalTitle">Сформировать заявку</h2></div>
+      <div><p class="eyebrow">Шаг 3</p><h2 id="orderModalTitle">Отправить заявку</h2></div>
       <button class="close" id="closeOrder" type="button" aria-label="Закрыть заявку">×</button>
     </div>
     <div class="summary" id="orderSummary"></div>
-    <label for="customerName">Имя</label><input class="input" id="customerName" name="customerName" autocomplete="name" placeholder="Как к вам обращаться" required>
-    <label for="customerPhone">Телефон</label><input class="input" id="customerPhone" name="customerPhone" autocomplete="tel" inputmode="tel" placeholder="+7">
-    <label for="customerTelegram">Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" placeholder="@username">
-    <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" placeholder="Срок, доставка, пожелания"></textarea>
-    <p class="order-form-help">Заявка сохранится на вашем устройстве. Прямая отправка Максиму будет подключена отдельным этапом.</p>
+    <label for="customerName">Имя</label><input class="input" id="customerName" name="customerName" autocomplete="name" maxlength="120" placeholder="Как к вам обращаться" required>
+    <label for="customerPhone">Телефон</label><input class="input" id="customerPhone" name="customerPhone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="+7">
+    <label for="customerTelegram">Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" maxlength="80" placeholder="@username">
+    <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" maxlength="2000" placeholder="Срок, доставка, пожелания"></textarea>
+    <p class="order-form-help">После отправки вы получите номер заявки. Макеты и контакты сохранятся в защищённом архиве «Печатает Максим».</p>
     <p class="order-form-status" id="orderFormStatus" role="status" aria-live="polite"></p>
-    <button class="button primary wide" id="downloadOrder" type="submit">Скачать заявку</button>
+    <button class="button primary wide" id="submitOrder" type="submit">Отправить заявку</button>
+    <button class="button ghost wide order-copy" id="downloadOrderCopy" type="button">Скачать копию</button>
   </form>
 </div>
 

@@ -183,6 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeTextTarget = 'common';
   let cropModalOrigin = null;
   let orderModalOrigin = null;
+  let pendingOrderRequestId = null;
+  let orderSubmissionSucceeded = false;
+  let acceptedOrderId = '';
 
   const cropState = {
     file: null,
@@ -2154,7 +2157,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     document.body.dataset.artworkValid = String(invalid.length === 0);
-    $('#downloadOrder').disabled = invalid.length > 0;
+    $('#submitOrder').disabled = invalid.length > 0;
     document.dispatchEvent(
       new CustomEvent('studio:layout-updated', {detail: layouts}),
     );
@@ -4615,15 +4618,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function closeOrderModal({restoreFocus = true} = {}) {
+    if ($('#orderFormStatus').getAttribute('aria-busy') === 'true') {
+      return;
+    }
     $('#orderModal').classList.remove('open');
     $('#orderModal').setAttribute('aria-hidden', 'true');
     if (restoreFocus) {
       orderModalOrigin?.focus({preventScroll: true});
     }
+    if (orderSubmissionSucceeded) {
+      pendingOrderRequestId = null;
+    }
     orderModalOrigin = null;
   }
 
-  function buildOrderRequestText() {
+  function buildOrderRequestText(orderId = '') {
     const price = calculatePrice();
     const ribbonText = getResolvedText('ribbon').trim() || 'без надписи';
     const stickerText = getResolvedText('sticker').trim() || 'без надписи';
@@ -4636,6 +4645,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return [
       'Заявка — Печатает Максим',
+      orderId ? `Номер заявки: ${orderId}` : '',
       '',
       `Имя: ${customerName}`,
       `Телефон: ${customerPhone || 'не указан'}`,
@@ -4662,8 +4672,97 @@ document.addEventListener('DOMContentLoaded', () => {
           : `${price.amount.toLocaleString('ru-RU')} ₽`
       }`,
       '',
-      'Файл сформирован локально в Studio проекта «Печатает Максим».',
-    ].join('\n');
+      'Копия сформирована в Studio проекта «Печатает Максим».',
+    ]
+      .filter((line, index, lines) => line || lines[index - 1] !== '')
+      .join('\n');
+  }
+
+  function createOrderRequestId() {
+    if (typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    const random = new Uint8Array(16);
+    crypto.getRandomValues(random);
+    return [...random]
+      .map((value) => value.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  function buildOrderPayload() {
+    const price = calculatePrice();
+    const ribbonStyle = getProductStyle('ribbon');
+    const stickerStyle = getProductStyle('sticker');
+    const ribbonEnabled = state.meters > 0;
+    const stickerEnabled = state.stickerQty > 0;
+
+    return {
+      schemaVersion: 1,
+      requestId: pendingOrderRequestId,
+      createdAt: new Date().toISOString(),
+      source: {
+        page: location.href,
+        locale: navigator.language || 'ru',
+      },
+      customer: {
+        name: $('#customerName').value.trim(),
+        phone: $('#customerPhone').value.trim(),
+        telegram: $('#customerTelegram').value.trim(),
+        comment: $('#customerComment').value.trim(),
+      },
+      products: {
+        ribbon: {
+          enabled: ribbonEnabled,
+          widthMm: state.width,
+          meters: state.meters,
+          repeatMm: state.repeatMm,
+          materialColor: state.ribbon,
+          printColor: ribbonStyle.print,
+        },
+        sticker: {
+          enabled: stickerEnabled,
+          diameterMm: state.stickerSize,
+          quantity: state.stickerQty,
+          backgroundColor: state.stickerBg,
+          printColor: stickerStyle.print,
+        },
+      },
+      design: {
+        ribbon: {
+          text: getResolvedText('ribbon').trim(),
+          font: ribbonStyle.font,
+          hasLogo: Boolean(getResolvedLogo('ribbon')?.logo),
+        },
+        sticker: {
+          text: getResolvedText('sticker').trim(),
+          font: stickerStyle.font,
+          hasLogo: Boolean(getResolvedLogo('sticker')?.logo),
+        },
+      },
+      pricing: {
+        preliminary: true,
+        currency: 'RUB',
+        amount: price.unavailable ? null : price.amount,
+        requiresIndividualCalculation: price.unavailable,
+      },
+      artifacts: {
+        ribbonSvg: ribbonEnabled
+          ? window.RibbonStudioProduction.serialize('ribbon')
+          : '',
+        stickerSvg: stickerEnabled
+          ? window.RibbonStudioProduction.serialize('sticker')
+          : '',
+      },
+    };
+  }
+
+  function downloadOrderCopy(orderId = '') {
+    downloadTextFile(
+      orderId
+        ? `zayavka-${orderId.toLowerCase()}.txt`
+        : 'zayavka-studio-pechataet-maksim.txt',
+      buildOrderRequestText(orderId),
+    );
   }
 
   $('#openOrder').addEventListener('click', () => {
@@ -4683,8 +4782,14 @@ document.addEventListener('DOMContentLoaded', () => {
       .filter(Boolean)
       .join(' · ');
     orderModalOrigin = document.activeElement;
+    orderSubmissionSucceeded = false;
+    acceptedOrderId = '';
+    pendingOrderRequestId = null;
     $('#orderFormStatus').textContent = '';
-    $('#orderFormStatus').classList.remove('is-error');
+    $('#orderFormStatus').classList.remove('is-error', 'is-success');
+    $('#orderFormStatus').removeAttribute('aria-busy');
+    $('#submitOrder').textContent = 'Отправить заявку';
+    $('#submitOrder').disabled = !artworkValid;
     $('#orderModal').classList.add('open');
     $('#orderModal').setAttribute('aria-hidden', 'false');
     requestAnimationFrame(() =>
@@ -4703,9 +4808,14 @@ document.addEventListener('DOMContentLoaded', () => {
     trapDialogFocus(event, $('#orderModal'));
   });
 
-  $('#orderForm').addEventListener('submit', (event) => {
+  $('#downloadOrderCopy').addEventListener('click', () => {
+    downloadOrderCopy(acceptedOrderId);
+  });
+
+  $('#orderForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const status = $('#orderFormStatus');
+    const submitButton = $('#submitOrder');
     const customerName = $('#customerName').value.trim();
     const hasContact =
       Boolean($('#customerPhone').value.trim()) ||
@@ -4724,13 +4834,46 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    downloadTextFile(
-      'zayavka-studio-pechataet-maksim.txt',
-      buildOrderRequestText(),
-    );
-    status.textContent =
-      'Заявка скачана. Прямая отправка Максиму пока не подключена.';
-    status.classList.remove('is-error');
+    pendingOrderRequestId ||= createOrderRequestId();
+    status.textContent = 'Сохраняем заявку и макеты…';
+    status.classList.remove('is-error', 'is-success');
+    status.setAttribute('aria-busy', 'true');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Отправляем…';
+    $('#closeOrder').disabled = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
+    try {
+      const response = await fetch('/api/orders/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(buildOrderPayload()),
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || result.status !== 'accepted' || !result.orderId) {
+        throw new Error(result.message || 'receiver_unavailable');
+      }
+
+      orderSubmissionSucceeded = true;
+      acceptedOrderId = result.orderId;
+      status.textContent = `Заявка ${result.orderId} принята. Максим свяжется с вами по указанному контакту.`;
+      status.classList.add('is-success');
+      submitButton.textContent = 'Заявка отправлена';
+    } catch (error) {
+      console.warn('Order submission failed:', error);
+      status.textContent =
+        'Не удалось отправить заявку. Она не потеряна: повторите попытку или скачайте копию.';
+      status.classList.add('is-error');
+      submitButton.disabled = false;
+      submitButton.textContent = 'Повторить отправку';
+    } finally {
+      clearTimeout(timeout);
+      status.removeAttribute('aria-busy');
+      $('#closeOrder').disabled = false;
+    }
   });
 
   $('#resetProject').addEventListener('click', () => {
