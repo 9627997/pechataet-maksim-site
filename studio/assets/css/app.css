@@ -786,6 +786,45 @@ body[data-sticker-print="silver"] .box-sticker{
   background:#fff0cf;
   color:#956200;
 }
+.trace-status-copy{min-width:0}
+.trace-polarity{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(31,95,54,.16);
+}
+.trace-polarity[hidden]{display:none}
+.trace-polarity>span{
+  display:block;
+  margin-bottom:6px;
+  color:var(--ink);
+  font-size:10px;
+  font-weight:800;
+}
+.trace-polarity-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+}
+.trace-polarity-actions button{
+  min-height:34px;
+  border:1px solid #d8d4cc;
+  border-radius:9px;
+  background:#fff;
+  color:var(--ink);
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+.trace-polarity-actions button.active{
+  border-color:#1f6d3d;
+  background:#e5f4e9;
+  color:#185a32;
+}
+.trace-polarity #tracePolarityHint{
+  margin-top:7px;
+  line-height:1.45;
+}
 
 .crop-modal{
   position:fixed;

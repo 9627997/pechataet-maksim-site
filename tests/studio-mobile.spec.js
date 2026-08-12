@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import sharp from 'sharp';
 import {
   completeFirstStepWithText,
   createPdfUpload,
@@ -555,6 +556,89 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   expect(tracedSvg).not.toMatch(/<rect\b/);
   await expectMobileLogosToMatch(page, finalSrc);
   await expectInterfaceResponsive(page);
+  await expectNoHorizontalOverflow(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('white letters on a dark PNG plaque are traced as the printable sign', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  const runtimeErrors = watchRuntimeErrors(page);
+  const sourceSvg = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="260" height="140" viewBox="0 0 260 140">
+      <rect x="10" y="10" width="240" height="120" rx="2" fill="#111"/>
+      <path fill="#fff" d="M48 38h18v64H48zm0 0h48v14H48zm0 25h42v14H48zM124 38h18v64h-18zm0 50h52v14h-52z"/>
+    </svg>
+  `);
+  const png = await sharp(sourceSvg).png().toBuffer();
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles({
+    name: 'white-letters-on-dark-plaque.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+
+  const traceStatus = page.locator('#traceStatus');
+  const polarityControl = page.locator('#tracePolarityControl');
+  const signButton = polarityControl.getByRole('button', {
+    name: 'Печатать знак',
+  });
+  const backgroundButton = polarityControl.getByRole('button', {
+    name: 'Печатать фон',
+  });
+  await expect(traceStatus).toBeVisible();
+  await expect(page.locator('#traceDetails')).toContainText('Фон удалён');
+  await expect(polarityControl).toBeVisible();
+  await expect(signButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(backgroundButton).toHaveAttribute('aria-pressed', 'false');
+
+  const readStoredTrace = () =>
+    page.evaluate(() => {
+      const saved = JSON.parse(
+        localStorage.getItem('ribbon-studio-v042') || '{}',
+      );
+      const asset = saved.content?.logo?.common;
+      return {
+        polarity: asset?.traceInfo?.polarity,
+        coverage: asset?.traceInfo?.coverage,
+        frameRisk: asset?.traceInfo?.frameRisk,
+        svgSource: asset?.logoSvgSource,
+      };
+    });
+
+  await expect
+    .poll(async () => (await readStoredTrace()).polarity)
+    .toBe('sign');
+  const sign = await readStoredTrace();
+  expect(sign.coverage).toBeLessThan(0.24);
+  expect(sign.frameRisk).toBe(false);
+  expect(sign.svgSource).toMatch(/<path\b/);
+
+  await backgroundButton.click();
+  await expect(backgroundButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#tracePolarityHint')).toContainText(
+    'Выбрана заливка фона',
+  );
+  await expect
+    .poll(async () => (await readStoredTrace()).polarity)
+    .toBe('background');
+  const background = await readStoredTrace();
+  expect(background.coverage).toBeGreaterThan(0.65);
+  expect(background.frameRisk).toBe(true);
+
+  await signButton.click();
+  await expect(signButton).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(async () => (await readStoredTrace()).polarity)
+    .toBe('sign');
+  expect((await readStoredTrace()).coverage).toBeLessThan(0.24);
+  await expectMobileLogosToMatch(
+    page,
+    await page.locator('#macroLogoImage').getAttribute('src'),
+  );
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });

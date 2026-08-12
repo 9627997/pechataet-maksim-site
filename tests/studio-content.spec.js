@@ -848,7 +848,10 @@ test('raster upload target survives tracing and crop cancellation', async ({
   await expect(page.locator('#cropModal')).toHaveClass(/open/);
   await page.locator('#cropApply').click();
   await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
-  await expect.poll(() => sticker.getAttribute('src')).not.toBe(initialSticker);
+  await expect(page.locator('#fileCardName')).toHaveText('opaque-logo.png');
+  await expect
+    .poll(() => sticker.getAttribute('src'))
+    .toMatch(/^data:image\/svg\+xml;base64,/);
   await expect(ribbon).toHaveAttribute('src', tracedRibbon);
   const tracedSticker = await sticker.getAttribute('src');
 
