@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const ImageTracer = require('imagetracerjs');
 
 globalThis.window = {};
 await import('../studio/assets/js/trace-mask.js');
@@ -84,5 +88,62 @@ assert.equal(
   transparentPlaque.width * transparentPlaque.height * 4,
 );
 assert.equal(binary.data[3], 255);
+
+const wideSignWithAir = new Uint8Array(300 * 180);
+for (let y = 72; y < 108; y += 1) {
+  for (let x = 30; x < 270; x += 1) {
+    wideSignWithAir[y * 300 + x] = 1;
+  }
+}
+const trimmed = traceMask.trimMask(wideSignWithAir, 300, 180);
+assert.deepEqual(trimmed.artworkBounds, {
+  x: 30,
+  y: 72,
+  width: 240,
+  height: 36,
+  count: 8640,
+});
+assert.deepEqual(trimmed.cropBounds, {
+  x: 29,
+  y: 71,
+  width: 242,
+  height: 38,
+});
+assert.equal(trimmed.padding, 1);
+assert.equal(trimmed.mask.length, trimmed.width * trimmed.height);
+assert.ok(trimmed.ratio > 6.36);
+assert.ok(trimmed.ratio < 6.37);
+assert.equal(trimmed.mask[trimmed.width + 1], 1);
+
+const trimmedBinary = traceMask.toBinaryImageData(
+  trimmed.mask,
+  trimmed.width,
+  trimmed.height,
+);
+const tracedSource = ImageTracer.imagedataToSVG(trimmedBinary, {
+  ltres: 1,
+  qtres: 1,
+  pathomit: 4,
+  colorsampling: 0,
+  colorquantcycles: 1,
+  linefilter: true,
+  roundcoords: 2,
+  strokewidth: 0,
+  pal: [
+    { r: 0, g: 0, b: 0, a: 255 },
+    { r: 255, g: 255, b: 255, a: 0 },
+  ],
+});
+const tracedWithViewBox = tracedSource.includes('viewBox=')
+  ? tracedSource
+  : tracedSource.replace(
+      '<svg ',
+      `<svg viewBox="0 0 ${trimmed.width} ${trimmed.height}" `,
+    );
+assert.match(tracedWithViewBox, /<path\b/);
+assert.match(
+  tracedWithViewBox,
+  new RegExp(`viewBox="0 0 ${trimmed.width} ${trimmed.height}"`),
+);
 
 console.log('Trace mask checks passed.');
