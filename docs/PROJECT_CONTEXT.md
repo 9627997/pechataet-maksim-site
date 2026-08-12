@@ -550,6 +550,9 @@ Playwright-конфигурация:
   `www` на канонический HTTPS-домен; встроенные редиректы сайта в ISPmanager
   должны оставаться выключенными, чтобы не создавать цепочки;
 - каждый artifact содержит `version.json` с точным commit и временем сборки;
+- cache-version главного `studio/assets/js/app.js` в `studio/index.html` равен
+  первым 12 символам SHA-256 файла; smoke-тест требует обновить URL после
+  каждого изменения скрипта, поскольку REG.RU длительно кеширует JS;
 - merge/push в `main` публикует статические файлы на REG.RU;
 - обязательный Pull Request один раз выполняет `check:pr`;
 - deployment не повторяет lint и Playwright: он собирает artifact, публикует и

@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 const watchRuntimeErrors = (page) => {
   const errors = [];
@@ -47,6 +49,18 @@ test('local styles and scripts use deployment cache versions @smoke', async ({
     );
     expect(unversionedAssets).toEqual([]);
   }
+
+  const studioHtml = await readFile('studio/index.html', 'utf8');
+  const studioApp = await readFile('studio/assets/js/app.js');
+  const expectedVersion = createHash('sha256')
+    .update(studioApp)
+    .digest('hex')
+    .slice(0, 12);
+  const appScriptSource = studioHtml.match(
+    /<script src="assets\/js\/app\.js\?v=([a-f0-9]{12})"><\/script>/,
+  );
+
+  expect(appScriptSource?.[1]).toBe(expectedVersion);
 });
 
 test('public pages expose canonical SEO metadata and valid structured data @smoke', async ({
