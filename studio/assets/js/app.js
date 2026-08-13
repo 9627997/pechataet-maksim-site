@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const {
     getRibbonPrintableGeometry,
     getStickerPrintableGeometry,
+    fitRectToCircle,
   } = window.RibbonStudioGeometry;
   const {
+    fitTextToCircle,
     getRibbonContentLayout,
     getStickerContentLayout,
   } = window.RibbonStudioLayout;
@@ -147,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
       layoutMode: value?.layoutMode === 'manual' ? 'manual' : 'auto',
       textOffsetX: Math.min(100, Math.max(-100, Number(value?.textOffsetX) || 0)),
       textOffsetY: Math.min(100, Math.max(-100, Number(value?.textOffsetY) || 0)),
-      logoScale: Math.min(1.8, Math.max(0.5, Number(value?.logoScale ?? fallback.logoScale) || 1)),
+      logoScale: Math.min(1, Math.max(0.1, Number(value?.logoScale ?? fallback.logoScale) || 1)),
       logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0)),
       logoOffsetY: Math.min(100, Math.max(-100, Number(value?.logoOffsetY) || 0))
     };
@@ -1474,7 +1476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (input) input.value = state.repeatMm;
     if (mode) {
       mode.textContent =
-        state.repeatMode === 'auto' ? 'Автоматически' : 'Задан вручную';
+        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · ${state.repeatMm} мм`;
     }
     if (hint) {
       hint.textContent =
@@ -1799,6 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textOffsetX: style.textOffsetX,
         textOffsetY: style.textOffsetY,
         manualLayout: style.layoutMode === 'manual',
+        textScale: style.fontSize / 64,
         preferredFontSize: hasLogo && layoutHasText
           ? stickerPreferred.combined * (style.fontSize / 32)
           : stickerPreferred.textOnly * (style.fontSize / 32),
@@ -3442,39 +3445,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
     if ($('#fontSize')) $('#fontSize').value = style.fontSize;
     const ribbonSettings = state.activeSettingsProduct === 'ribbon';
-    if ($('#textOffsetX')) {
-      $('#textOffsetX').min = ribbonSettings ? MIN_RIBBON_REPEAT_MM : -100;
-      $('#textOffsetX').max = ribbonSettings ? MAX_RIBBON_REPEAT_MM : 100;
-      $('#textOffsetX').value = ribbonSettings
-        ? state.repeatMm
-        : style.textOffsetX;
-    }
+    if ($('#textOffsetX')) $('#textOffsetX').value = style.textOffsetX;
     if ($('#textOffsetY')) $('#textOffsetY').value = style.textOffsetY;
     if ($('#repeatMm')) {
       $('#repeatMm').value = state.repeatMm;
-      $('#repeatMm').readOnly =
-        !ribbonSettings || style.layoutMode !== 'manual';
     }
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
     if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
-    if ($('#logoOffsetX')) {
-      $('#logoOffsetX').min = ribbonSettings ? MIN_RIBBON_REPEAT_MM : -100;
-      $('#logoOffsetX').max = ribbonSettings ? MAX_RIBBON_REPEAT_MM : 100;
-      $('#logoOffsetX').value = ribbonSettings
-        ? state.repeatMm
-        : style.logoOffsetX;
-    }
-    if ($('#textOffsetXLabel')) {
-      $('#textOffsetXLabel').textContent = ribbonSettings
-        ? 'Интервал между повторами, мм'
-        : 'По горизонтали';
-    }
-    if ($('#logoOffsetXLabel')) {
-      $('#logoOffsetXLabel').textContent = ribbonSettings
-        ? 'Интервал между повторами, мм'
-        : 'Смещение по горизонтали';
-    }
+    if ($('#logoOffsetX')) $('#logoOffsetX').value = style.logoOffsetX;
+    $$('[data-transform-axis="horizontal"]').forEach((control) => {
+      control.hidden = ribbonSettings;
+    });
     if ($('#logoOffsetY')) $('#logoOffsetY').value = style.logoOffsetY;
     $$('#layoutModeChoice button').forEach((button) => {
       button.classList.toggle('active', button.dataset.value === style.layoutMode);
@@ -4156,9 +4138,93 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
+  const enterManualLayout = (product = state.activeSettingsProduct) => {
+    const style = getProductStyle(product);
+    if (style.layoutMode === 'manual') return;
+
+    const layout = currentLayouts[product];
+    if (
+      product === 'sticker' &&
+      layout?.logoBox &&
+      layout?.textBox &&
+      layout?.circle
+    ) {
+      const resolvedLogo = getResolvedLogo('sticker');
+      const logoRatio = Number(resolvedLogo?.logo?.ratio) || 1;
+      const logoSource = logoRatio >= 1
+        ? {x: 0, y: 0, width: logoRatio, height: 1}
+        : {x: 0, y: 0, width: 1, height: 1 / logoRatio};
+      const maximumLogo = fitRectToCircle(
+        logoSource,
+        layout.circle,
+        1,
+        0,
+      );
+      style.logoScale = Math.min(
+        1,
+        Math.max(0.1, layout.logoBox.width / maximumLogo.width),
+      );
+
+      const resolvedText = getResolvedText('sticker').trim();
+      const maximumText = fitTextToCircle({
+        text: resolvedText,
+        metrics: getTextMetrics(resolvedText, 'sticker'),
+        circle: layout.circle,
+        requestedScale: 1,
+      });
+      style.fontSize = Math.min(
+        64,
+        Math.max(16, Math.round((layout.fontSize / maximumText.fontSize) * 64)),
+      );
+
+      const centeredLogo = fitRectToCircle(
+        logoSource,
+        layout.circle,
+        style.logoScale,
+        0,
+      );
+      const centeredText = fitTextToCircle({
+        text: resolvedText,
+        metrics: getTextMetrics(resolvedText, 'sticker'),
+        circle: layout.circle,
+        requestedScale: style.fontSize / 64,
+      });
+      const offsetFromCenter = (current, centered, axis, size) =>
+        current[axis] + current[size] / 2 -
+        (centered[axis] + centered[size] / 2);
+      style.logoOffsetX = offsetFromCenter(
+        layout.logoBox,
+        centeredLogo,
+        'x',
+        'width',
+      );
+      style.logoOffsetY = offsetFromCenter(
+        layout.logoBox,
+        centeredLogo,
+        'y',
+        'height',
+      );
+      style.textOffsetX = offsetFromCenter(
+        layout.textBox,
+        centeredText.bbox,
+        'x',
+        'width',
+      );
+      style.textOffsetY = offsetFromCenter(
+        layout.textBox,
+        centeredText.bbox,
+        'y',
+        'height',
+      );
+    }
+
+    style.layoutMode = 'manual';
+  };
+
   const setLayoutMode = (mode) => {
     const style = getProductStyle(state.activeSettingsProduct);
-    style.layoutMode = mode === 'manual' ? 'manual' : 'auto';
+    if (mode === 'manual') enterManualLayout();
+    else style.layoutMode = 'auto';
     if (style.layoutMode === 'auto') {
       style.textOffsetX = 0;
       style.textOffsetY = 0;
@@ -4170,9 +4236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   };
 
-  const useManualLayout = () => {
-    getProductStyle(state.activeSettingsProduct).layoutMode = 'manual';
-  };
+  const useManualLayout = () => enterManualLayout();
 
   $$('#layoutModeChoice button').forEach((button) => {
     button.addEventListener('click', () => setLayoutMode(button.dataset.value));
@@ -4189,17 +4253,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#textOffsetX').addEventListener('input', (event) => {
     useManualLayout();
     const style = getProductStyle(state.activeSettingsProduct);
-    if (state.activeSettingsProduct === 'ribbon') {
-      style.textOffsetX = 0;
-      state.repeatMode = 'manual';
-      state.repeatMm = Math.min(
-        MAX_RIBBON_REPEAT_MM,
-        Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || state.repeatMm),
-      );
-      syncControls();
-    } else {
-      style.textOffsetX = +event.target.value;
-    }
+    style.textOffsetX = +event.target.value;
     render();
   });
 
@@ -4215,6 +4269,7 @@ document.addEventListener('DOMContentLoaded', () => {
       MAX_RIBBON_REPEAT_MM,
       Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
     );
+    syncControls();
     render();
   });
 
@@ -4287,17 +4342,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#logoOffsetX').addEventListener('input', (event) => {
     useManualLayout();
     const style = getProductStyle(state.activeSettingsProduct);
-    if (state.activeSettingsProduct === 'ribbon') {
-      style.logoOffsetX = 0;
-      state.repeatMode = 'manual';
-      state.repeatMm = Math.min(
-        MAX_RIBBON_REPEAT_MM,
-        Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || state.repeatMm),
-      );
-      syncControls();
-    } else {
-      style.logoOffsetX = +event.target.value;
-    }
+    style.logoOffsetX = +event.target.value;
     syncLegacyStyleAliases();
     render();
   });
@@ -4333,34 +4378,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('studio:transform-delta', (event) => {
     const product = event.detail?.product;
     const kind = event.detail?.kind;
-    if (!['ribbon', 'sticker'].includes(product)) return;
+    if (product !== 'sticker') return;
     if (!['logo', 'text'].includes(kind)) return;
     setActiveSettingsProduct(product);
+    enterManualLayout(product);
     const style = getProductStyle(product);
     const outer = currentLayouts[product]?.outer;
     if (!outer) return;
-    style.layoutMode = 'manual';
     const clampOffset = (value) => Math.min(100, Math.max(-100, value));
-    if (product === 'ribbon') {
-      style[`${kind}OffsetX`] = 0;
-      state.repeatMode = 'manual';
-      state.repeatMm = Math.round(
-        Math.min(
-          MAX_RIBBON_REPEAT_MM,
-          Math.max(
-            MIN_RIBBON_REPEAT_MM,
-            state.repeatMm +
-              Number(event.detail.dxRatio || 0) *
-                (MAX_RIBBON_REPEAT_MM - MIN_RIBBON_REPEAT_MM),
-          ),
-        ),
-      );
-    } else {
-      style[`${kind}OffsetX`] = clampOffset(
-        style[`${kind}OffsetX`] +
-          Number(event.detail.dxRatio || 0) * outer.width,
-      );
-    }
+    style[`${kind}OffsetX`] = clampOffset(
+      style[`${kind}OffsetX`] +
+        Number(event.detail.dxRatio || 0) * outer.width,
+    );
     style[`${kind}OffsetY`] = clampOffset(
       style[`${kind}OffsetY`] + Number(event.detail.dyRatio || 0) * outer.height,
     );

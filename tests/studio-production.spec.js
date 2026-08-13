@@ -597,7 +597,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
     return result;
   };
 
-  await expect(page.locator('#repeatMm')).toHaveAttribute('readonly', '');
+  await expect(page.locator('#repeatMm')).toHaveAttribute('type', 'range');
   await page.locator('#textInput').fill('МАКСИМ');
   const textRepeat = await expectGoldenRepeat('text');
 
@@ -632,19 +632,24 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       );
       const centralBounds = central.getBoundingClientRect();
       const centralCenter = centralBounds.left + centralBounds.width / 2;
+      const centralMiddle = centralBounds.top + centralBounds.height / 2;
       const repeatWidth = Number(surface.dataset.ribbonRepeatWidthPx);
       return [
         ...surface.querySelectorAll('.mobile-products-ribbon-repeat-text'),
       ].map((element) => {
         const bounds = element.getBoundingClientRect();
-        return Math.abs(
-          (bounds.left + bounds.width / 2 - centralCenter) / repeatWidth,
-        );
+        return {
+          horizontal: Math.abs(
+            (bounds.left + bounds.width / 2 - centralCenter) / repeatWidth,
+          ),
+          vertical: Math.abs(bounds.top + bounds.height / 2 - centralMiddle),
+        };
       });
     });
     expect(repeatOffsets.length).toBeGreaterThan(0);
     for (const offset of repeatOffsets) {
-      expect(offset).toBeCloseTo(Math.round(offset), 2);
+      expect(offset.horizontal).toBeCloseTo(Math.round(offset.horizontal), 2);
+      expect(offset.vertical).toBeLessThanOrEqual(0.5);
     }
   } else {
     await expect
