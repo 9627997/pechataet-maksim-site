@@ -4877,6 +4877,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#resetProject').addEventListener('click', () => {
+    if (
+      hasUserContent() &&
+      !window.confirm('Начать новый проект? Текущий макет будет удалён.')
+    ) {
+      return;
+    }
     localStorage.removeItem('ribbon-studio-v042');
     location.reload();
   });

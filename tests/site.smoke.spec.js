@@ -127,7 +127,7 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
   );
 });
 
-test('landing page is responsive and downloads an honest request @smoke', async ({
+test('landing page is responsive and leads to Studio @smoke', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
@@ -138,17 +138,31 @@ test('landing page is responsive and downloads an honest request @smoke', async 
   await expect(page.locator('#region')).toContainText('ХМАО');
   await expectNoHorizontalOverflow(page);
 
-  const form = page.locator('#contact-form');
-  await form.getByLabel('Имя').fill('Максим');
-  await form.getByLabel('Телефон или Telegram').fill('@maxim');
-  await form.getByLabel('Комментарий').fill('Нужна лента 20 мм');
-
-  const downloadPromise = page.waitForEvent('download');
-  await form.getByRole('button', { name: 'Скачать заявку' }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('zayavka-pechataet-maksim.txt');
-  await expect(form.locator('.form-status')).toContainText('Заявка скачана.');
-  await expect(form.getByLabel('Имя')).toHaveValue('Максим');
+  const studioLinks = page.locator('a[href="/studio/"]');
+  await expect(studioLinks).toHaveCount(5);
+  await expect(
+    page.getByRole('link', { name: 'Создать макет онлайн' }),
+  ).toHaveAttribute('href', '/studio/');
+  await expect(page.locator('#contact')).toContainText(
+    'Заявка и макеты сохраняются в защищённом архиве.',
+  );
+  await expect(page.locator('#contact-form')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
+});
+
+test('Studio protects a created project from an accidental reset @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  const textInput = page.getByRole('textbox', { name: 'Надпись на ленте' });
+  await textInput.fill('Макет для проверки');
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('Текущий макет будет удалён');
+    await dialog.dismiss();
+  });
+  await page.getByRole('button', { name: 'Новый проект' }).click();
+
+  await expect(textInput).toHaveValue('Макет для проверки');
 });
