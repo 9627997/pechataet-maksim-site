@@ -30,6 +30,11 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
   await expect(ribbonSample).toBeVisible();
   await expect(stickerSample).toBeVisible();
+  await expect(page.locator('[data-transform-kind="text"]')).toBeVisible();
+  await expect(page.locator('[data-transform-kind="logo"]')).toBeHidden();
+  await expect(page.locator('#editSettingsLogo')).toHaveText(
+    'Добавить логотип',
+  );
   await expect(page.locator('#fontSelect')).toHaveJSProperty(
     'tagName',
     'SELECT',
@@ -198,6 +203,41 @@ test('settings keep product focus and link back to its content editor', async ({
   await expect(page.locator('#dropZone')).toBeFocused();
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
+});
+
+test('settings show controls only for content present in the selected product @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+
+  await expect(page.locator('#settingsContentStatus')).toContainText(
+    'надпись не добавлена',
+  );
+  await expect(page.locator('#fontPicker')).toBeHidden();
+  await expect(page.locator('#fontSize')).toBeHidden();
+  await expect(page.locator('[data-transform-kind="text"]')).toBeHidden();
+  await expect(page.locator('[data-transform-kind="logo"]')).toBeVisible();
+  await expect(page.locator('#editSettingsText')).toHaveText(
+    'Добавить надпись',
+  );
+  await expect(page.locator('#editSettingsLogo')).toHaveText(
+    'Заменить логотип',
+  );
+
+  await page.locator('#editSettingsText').click();
+  await expect(page.locator('#textInput')).toBeFocused();
+  await page.locator('#textInput').fill('Мой бренд');
+  await page.locator('#continueUpload').click();
+
+  await expect(page.locator('#fontPicker')).toBeVisible();
+  await expect(page.locator('#fontSize')).toBeVisible();
+  await expect(page.locator('[data-transform-kind="text"]')).toBeVisible();
+  await expect(page.locator('[data-transform-kind="logo"]')).toBeVisible();
+  await expect(page.locator('#editSettingsText')).toHaveText(
+    'Изменить надпись',
+  );
 });
 
 test('selected product owns the visible settings and manual transforms', async ({
@@ -566,9 +606,8 @@ test('product switches control order quantities and price @smoke', async ({
   await ribbonSwitch.uncheck();
   await page.locator('.nav-item[data-panel="order"]').click();
   await expect(meters).toHaveValue('0');
-  await expect(meters).toBeDisabled();
+  await expect(meters).toBeEnabled();
   await expect(stickerQty).toHaveValue('250');
-  await expect(page.locator('#orderRibbon')).toContainText('0 м');
   await expect(totalPrice).toHaveText(/1\s350\s₽/);
   await expect(page.locator('body')).toHaveAttribute(
     'data-has-ribbon',
@@ -594,9 +633,8 @@ test('product switches control order quantities and price @smoke', async ({
   await stickerSwitch.uncheck();
   await page.locator('.nav-item[data-panel="order"]').click();
   await expect(stickerQty).toHaveValue('0');
-  await expect(stickerQty).toBeDisabled();
+  await expect(stickerQty).toBeEnabled();
   await expect(meters).toHaveValue('25');
-  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
   await expect(totalPrice).toHaveText(/590\s₽/);
   await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
   await expect(page.locator('body')).toHaveAttribute(
@@ -631,9 +669,9 @@ test('product switches control order quantities and price @smoke', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('order product controls remove, restore, and persist products', async ({
+test('order quantities control, protect, and persist product selection', async ({
   page,
-}, testInfo) => {
+}) => {
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
@@ -643,16 +681,22 @@ test('order product controls remove, restore, and persist products', async ({
   const meters = page.locator('#meters');
   const stickerQty = page.locator('#stickerQty');
   const totalPrice = page.locator('#totalPrice');
-  const ribbonButton = page.locator('#toggleOrderRibbon');
-  const stickerButton = page.locator('#toggleOrderSticker');
+  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
+  const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
   const notice = page.locator('#orderProductNotice');
 
-  await expect(ribbonButton).toBeVisible();
-  await expect(stickerButton).toBeVisible();
-  await expect(ribbonButton).toHaveText('Убрать');
-  await expect(stickerButton).toHaveText('Убрать');
-  await expect(ribbonButton).toBeEnabled();
-  await expect(stickerButton).toBeEnabled();
+  await expect(page.locator('.order-card')).toHaveCount(0);
+  await expect(page.locator('.mobile-products-panel')).toHaveAttribute(
+    'data-mode',
+    'order',
+  );
+  const stickerSurface = page.locator('.mobile-products-sticker-sample');
+  await stickerSurface.hover();
+  await expect(
+    stickerSurface.locator('.mobile-products-zone-action').first(),
+  ).toBeHidden();
+  await expect(stickerSurface).toHaveCSS('outline-style', 'none');
+  await expect(stickerSurface).toHaveCSS('cursor', 'default');
   await expect(notice).toHaveText(
     'В заказе должен остаться хотя бы один продукт.',
   );
@@ -662,70 +706,30 @@ test('order product controls remove, restore, and persist products', async ({
   await stickerQty.selectOption('250');
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
 
-  await ribbonButton.click();
+  await meters.selectOption('0');
   await expect(meters).toHaveValue('0');
-  await expect(page.locator('#orderRibbon')).toContainText('0 м');
   await expect(totalPrice).toHaveText(/1\s350\s₽/);
-  await expect(ribbonButton).toHaveText('Добавить');
-  await expect(ribbonButton).toBeEnabled();
-  await expect(stickerButton).toHaveText('Убрать');
-  await expect(stickerButton).toBeDisabled();
-  await expect(stickerButton).toHaveAttribute(
-    'title',
-    'В заказе должен остаться хотя бы один продукт.',
-  );
-  await expect(stickerButton).toHaveAttribute(
-    'aria-describedby',
-    'orderProductNotice',
-  );
-  await expect(notice).toBeVisible();
+  await expect(ribbonSwitch).not.toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+  await expect(notice).toBeHidden();
   await expect(body).toHaveAttribute('data-has-ribbon', 'false');
   await expect(body).toHaveAttribute('data-has-sticker', 'true');
-  if (testInfo.project.name === 'mobile')
-    await expect(page.locator('.mobile-products-switches')).toBeVisible();
 
-  await ribbonButton.click();
-  await expect(meters).toHaveValue('25');
-  await expect(totalPrice).toHaveText(/1\s940\s₽/);
-  await expect(ribbonButton).toHaveText('Убрать');
-  await expect(stickerButton).toBeEnabled();
-  await expect(notice).toBeHidden();
-
-  await stickerButton.click();
-  await expect(stickerQty).toHaveValue('0');
-  await expect(page.locator('#orderSticker')).toContainText('0 шт.');
-  await expect(totalPrice).toHaveText(/590\s₽/);
-  await expect(stickerButton).toHaveText('Добавить');
-  await expect(stickerButton).toBeEnabled();
-  await expect(ribbonButton).toHaveText('Убрать');
-  await expect(ribbonButton).toBeDisabled();
-  await expect(ribbonButton).toHaveAttribute(
-    'title',
-    'В заказе должен остаться хотя бы один продукт.',
-  );
-  await expect(ribbonButton).toHaveAttribute(
-    'aria-describedby',
-    'orderProductNotice',
-  );
-  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
-  await expect(body).toHaveAttribute('data-has-sticker', 'false');
-  if (testInfo.project.name === 'mobile')
-    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+  await stickerQty.selectOption('0');
+  await expect(stickerQty).toHaveValue('250');
+  await expect(notice).toBeVisible();
+  await expect(stickerSwitch).toBeChecked();
 
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('.nav-item[data-panel="order"]').click();
-  await expect(meters).toHaveValue('25');
-  await expect(stickerQty).toHaveValue('0');
-  await expect(ribbonButton).toBeDisabled();
-  await expect(stickerButton).toHaveText('Добавить');
-  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
-  await expect(body).toHaveAttribute('data-has-sticker', 'false');
-
-  await stickerButton.click();
+  await expect(meters).toHaveValue('0');
   await expect(stickerQty).toHaveValue('250');
+  await expect(ribbonSwitch).not.toBeChecked();
+  await expect(stickerSwitch).toBeChecked();
+
+  await meters.selectOption('25');
+  await expect(ribbonSwitch).toBeChecked();
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
-  await expect(stickerButton).toHaveText('Убрать');
-  await expect(ribbonButton).toBeEnabled();
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
