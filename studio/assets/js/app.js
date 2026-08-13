@@ -4641,6 +4641,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const customerName = $('#customerName').value.trim();
     const customerPhone = $('#customerPhone').value.trim();
     const customerTelegram = $('#customerTelegram').value.trim();
+    const preferredContact = getPreferredContact();
     const customerComment = $('#customerComment').value.trim();
 
     return [
@@ -4650,6 +4651,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `Имя: ${customerName}`,
       `Телефон: ${customerPhone || 'не указан'}`,
       `Telegram: ${customerTelegram || 'не указан'}`,
+      `Предпочтительный способ связи: ${preferredContactLabel(preferredContact)}`,
       `Комментарий: ${customerComment || 'не указан'}`,
       '',
       'Состав заказа:',
@@ -4706,6 +4708,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       customer: {
         name: $('#customerName').value.trim(),
+        preferredContact: getPreferredContact(),
         phone: $('#customerPhone').value.trim(),
         telegram: $('#customerTelegram').value.trim(),
         comment: $('#customerComment').value.trim(),
@@ -4812,14 +4815,60 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadOrderCopy(acceptedOrderId);
   });
 
+  function getPreferredContact() {
+    return $('input[name="preferredContact"]:checked')?.value || '';
+  }
+
+  function preferredContactLabel(value) {
+    return value === 'phone'
+      ? 'телефон'
+      : value === 'telegram'
+      ? 'Telegram'
+      : 'не выбран';
+  }
+
+  function trackContactEvent(event, channel) {
+    const detail = {
+      event,
+      channel,
+      location: 'studio-order',
+      page: location.pathname,
+    };
+    window.dispatchEvent(new CustomEvent('pm:contact', {detail}));
+    if (Array.isArray(window.dataLayer)) {
+      window.dataLayer.push(detail);
+    }
+  }
+
+  function syncPreferredContactFields() {
+    const preferredContact = getPreferredContact();
+    const phoneSelected = preferredContact === 'phone';
+    const telegramSelected = preferredContact === 'telegram';
+    $('#customerPhoneField').hidden = !phoneSelected;
+    $('#customerTelegramField').hidden = !telegramSelected;
+    $('#customerPhone').required = phoneSelected;
+    $('#customerTelegram').required = telegramSelected;
+  }
+
+  document.querySelectorAll('input[name="preferredContact"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      syncPreferredContactFields();
+      trackContactEvent('contact_method_selected', input.value);
+    });
+  });
+
   $('#orderForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const status = $('#orderFormStatus');
     const submitButton = $('#submitOrder');
     const customerName = $('#customerName').value.trim();
-    const hasContact =
-      Boolean($('#customerPhone').value.trim()) ||
-      Boolean($('#customerTelegram').value.trim());
+    const preferredContact = getPreferredContact();
+    const preferredContactValue =
+      preferredContact === 'phone'
+        ? $('#customerPhone').value.trim()
+        : preferredContact === 'telegram'
+        ? $('#customerTelegram').value.trim()
+        : '';
 
     if (!customerName) {
       status.textContent = 'Укажите имя.';
@@ -4827,10 +4876,19 @@ document.addEventListener('DOMContentLoaded', () => {
       $('#customerName').focus();
       return;
     }
-    if (!hasContact) {
-      status.textContent = 'Укажите телефон или Telegram.';
+    if (!preferredContact) {
+      status.textContent = 'Выберите удобный способ связи.';
       status.classList.add('is-error');
-      $('#customerPhone').focus();
+      $('input[name="preferredContact"]').focus();
+      return;
+    }
+    if (!preferredContactValue) {
+      status.textContent =
+        preferredContact === 'phone'
+          ? 'Укажите номер телефона.'
+          : 'Укажите Telegram.';
+      status.classList.add('is-error');
+      $(preferredContact === 'phone' ? '#customerPhone' : '#customerTelegram').focus();
       return;
     }
 
@@ -4859,7 +4917,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       orderSubmissionSucceeded = true;
       acceptedOrderId = result.orderId;
-      status.textContent = `Заявка ${result.orderId} принята. Максим свяжется с вами по указанному контакту.`;
+      trackContactEvent('order_submit', preferredContact);
+      status.textContent = `Заявка ${result.orderId} принята. Максим свяжется с вами: ${preferredContactLabel(preferredContact)}.`;
       status.classList.add('is-success');
       submitButton.textContent = 'Заявка отправлена';
     } catch (error) {

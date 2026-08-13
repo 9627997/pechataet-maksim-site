@@ -183,12 +183,16 @@ function pm_normalize_payload(array $input): array
     $customerInput = is_array($input['customer'] ?? null) ? $input['customer'] : [];
     $customer = [
         'name' => pm_clean_string($customerInput['name'] ?? '', 120, true),
+        'preferredContact' => pm_clean_string($customerInput['preferredContact'] ?? '', 20, true),
         'phone' => pm_clean_string($customerInput['phone'] ?? '', 40),
         'telegram' => pm_clean_string($customerInput['telegram'] ?? '', 80),
         'comment' => pm_clean_string($customerInput['comment'] ?? '', 2000),
     ];
-    if ($customer['phone'] === '' && $customer['telegram'] === '') {
-        throw new InvalidArgumentException('Укажите телефон или Telegram.');
+    if (!in_array($customer['preferredContact'], ['phone', 'telegram'], true)) {
+        throw new InvalidArgumentException('Выберите удобный способ связи.');
+    }
+    if ($customer[$customer['preferredContact']] === '') {
+        throw new InvalidArgumentException('Укажите контакт для выбранного способа связи.');
     }
 
     $productsInput = is_array($input['products'] ?? null) ? $input['products'] : [];
@@ -289,6 +293,7 @@ function pm_request_text(array $order): string
         "Имя: {$customer['name']}",
         'Телефон: ' . ($customer['phone'] ?: 'не указан'),
         'Telegram: ' . ($customer['telegram'] ?: 'не указан'),
+        'Предпочтительный способ связи: ' . ($customer['preferredContact'] === 'phone' ? 'телефон' : 'Telegram'),
         'Комментарий: ' . ($customer['comment'] ?: 'не указан'),
         '',
         'Состав заказа:',

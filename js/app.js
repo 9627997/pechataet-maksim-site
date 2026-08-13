@@ -6,6 +6,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  document.querySelectorAll('[data-contact-channel]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const detail = {
+        event: `${link.dataset.contactChannel}_click`,
+        channel: link.dataset.contactChannel,
+        location: link.dataset.contactLocation || 'unknown',
+        page: window.location.pathname,
+      };
+      window.dispatchEvent(new CustomEvent('pm:contact', {detail}));
+      if (Array.isArray(window.dataLayer)) {
+        window.dataLayer.push(detail);
+      }
+    });
+  });
+
   document.querySelectorAll('a[href^="#"]').forEach((link) => {
     link.addEventListener('click', (event) => {
       const targetId = link.getAttribute('href');
