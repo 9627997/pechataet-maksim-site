@@ -66,8 +66,8 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=cfa888ce2190">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=ac2d3ae97c16">
+  <link rel="stylesheet" href="assets/css/app.css?v=de5bf1ee5a44">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=adb56e55713d">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -342,10 +342,10 @@
         </select>
 
         <div class="repeat-control-head">
-          <label for="repeatMm">Шаг повтора, мм</label>
-          <span id="repeatMode">Автоматически</span>
+          <label for="repeatMm">Интервал между повторами</label>
+          <span id="repeatMode">Автоматически · 100 мм</span>
         </div>
-        <input class="input" id="repeatMm" type="number" min="40" max="250" value="100" aria-describedby="repeatHint" readonly>
+        <input class="settings-range" id="repeatMm" type="range" min="40" max="250" step="5" value="100" aria-describedby="repeatHint">
         <small class="repeat-hint" id="repeatHint">Свободный интервал рассчитывается по золотой пропорции.</small>
       </div>
 
@@ -389,8 +389,10 @@
           <strong>Положение текста</strong>
           <button class="mini-button" id="resetTextTransform" type="button">Центрировать</button>
         </div>
-        <label for="textOffsetX" id="textOffsetXLabel">По горизонтали</label>
-        <input id="textOffsetX" type="range" min="-100" max="100" value="0">
+        <div class="transform-axis" data-transform-axis="horizontal">
+          <label for="textOffsetX" id="textOffsetXLabel">По горизонтали</label>
+          <input id="textOffsetX" type="range" min="-100" max="100" value="0">
+        </div>
         <label for="textOffsetY">По вертикали</label>
         <input id="textOffsetY" type="range" min="-100" max="100" value="0">
       </div>
@@ -401,9 +403,11 @@
           <button class="mini-button" id="resetTransform" type="button">Центрировать</button>
         </div>
         <label for="logoScale">Размер логотипа</label>
-        <input id="logoScale" type="range" min="50" max="180" value="100">
-        <label for="logoOffsetX" id="logoOffsetXLabel">Смещение по горизонтали</label>
-        <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+        <input id="logoScale" type="range" min="10" max="100" value="100">
+        <div class="transform-axis" data-transform-axis="horizontal">
+          <label for="logoOffsetX" id="logoOffsetXLabel">Смещение по горизонтали</label>
+          <input id="logoOffsetX" type="range" min="-100" max="100" value="0">
+        </div>
         <label for="logoOffsetY">Смещение по вертикали</label>
         <input id="logoOffsetY" type="range" min="-100" max="100" value="0">
       </div>
@@ -690,11 +694,11 @@
 </div>
 
 <script src="assets/js/geometry.js?v=20260722.1"></script>
-<script src="assets/js/layout.js?v=20260722.1"></script>
+<script src="assets/js/layout.js?v=dc87d5926c11"></script>
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=93ccc4158d62"></script>
-<script src="assets/js/mobile-products.js?v=abfa466bb255"></script>
+<script src="assets/js/app.js?v=429e9460a210"></script>
+<script src="assets/js/mobile-products.js?v=544dc6bbea91"></script>
 </body>
 </html>

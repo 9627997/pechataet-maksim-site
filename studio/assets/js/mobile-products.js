@@ -206,8 +206,6 @@
       zone.addEventListener('pointercancel', finishDrag);
     };
 
-    attachTransformDrag(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface);
-    attachTransformDrag(ribbonText.zone, 'ribbon', 'text', ribbonSurface);
     attachTransformDrag(stickerLogo.zone, 'sticker', 'logo', stickerSurface);
     attachTransformDrag(stickerText.zone, 'sticker', 'text', stickerSurface);
 
@@ -699,26 +697,6 @@
           zone.style.width = `${paintedRect.width}px`;
           zone.style.height = `${paintedRect.height}px`;
         };
-        const measureTextInk = (element, fontSize) => {
-          const canvas = measureTextInk.canvas ||
-            (measureTextInk.canvas = document.createElement('canvas'));
-          const context = canvas.getContext('2d');
-          const weight = getComputedStyle(element).fontWeight || '800';
-          context.font = `${weight} ${fontSize}px ${getComputedStyle(element).fontFamily}`;
-          const metrics = context.measureText(element.textContent || '');
-          return {
-            width: Math.max(
-              (metrics.actualBoundingBoxLeft || 0) +
-                (metrics.actualBoundingBoxRight || metrics.width),
-              1,
-            ),
-            height: Math.max(
-              (metrics.actualBoundingBoxAscent || fontSize * 0.8) +
-                (metrics.actualBoundingBoxDescent || fontSize * 0.2),
-              1,
-            ),
-          };
-        };
         place(logoPart.zone, hasProductLogo ? layout.logoBox : null);
         place(textPart.zone, hasProductText ? textBox : null, sticker ? 10 : 0);
 
@@ -758,11 +736,6 @@
               height,
             );
           }
-        }
-        if (visibleText) {
-          const fontSize = Number.parseFloat(textPart.text.style.fontSize) || 1;
-          const ink = measureTextInk(textPart.text, fontSize);
-          placePainted(textPart.zone, textBox, ink.width, ink.height);
         }
       };
       const focusSingleRibbonRepeat = panelMode === 'upload' && dockFloating;

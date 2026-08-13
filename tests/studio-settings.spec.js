@@ -315,7 +315,7 @@ test('selected product owns the visible settings and manual transforms', async (
   const manualRepeat = Math.min(250, initialRepeat + 30);
   await page.locator('#layoutModeChoice [data-value="manual"]').click();
   await expect(page.locator('#logoOffsetY')).toBeEnabled();
-  await setRange('#textOffsetX', manualRepeat);
+  await setRange('#repeatMm', manualRepeat);
   const intervalRibbon = (await readLayout()).ribbon;
   const automaticTextOffsetMm =
     (automaticRibbon.textBox.x + automaticRibbon.textBox.width / 2 - 0.5) *
@@ -409,7 +409,7 @@ test('selected product owns the visible settings and manual transforms', async (
         expect(mask.height).toBeCloseTo(artwork.height, 2);
       } else {
         expect(mask.width).toBeLessThanOrEqual(artwork.width + 0.01);
-        expect(mask.height).toBeLessThan(artwork.height);
+        expect(mask.height).toBeLessThanOrEqual(artwork.height + 0.01);
         expect(mask.height).toBeGreaterThan(0);
       }
     }
@@ -422,7 +422,21 @@ test('selected product owns the visible settings and manual transforms', async (
   await expect(
     page.locator('#layoutModeChoice [data-value="auto"]'),
   ).toHaveClass(/active/);
+  const automaticSticker = (await readLayout()).sticker;
   await page.locator('#layoutModeChoice [data-value="manual"]').click();
+  const preservedSticker = (await readLayout()).sticker;
+  for (const kind of ['logoBox', 'textBox']) {
+    expect(preservedSticker[kind].x).toBeCloseTo(automaticSticker[kind].x, 2);
+    expect(preservedSticker[kind].y).toBeCloseTo(automaticSticker[kind].y, 2);
+    expect(preservedSticker[kind].width).toBeCloseTo(
+      automaticSticker[kind].width,
+      2,
+    );
+    expect(preservedSticker[kind].height).toBeCloseTo(
+      automaticSticker[kind].height,
+      2,
+    );
+  }
   await setRange('#textOffsetY', -30);
   await setRange('#logoOffsetX', 25);
   styles = await readStyles();
@@ -435,10 +449,10 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await ribbonSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('#logoOffsetY')).toHaveValue('40');
-  await expect(page.locator('#textOffsetX')).toHaveValue(String(manualRepeat));
-  await expect(page.locator('#textOffsetXLabel')).toHaveText(
-    'Интервал между повторами, мм',
-  );
+  await expect(page.locator('#repeatMm')).toHaveValue(String(manualRepeat));
+  await expect(
+    page.locator('[data-transform-axis="horizontal"]').first(),
+  ).toBeHidden();
 
   if (testInfo.project.name === 'mobile') {
     const isFloating = await panel.evaluate((element) =>
@@ -465,7 +479,7 @@ test('selected product owns the visible settings and manual transforms', async (
     );
     await expect(logoZone).toBeVisible();
     const dragBaseline = 120;
-    await setRange('#logoOffsetX', dragBaseline);
+    await setRange('#repeatMm', dragBaseline);
     await expect(page.locator('body')).toHaveAttribute(
       'data-ribbon-repeat-mm',
       String(dragBaseline),
@@ -491,7 +505,7 @@ test('selected product owns the visible settings and manual transforms', async (
           await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
         ),
       )
-      .toBeGreaterThan(repeatBeforeDrag);
+      .toBe(repeatBeforeDrag);
     expect((await readStyles()).ribbon.logoOffsetX).toBe(0);
   }
 

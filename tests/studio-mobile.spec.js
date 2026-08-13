@@ -347,6 +347,23 @@ test('mobile previews stay synchronized with Studio state', async ({
       stickerText.evaluate((element) => getComputedStyle(element).fontSize),
     )
     .not.toBe(initialFontSize);
+  const maxTextGeometry = await page.evaluate(() => {
+    const sticker = JSON.parse(document.body.dataset.studioLayout).sticker;
+    const box = sticker.textBox;
+    const circle = sticker.printable;
+    const cornerRatios = [
+      [box.x, box.y],
+      [box.x + box.width, box.y],
+      [box.x + box.width, box.y + box.height],
+      [box.x, box.y + box.height],
+    ].map(([x, y]) => Math.hypot(x - circle.cx, y - circle.cy) / circle.radius);
+    return {
+      maximum: Math.max(...cornerRatios),
+      valid: sticker.valid,
+    };
+  });
+  expect(maxTextGeometry.valid).toBe(true);
+  expect(maxTextGeometry.maximum).toBeCloseTo(1, 4);
 
   await page.locator('#logoScale').evaluate((element) => {
     element.value = '50';
@@ -356,7 +373,7 @@ test('mobile previews stay synchronized with Studio state', async ({
     (element) => element.getBoundingClientRect().width,
   );
   await page.locator('#logoScale').evaluate((element) => {
-    element.value = '150';
+    element.value = '100';
     element.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await expect
@@ -364,6 +381,23 @@ test('mobile previews stay synchronized with Studio state', async ({
       stickerLogo.evaluate((element) => element.getBoundingClientRect().width),
     )
     .toBeGreaterThan(initialLogoWidth);
+  const maxLogoGeometry = await page.evaluate(() => {
+    const sticker = JSON.parse(document.body.dataset.studioLayout).sticker;
+    const box = sticker.logoBox;
+    const circle = sticker.printable;
+    const cornerRatios = [
+      [box.x, box.y],
+      [box.x + box.width, box.y],
+      [box.x + box.width, box.y + box.height],
+      [box.x, box.y + box.height],
+    ].map(([x, y]) => Math.hypot(x - circle.cx, y - circle.cy) / circle.radius);
+    return {
+      maximum: Math.max(...cornerRatios),
+      valid: sticker.valid,
+    };
+  });
+  expect(maxLogoGeometry.valid).toBe(true);
+  expect(maxLogoGeometry.maximum).toBeCloseTo(1, 4);
 
   await page.locator('.nav-item[data-panel="upload"]').click();
   await selectContentProduct('sticker');

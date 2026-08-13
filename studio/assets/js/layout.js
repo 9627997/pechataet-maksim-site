@@ -42,6 +42,40 @@
     };
   }
 
+  function fitTextToCircle({
+    text,
+    metrics,
+    circle,
+    requestedScale = 1,
+  }) {
+    if (!text) return {fits: true, fontSize: 0, bbox: null};
+    const geometry = window.RibbonStudioGeometry;
+    const source = {
+      x: 0,
+      y: 0,
+      width: Math.max(metrics.widthPerSize, 1e-7),
+      height: Math.max(metrics.heightPerSize, 1e-7),
+    };
+    const bbox = geometry.fitRectToCircle(
+      source,
+      circle,
+      Math.min(1, Math.max(0, requestedScale)),
+      0,
+    );
+    const fontSize = bbox.scale;
+    const fits =
+      fontSize >= MIN_PRINT_FONT_SIZE &&
+      geometry.areRectCornersInsideCircle(bbox, circle, 0);
+    return {
+      fits,
+      fontSize,
+      width: bbox.width,
+      height: bbox.height,
+      bbox: fits ? bbox : null,
+      reason: fits ? undefined : 'text-too-long',
+    };
+  }
+
   function getRibbonContentLayout({
     bounds,
     centerY,
@@ -152,6 +186,7 @@
     textOffsetY = 0,
     manualLayout = false,
     preferredFontSize,
+    textScale = 1,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -159,7 +194,18 @@
     let logoBox = null;
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
 
-    if (hasLogo && hasText) {
+    if (hasLogo && hasText && manualLayout) {
+      const source = logo.ratio >= 1
+        ? {x: 0, y: 0, width: logo.ratio, height: 1}
+        : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
+      logoBox = geometry.fitRectToCircle(source, circle, logoScale, 0);
+      textResult = fitTextToCircle({
+        text,
+        metrics: textMetrics,
+        circle,
+        requestedScale: textScale,
+      });
+    } else if (hasLogo && hasText) {
       const maxContentWidth = circle.radius * 1.72;
       const maxLogoHeight = circle.radius * 0.64;
       const maxTextHeight = circle.radius * 0.28;
@@ -207,14 +253,11 @@
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
       logoBox = geometry.fitRectToCircle(source, circle, logoScale, 0);
     } else if (hasText) {
-      textResult = fitTextToArea({
+      textResult = fitTextToCircle({
         text,
         metrics: textMetrics,
-        preferredSize: preferredFontSize,
-        maxWidth: circle.radius * Math.SQRT2,
-        maxHeight: circle.radius * Math.SQRT2,
-        centerX: circle.cx,
-        centerY: circle.cy,
+        circle,
+        requestedScale: textScale,
       });
     }
 
@@ -258,6 +301,7 @@
   window.RibbonStudioLayout = Object.freeze({
     MIN_PRINT_FONT_SIZE,
     fitTextToArea,
+    fitTextToCircle,
     getRibbonContentLayout,
     getStickerContentLayout,
   });
