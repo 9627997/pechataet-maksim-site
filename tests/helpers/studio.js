@@ -72,21 +72,6 @@ export const expectMobileRibbonFramed = async (page) => {
   await expectNoHorizontalOverflow(page);
 };
 
-export const expectShowcaseCaptionClear = async (page) => {
-  if (!(await page.locator('.studio').isVisible())) return;
-  const gap = await page.locator('#scene-kit').evaluate((scene) => {
-    const caption = scene.querySelector('.scene-caption');
-    const firstLabel = scene.querySelector(
-      '.showcase-ribbon-15 .showcase-label',
-    );
-    return (
-      firstLabel.getBoundingClientRect().top -
-      caption.getBoundingClientRect().bottom
-    );
-  });
-  expect(gap).toBeGreaterThanOrEqual(16);
-};
-
 export const expectInterfaceResponsive = async (page) => {
   if (
     (await page.locator('body').getAttribute('data-active-panel')) !==
@@ -152,11 +137,18 @@ export const readRibbonPreviewText = (page) =>
 export const expectSvgDataToContain = async (
   locator,
   marker,
-  attribute = 'src',
+  attribute = null,
 ) => {
   await expect
     .poll(async () => {
-      const dataUrl = await locator.getAttribute(attribute);
+      const dataUrl = await locator.evaluate((element, requestedAttribute) => {
+        const resolvedAttribute =
+          requestedAttribute ||
+          (element.namespaceURI === 'http://www.w3.org/2000/svg'
+            ? 'href'
+            : 'src');
+        return element.getAttribute(resolvedAttribute);
+      }, attribute);
       if (!dataUrl?.startsWith('data:image/svg+xml;base64,')) return false;
       return Buffer.from(dataUrl.split(',')[1], 'base64')
         .toString()

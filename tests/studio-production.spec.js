@@ -195,13 +195,9 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
     ).toBeAttached();
   } else {
     await page.locator('.nav-item[data-panel="order"]').click();
-    await expect(page.locator('#sceneTabs')).toBeVisible();
-    await expect(page.locator('#studioContextTitle')).toHaveText(
-      'Проверьте комплект перед заявкой',
-    );
-    await page.locator('#sceneTabs button[data-scene="macro"]').click();
-    await expect(page.locator('#scene-macro')).toBeVisible();
-    await expect(page.locator('.macro-sticker-printable-guide')).toBeAttached();
+    await expect(page.locator('.studio')).toBeHidden();
+    await expect(page.locator('#panel-order')).toBeVisible();
+    await expect(page.locator('#sceneTabs')).toHaveCount(0);
   }
 
   for (const guide of await page.locator('[data-preview-overlay]').all()) {
@@ -312,7 +308,7 @@ test('uploaded wide logo paints at the full ribbon safe height on mobile', async
 
 test('ribbon overflow shows a clipped fragment and applies a proportional full preview', async ({
   page,
-}, testInfo) => {
+}) => {
   const fullText = 'Название бренда для упаковки';
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
@@ -322,11 +318,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   });
   await page.locator('#textInput').fill(fullText);
 
-  const card = page.locator(
-    testInfo.project.name === 'mobile'
-      ? '.ribbon-overflow-card-mobile'
-      : '.ribbon-overflow-card-desktop',
-  );
+  const card = page.locator('.ribbon-overflow-card-mobile');
   await expect(card).toBeVisible();
   await expect(page.locator('body')).toHaveAttribute(
     'data-ribbon-overflow',
@@ -372,12 +364,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   await expect(card.locator('[data-apply-ribbon-repeat]')).toContainText(
     `${before.layout.overflow.requiredRepeatMm} мм`,
   );
-  const clippedPreview =
-    testInfo.project.name === 'mobile'
-      ? page.locator('.mobile-products-ribbon-text')
-      : page
-          .locator('[data-product-type="ribbon"] .dynamic-showcase-text')
-          .first();
+  const clippedPreview = page.locator('.mobile-products-ribbon-text');
   await expect(clippedPreview).toHaveText(before.layout.previewText);
   await expect(page.locator('#submitOrder')).toBeDisabled();
 
@@ -405,13 +392,9 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
 
 test('text stays logo-free until an uploaded logo is added', async ({
   page,
-}, testInfo) => {
+}) => {
   const fullText = 'Название бренда для упаковки';
-  const card = page.locator(
-    testInfo.project.name === 'mobile'
-      ? '.ribbon-overflow-card-mobile'
-      : '.ribbon-overflow-card-desktop',
-  );
+  const card = page.locator('.ribbon-overflow-card-mobile');
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.locator('#textInput').fill(fullText);
@@ -424,13 +407,8 @@ test('text stays logo-free until an uploaded logo is added', async ({
     'data-preview-logo-demo',
     'false',
   );
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    true,
-  );
-  if (testInfo.project.name === 'mobile') {
-    await expect(page.locator('.mobile-products-ribbon-logo')).toBeHidden();
-  }
+  await expect(page.locator('#ribbonContent image').first()).toHaveCount(0);
+  await expect(page.locator('.mobile-products-ribbon-logo')).toBeHidden();
   await expect(card).toBeHidden();
 
   let result = await page.evaluate(() => {
@@ -458,10 +436,7 @@ test('text stays logo-free until an uploaded logo is added', async ({
     'data-preview-logo-demo',
     'false',
   );
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    false,
-  );
+  await expect(page.locator('#ribbonContent image').first()).toBeAttached();
   await expect(card).toBeHidden();
 
   result = await page.evaluate(() => {
@@ -490,7 +465,7 @@ test('text stays logo-free until an uploaded logo is added', async ({
 
 test('long production text is invalid and is not rendered outside printable areas', async ({
   page,
-}, testInfo) => {
+}) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
   await page
@@ -514,23 +489,10 @@ test('long production text is invalid and is not rendered outside printable area
     'Сократите надпись',
   );
   await expect(page.locator('#submitOrder')).toBeDisabled();
-  if (testInfo.project.name === 'mobile') {
-    await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
-    await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(/…$/);
-  } else {
-    await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
-    await expect(
-      page
-        .locator('[data-product-type="ribbon"] .dynamic-showcase-text')
-        .first(),
-    ).toHaveText(/…$/);
-  }
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeVisible();
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(/…$/);
   await expect(page.locator('.mobile-products-sticker-text')).toBeHidden();
-  const overflowCard = page.locator(
-    testInfo.project.name === 'mobile'
-      ? '.ribbon-overflow-card-mobile'
-      : '.ribbon-overflow-card-desktop',
-  );
+  const overflowCard = page.locator('.ribbon-overflow-card-mobile');
   await expect(overflowCard).toBeVisible();
   await expect(
     overflowCard.locator('[data-ribbon-overflow-message]'),
@@ -554,7 +516,7 @@ test('long production text is invalid and is not rendered outside printable area
   await expect(overflowCard).toBeHidden();
 });
 
-test('effective layout is shared with macro and mobile and sticker boxes pass corner validation @smoke', async ({
+test('effective layout is shared with mobile and sticker boxes pass corner validation @smoke', async ({
   page,
 }) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
@@ -566,12 +528,6 @@ test('effective layout is shared with macro and mobile and sticker boxes pass co
 
   const result = await page.evaluate(() => {
     const layouts = JSON.parse(document.body.dataset.studioLayout);
-    const macroRibbon = JSON.parse(
-      document.querySelector('#macroLogo').dataset.layout,
-    );
-    const macroSticker = JSON.parse(
-      document.querySelector('.macro-sticker-paper').dataset.layout,
-    );
     const mobileRibbon = JSON.parse(
       document.querySelector('.mobile-products-ribbon-sample').dataset.layout,
     );
@@ -592,8 +548,6 @@ test('effective layout is shared with macro and mobile and sticker boxes pass co
     });
     return {
       layouts,
-      macroRibbon,
-      macroSticker,
       mobileRibbon,
       mobileSticker,
       logoInside: window.RibbonStudioGeometry.areRectCornersInsideCircle(
@@ -608,9 +562,7 @@ test('effective layout is shared with macro and mobile and sticker boxes pass co
       ),
     };
   });
-  expect(result.macroRibbon).toEqual(result.layouts.ribbon);
   expect(result.mobileRibbon).toEqual(result.layouts.ribbon);
-  expect(result.macroSticker).toEqual(result.layouts.sticker);
   expect(result.mobileSticker).toEqual(result.layouts.sticker);
   expect(result.logoInside).toBe(true);
   expect(result.textInside).toBe(true);

@@ -1054,7 +1054,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id === 'upload') {
       setActiveContentProduct(state.activeContentProduct, {renderPreview: false});
     }
-    setScene('kit');
     updateProductShowcase();
     updateStudioContext();
   }
@@ -2105,34 +2104,6 @@ document.addEventListener('DOMContentLoaded', () => {
       '--ribbon-20-margin-percent',
       `${(ribbon20.bounds.y / 20) * 100}%`,
     );
-    positionPreviewContent(
-      $('#macroLogo'),
-      $('#macroLogoImage'),
-      $('#macroLogoText'),
-      layouts.ribbon,
-      getResolvedText('ribbon'),
-    );
-    positionPreviewContent(
-      $('.macro-sticker-paper'),
-      $('#macroStickerImage'),
-      $('#macroStickerText'),
-      layouts.sticker,
-      getResolvedText('sticker'),
-    );
-    positionPreviewContent(
-      $('.box-ribbon-content'),
-      $('#boxRibbonImage'),
-      $('#boxRibbonText'),
-      layouts.ribbon,
-      getResolvedText('ribbon'),
-    );
-    positionPreviewContent(
-      $('.box-sticker-content'),
-      $('#boxStickerImage'),
-      $('#boxStickerText'),
-      layouts.sticker,
-      getResolvedText('sticker'),
-    );
     updateRibbonOverflowCards(layouts.ribbon);
     const invalid = [
       state.bundle !== 'sticker' && !layouts.ribbon.valid ? 'ribbon' : null,
@@ -2198,151 +2169,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  function setScene(scene) {
-    $$('.scene').forEach((item) => item.classList.toggle('active', item.id === 'scene-' + scene));
-    $$('#sceneTabs button').forEach((button) => button.classList.toggle('active', button.dataset.scene === scene));
-
-    // Hidden images may not repaint immediately when their scene becomes visible.
-    // Refresh once now and once on the next animation frame.
-    updateMockupScenes();
-    requestAnimationFrame(() => {
-      updateMockupScenes();
-      publishEffectiveLayouts();
-      forceSceneRepaint(scene);
-    });
-  }
-
-  function forceSceneRepaint(scene) {
-    const node = $('#scene-' + scene);
-    if (!node) return;
-    node.style.transform = 'translateZ(0)';
-    void node.offsetHeight;
-    node.style.transform = '';
-  }
-
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
-  }
-
-  function getSceneScale(sceneName, asset, product) {
-    if (!asset?.logo) return 1;
-
-    const ratio = Number(asset.logo.ratio) || 1;
-    let fit = 1;
-
-    if (sceneName === 'macro') {
-      if (ratio > 4) fit = 0.72;
-      else if (ratio > 2.5) fit = 0.82;
-      else if (ratio < 0.7) fit = 0.78;
-      else fit = 0.95;
-    }
-
-    if (sceneName === 'ribbon') {
-      if (ratio > 4) fit = 0.72;
-      else if (ratio > 2.5) fit = 0.84;
-      else if (ratio < 0.7) fit = 0.62;
-      else fit = 0.88;
-    }
-
-    if (sceneName === 'sticker') {
-      if (ratio > 3) fit = 0.68;
-      else if (ratio < 0.6) fit = 0.70;
-      else fit = 0.88;
-    }
-
-    return clamp(getProductStyle(product).logoScale * fit, 0.35, 1.55);
-  }
-
-  function updateMockupScenes() {
-    const ribbonSurface = $('#ribbonSurface');
-    const macroRibbon = $('#macroRibbon');
-    const boxRibbonV = $('#boxRibbonV');
-    const boxRibbonH = $('#boxRibbonH');
-    const boxSticker = $('#boxSticker');
-
-    if (ribbonSurface) ribbonSurface.style.backgroundColor = state.ribbon;
-    if (macroRibbon) macroRibbon.style.backgroundColor = state.ribbon;
-    if (boxRibbonV) boxRibbonV.style.backgroundColor = state.ribbon;
-    if (boxRibbonH) boxRibbonH.style.backgroundColor = state.ribbon;
-    if (boxSticker) boxSticker.style.backgroundColor = state.stickerBg;
-
-    const ribbonTextValue = getResolvedText('ribbon');
-    const stickerTextValue = getResolvedText('sticker');
-    const ribbonLogo = getPaintedLogo('ribbon', getPreviewLogo('ribbon'));
-    const stickerLogo = getPaintedLogo('sticker', getPreviewLogo('sticker'));
-    const ribbonStyle = getProductStyle('ribbon');
-    const stickerStyle = getProductStyle('sticker');
-
-    const macroImage = $('#macroLogoImage');
-    const macroText = $('#macroLogoText');
-    const macroStickerImage = $('#macroStickerImage');
-    const macroStickerText = $('#macroStickerText');
-    const boxRibbonImage = $('#boxRibbonImage');
-    const boxRibbonText = $('#boxRibbonText');
-    const boxStickerImage = $('#boxStickerImage');
-    const boxStickerText = $('#boxStickerText');
-
-    const updateLogoElements = (elements, asset) => {
-      elements.forEach((image) => {
-        if (!image) return;
-        if (asset?.logo?.data) {
-          if (image.getAttribute('src') !== asset.logo.data) image.src = asset.logo.data;
-          image.hidden = false;
-        } else {
-          image.hidden = true;
-          image.removeAttribute('src');
-        }
-      });
-    };
-    updateLogoElements([macroImage, boxRibbonImage], ribbonLogo);
-    updateLogoElements([macroStickerImage, boxStickerImage], stickerLogo);
-
-    const updateTextElements = (elements, value, style) => {
-      const hasText = Boolean(value.trim());
-      elements.forEach((text) => {
-        if (!text) return;
-        text.hidden = !hasText;
-        text.textContent = value;
-        text.style.color = style.print;
-        text.style.fontFamily = style.font;
-      });
-    };
-    updateTextElements([macroText, boxRibbonText], ribbonTextValue, ribbonStyle);
-    updateTextElements([macroStickerText, boxStickerText], stickerTextValue, stickerStyle);
-
-    if (macroImage) {
-      macroImage.style.transform = `scale(${getSceneScale('macro', ribbonLogo, 'ribbon')})`;
-    }
-    if (macroStickerImage) {
-      macroStickerImage.style.transform = `scale(${Math.min(getSceneScale('sticker', stickerLogo, 'sticker'), 1)})`;
-    }
-
-    const updateCompositionState = (elements, value, asset) => {
-      const hasLogo = Boolean(asset?.logo);
-      const hasText = Boolean(value.trim());
-      elements.forEach((element) => {
-        if (!element) return;
-        element.classList.toggle('has-logo-and-text', hasLogo && hasText);
-        element.classList.toggle('has-logo-only', hasLogo && !hasText);
-        element.classList.toggle('has-text-only', !hasLogo && hasText);
-      });
-    };
-    updateCompositionState(
-      [$('#macroLogo'), $('.box-ribbon-content')],
-      ribbonTextValue,
-      ribbonLogo
-    );
-    updateCompositionState(
-      [$('.macro-sticker-paper'), $('.box-sticker-content')],
-      stickerTextValue,
-      stickerLogo
-    );
-    if (boxRibbonImage) {
-      boxRibbonImage.style.transform = `scale(${getSceneScale('ribbon', ribbonLogo, 'ribbon')})`;
-    }
-    if (boxStickerImage) {
-      boxStickerImage.style.transform = `scale(${getSceneScale('sticker', stickerLogo, 'sticker')})`;
-    }
   }
 
   function getStickerScale() {
@@ -2355,16 +2183,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const stickerPaper = $('.sticker-paper');
     if (stickerPaper) {
       stickerPaper.style.transform = `scale(${scale})`;
-    }
-
-    const boxSticker = $('#boxSticker');
-    if (boxSticker) {
-      boxSticker.style.transform = `rotate(8deg) scale(${scale})`;
-    }
-
-    const macroSticker = $('#macroSticker');
-    if (macroSticker) {
-      macroSticker.style.setProperty('--sticker-scale', scale);
     }
 
     const stickerLabel = $('#stickerSizeLabel');
@@ -2456,7 +2274,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateRecommendationCard();
     renderRibbon();
     renderSticker();
-    updateMockupScenes();
 
     const ribbonMockup = $('.ribbon-mockup');
     const stickerArea = $('#stickerArea');
@@ -2478,30 +2295,6 @@ document.addEventListener('DOMContentLoaded', () => {
       kitTable.classList.toggle('only-ribbon', state.bundle === 'ribbon');
       kitTable.classList.toggle('only-sticker', state.bundle === 'sticker');
       kitTable.classList.toggle('bundle', state.bundle === 'bundle');
-    }
-
-    const boxRibbonV = $('#boxRibbonV');
-    const boxRibbonH = $('#boxRibbonH');
-    const boxSticker = $('#boxSticker');
-    const macroRibbon = $('#macroRibbon');
-    const macroSticker = $('#macroSticker');
-
-    const showRibbon = state.bundle !== 'sticker';
-    const showSticker = state.bundle !== 'ribbon';
-
-    [boxRibbonV, boxRibbonH, macroRibbon].forEach((element) => {
-      if (element) element.classList.toggle('product-hidden', !showRibbon);
-    });
-
-    [boxSticker, macroSticker].forEach((element) => {
-      if (element) element.classList.toggle('product-hidden', !showSticker);
-    });
-
-    const macroStage = $('#macroStage');
-    if (macroStage) {
-      macroStage.classList.toggle('macro-only-ribbon', state.bundle === 'ribbon');
-      macroStage.classList.toggle('macro-only-sticker', state.bundle === 'sticker');
-      macroStage.classList.toggle('macro-bundle', state.bundle === 'bundle');
     }
 
     updateProductShowcase();
@@ -3826,12 +3619,6 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => showPanel(button.dataset.next))
   );
 
-  $$('#sceneTabs button').forEach((button) =>
-    button.addEventListener('click', () => {
-      if (state.panel === 'order') setScene(button.dataset.scene);
-    })
-  );
-
   $$('#widthChoice button').forEach((button) =>
     button.addEventListener('click', () => {
       activate('#widthChoice', button);
@@ -3869,23 +3656,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('studio:content-product-change', (event) => {
     setActiveContentProduct(event.detail?.product);
   });
-
-  const contentProductEditorViewport = window.matchMedia('(max-width: 700px)');
-  const syncContentProductEditorHost = () => {
-    const editor = $('#contentProductEditor');
-    const target = contentProductEditorViewport.matches ? 'mobile' : 'desktop';
-    const host = document.querySelector(
-      `[data-content-product-host="${target}"]`
-    );
-    if (editor && host && editor.parentElement !== host) {
-      host.appendChild(editor);
-    }
-  };
-  contentProductEditorViewport.addEventListener(
-    'change',
-    syncContentProductEditorHost
-  );
-  syncContentProductEditorHost();
 
   $$('#contentProductChoice [data-content-product]').forEach((button) => {
     button.addEventListener('click', () => {

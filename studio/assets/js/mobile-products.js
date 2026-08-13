@@ -4,8 +4,6 @@
     const panelSlot = document.querySelector('#mobileProductsSlot');
     const dockToggle = document.querySelector('#mobileProductsDockToggle');
     const panelHosts = [...document.querySelectorAll('[data-products-host]')];
-    const ribbonLogoSource = document.querySelector('#macroLogoImage');
-    const stickerLogoSource = document.querySelector('#macroStickerImage');
     const logoInput = document.querySelector('#logoInput');
     const textInput = document.querySelector('#textInput');
 
@@ -13,8 +11,6 @@
       !panel ||
       !panelSlot ||
       !dockToggle ||
-      !ribbonLogoSource ||
-      !stickerLogoSource ||
       !logoInput ||
       !textInput
     )
@@ -513,14 +509,14 @@
       const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
-      const ribbonLogoSrc = ribbonLogoSource.getAttribute('src') || '';
-      const stickerLogoSrc = stickerLogoSource.getAttribute('src') || '';
-      const hasRibbonLogo = Boolean(
-        ribbonLogoSrc && !ribbonLogoSource.hidden,
-      );
-      const hasStickerLogo = Boolean(
-        stickerLogoSrc && !stickerLogoSource.hidden,
-      );
+      const getProductionLogoSource = (selector) => {
+        const image = document.querySelector(selector);
+        return image?.getAttribute('href') || image?.getAttribute('xlink:href') || '';
+      };
+      const ribbonLogoSrc = getProductionLogoSource('#ribbonContent image');
+      const stickerLogoSrc = getProductionLogoSource('#stickerContent image');
+      const hasRibbonLogo = Boolean(ribbonLogoSrc);
+      const hasStickerLogo = Boolean(stickerLogoSrc);
       const hasRibbonText = Boolean(
         ribbonTextValueTrimmed,
       );
@@ -773,10 +769,7 @@
       const ribbonLogoRatio =
         Number(contentLogoState?.ribbon?.ratio) > 0
           ? Number(contentLogoState.ribbon.ratio)
-          : ribbonLogoSource.naturalWidth > 0 &&
-              ribbonLogoSource.naturalHeight > 0
-            ? ribbonLogoSource.naturalWidth / ribbonLogoSource.naturalHeight
-            : null;
+          : null;
       renderRibbonRepeats({
         layout: effectiveLayouts?.ribbon,
         repeatMm,
@@ -833,6 +826,7 @@
     };
 
     const mobileViewport = window.matchMedia('(max-width: 700px)');
+    const desktopViewport = window.matchMedia('(min-width: 901px)');
 
     const updateDockMetrics = () => {
       if (!dockFloating) return;
@@ -937,8 +931,10 @@
       )
         ? document.body.dataset.activePanel
         : 'upload';
+      const hostName =
+        desktopViewport.matches && nextMode !== 'order' ? 'desktop' : nextMode;
       const host = panelHosts.find(
-        (item) => item.dataset.productsHost === nextMode,
+        (item) => item.dataset.productsHost === hostName,
       );
       if (!host) return;
 
@@ -979,6 +975,7 @@
       passive: true,
     });
     mobileViewport.addEventListener('change', scheduleDockUpdate);
+    desktopViewport.addEventListener('change', syncPanelMode);
 
     switches.forEach((productSwitch) => {
       productSwitch.addEventListener('change', () => {
@@ -1037,12 +1034,6 @@
     panelModeObserver.observe(document.body, {
       attributes: true,
       attributeFilter: ['data-active-panel'],
-    });
-
-    const logoObserver = new MutationObserver(syncStudioState);
-    logoObserver.observe(ribbonLogoSource, {
-      attributes: true,
-      attributeFilter: ['src', 'hidden'],
     });
 
     const previewResizeObserver = new ResizeObserver(() => {
