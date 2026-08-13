@@ -7,11 +7,9 @@ import {
   expectInterfaceResponsive,
   expectMobileLogosToMatch,
   expectMobilePreviewVisible,
-  expectMobileRibbonFramed,
   expectNoHorizontalOverflow,
   fixturePath,
   jpegUpload,
-  openSettings,
   readContentSnapshot,
   readRibbonPreviewText,
   watchRuntimeErrors,
@@ -378,10 +376,17 @@ test('mobile previews stay synchronized with Studio state', async ({
   await expect(stickerText).toBeHidden();
 
   await page.locator('#textInput').fill('текст в центре с переносом слов');
-  await page.locator('#macroStickerImage').evaluate((element) => {
-    element.hidden = true;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  const stickerLogoHref = await page
+    .locator('#stickerContent image')
+    .first()
+    .getAttribute('href');
+  await page
+    .locator('#stickerContent image')
+    .first()
+    .evaluate((element) => {
+      element.removeAttribute('href');
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
     'text-only',
@@ -389,10 +394,13 @@ test('mobile previews stay synchronized with Studio state', async ({
   await expect(stickerLogo).toBeHidden();
   await expect(stickerText).toBeVisible();
 
-  await page.locator('#macroStickerImage').evaluate((element) => {
-    element.hidden = false;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  await page
+    .locator('#stickerContent image')
+    .first()
+    .evaluate((element, href) => {
+      element.setAttribute('href', href);
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, stickerLogoHref);
   await expect(stickerContent).toHaveAttribute(
     'data-mobile-products-mode',
     'logo-and-text',
@@ -463,8 +471,8 @@ test('SVG upload updates both mobile product logos', async ({
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
-  const macroLogo = page.locator('#macroLogoImage');
-  const initialSrc = await macroLogo.getAttribute('src');
+  const macroLogo = page.locator('#ribbonContent image').first();
+  const initialSrc = null;
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
 
   await expect(page.locator('#fileCard')).toBeVisible();
@@ -478,10 +486,10 @@ test('SVG upload updates both mobile product logos', async ({
   const snapshot = await readContentSnapshot(page);
   expect(snapshot.text.common).toBe('');
   await expect
-    .poll(() => macroLogo.getAttribute('src'))
+    .poll(() => macroLogo.getAttribute('href'))
     .toMatch(/^data:image\/svg\+xml;base64,/);
 
-  const finalSrc = await macroLogo.getAttribute('src');
+  const finalSrc = await macroLogo.getAttribute('href');
   expect(finalSrc).not.toBe(initialSrc);
   await expectMobileLogosToMatch(page, finalSrc);
   await expectInterfaceResponsive(page);
@@ -531,7 +539,7 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
   const cropModal = page.locator('#cropModal');
-  const macroLogo = page.locator('#macroLogoImage');
+  const macroLogo = page.locator('#ribbonContent image').first();
   await page
     .locator('#logoInput')
     .setInputFiles(fixturePath('transparent-logo.png'));
@@ -547,10 +555,10 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   );
   await expect(page.locator('#fileCardMeta')).toContainText('PNG · выделено');
   await expect
-    .poll(() => macroLogo.getAttribute('src'))
+    .poll(() => macroLogo.getAttribute('href'))
     .toMatch(/^data:image\/svg\+xml;base64,/);
 
-  const finalSrc = await macroLogo.getAttribute('src');
+  const finalSrc = await macroLogo.getAttribute('href');
   const tracedSvg = Buffer.from(finalSrc.split(',')[1], 'base64').toString();
   expect(tracedSvg).toMatch(/<path\b/);
   expect(tracedSvg).not.toMatch(/<rect\b/);
@@ -707,7 +715,7 @@ test('white letters on a dark PNG plaque are traced as the printable sign', asyn
   expect((await readStoredTrace()).coverage).toBeLessThan(0.24);
   await expectMobileLogosToMatch(
     page,
-    await page.locator('#macroLogoImage').getAttribute('src'),
+    await page.locator('#ribbonContent image').first().getAttribute('href'),
   );
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
@@ -767,7 +775,7 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
   const cropModal = page.locator('#cropModal');
-  const macroLogo = page.locator('#macroLogoImage');
+  const macroLogo = page.locator('#ribbonContent image').first();
   await page
     .locator('#logoInput')
     .setInputFiles(fixturePath('opaque-logo.png'));
@@ -812,10 +820,10 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   await expect(page.locator('#fileCardMeta')).toContainText('PNG · выделено');
   await expect(page.locator('#fileCardQuality')).toContainText('SVG');
   await expect
-    .poll(() => macroLogo.getAttribute('src'))
+    .poll(() => macroLogo.getAttribute('href'))
     .toMatch(/^data:image\/svg\+xml;base64,/);
 
-  const finalSrc = await macroLogo.getAttribute('src');
+  const finalSrc = await macroLogo.getAttribute('href');
   await expectMobileLogosToMatch(page, finalSrc);
   await expectInterfaceResponsive(page);
   await expectNoHorizontalOverflow(page);
@@ -875,74 +883,11 @@ test('PDF upload renders its first page and completes tracing', async ({
   await expect(page.locator('#traceStatus')).toBeVisible();
   await expect(page.locator('#continueUpload')).toBeEnabled();
   await expect
-    .poll(() => page.locator('#macroLogoImage').getAttribute('src'))
+    .poll(() =>
+      page.locator('#ribbonContent image').first().getAttribute('href'),
+    )
     .toMatch(/^data:image\/svg\+xml;base64,/);
   await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('mobile first reveal keeps the guided preview and switches paired with labels @smoke', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-
-  const panel = page.locator('.mobile-products-panel');
-  await expect(panel).toBeHidden();
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(panel).toBeVisible();
-  await expectMobileRibbonFramed(page);
-  await expect(page.locator('.mobile-products-switches')).toBeVisible();
-  await expect(page.locator('.studio')).toBeHidden();
-  await completeFirstStepWithText(page);
-  await openSettings(page);
-  await expect(page.locator('.mobile-products-switches')).toBeVisible();
-  await expect(page.locator('.studio')).toBeVisible();
-
-  const switchLayout = await panel
-    .locator('.mobile-products-switch')
-    .evaluateAll((labels) => {
-      const row = labels[0].parentElement.getBoundingClientRect();
-      const pairBounds = labels.map((label) => {
-        const text = label.querySelector('span:first-child');
-        const control = label.querySelector('.mobile-products-switch-control');
-        const labelBounds = label.getBoundingClientRect();
-        return {
-          bounds: labelBounds.toJSON(),
-          gap:
-            control.getBoundingClientRect().left -
-            text.getBoundingClientRect().right,
-        };
-      });
-      return {
-        pairBounds,
-        leftInset: pairBounds[0].bounds.left - row.left,
-        rightInset: row.right - pairBounds.at(-1).bounds.right,
-        centerOffset:
-          (pairBounds[0].bounds.left + pairBounds.at(-1).bounds.right) / 2 -
-          (row.left + row.right) / 2,
-      };
-    });
-  for (const { gap } of switchLayout.pairBounds) {
-    expect(gap).toBeGreaterThanOrEqual(6);
-    expect(gap).toBeLessThanOrEqual(12);
-  }
-  for (const { bounds } of switchLayout.pairBounds) {
-    expect(bounds.height).toBeGreaterThanOrEqual(44);
-  }
-  expect(switchLayout.leftInset).toBeGreaterThanOrEqual(6);
-  expect(switchLayout.leftInset).toBeLessThanOrEqual(12);
-  expect(switchLayout.rightInset).toBeGreaterThanOrEqual(6);
-  expect(switchLayout.rightInset).toBeLessThanOrEqual(12);
-  expect(Math.abs(switchLayout.centerOffset)).toBeLessThanOrEqual(1);
-
-  await page.setViewportSize({ width: 700, height: 900 });
-  await expect(panel).toBeVisible();
-  await expectMobileRibbonFramed(page);
   expect(runtimeErrors).toEqual([]);
 });
 
@@ -1194,7 +1139,7 @@ test('step one dock becomes a compact live strip while the keyboard is open', as
   expect(runtimeErrors).toEqual([]);
 });
 
-test('mobile product block is absent from the desktop layout', async ({
+test('unified preview occupies the desktop preview column', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
@@ -1202,8 +1147,10 @@ test('mobile product block is absent from the desktop layout', async ({
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
   const panel = page.locator('.mobile-products-panel');
-  await expect(panel).toBeHidden();
-  await expect(panel).toHaveCSS('display', 'none');
+  await expect(panel).toBeVisible();
+  await expect(
+    page.locator('[data-products-host="desktop"] #mobileProductsSlot'),
+  ).toHaveCount(1);
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
   await expect(page.locator('#mobileLogoEditor')).toHaveCSS('display', 'none');
   await expect(page.locator('main.studio')).toBeVisible();

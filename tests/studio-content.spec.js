@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
   expectNoHorizontalOverflow,
-  expectShowcaseCaptionClear,
   expectSvgDataToContain,
   fixturePath,
   openSettings,
@@ -60,6 +59,33 @@ test('Studio opens without console errors or horizontal scrolling @smoke', async
   });
 });
 
+test('one preview component survives continuous viewport changes @smoke', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.locator('#mobileProductsSlot').evaluate((slot) => {
+    slot.dataset.identityCheck = 'same-node';
+  });
+
+  for (const [width, host] of [
+    [1440, 'desktop'],
+    [900, 'upload'],
+    [701, 'upload'],
+    [700, 'upload'],
+    [390, 'upload'],
+    [1440, 'desktop'],
+  ]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(
+      page.locator(`[data-products-host="${host}"] #mobileProductsSlot`),
+    ).toHaveAttribute('data-identity-check', 'same-node');
+    await expect(page.locator('.mobile-products-panel')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 test('fresh first step marks the demo and keeps customer content honest @smoke', async ({
   page,
 }, testInfo) => {
@@ -111,10 +137,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   );
   await expect(
     page.locator('#contentProductEditor').locator('xpath=..'),
-  ).toHaveAttribute(
-    'data-content-product-host',
-    testInfo.project.name === 'mobile' ? 'mobile' : 'desktop',
-  );
+  ).toHaveAttribute('data-content-product-host', 'mobile');
   if (testInfo.project.name === 'mobile') {
     await expect(
       page.locator('[data-products-host="upload"] #mobileProductsSlot'),
@@ -174,56 +197,39 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
       .locator('#contentProductChoice [data-content-product="ribbon"]')
       .click();
   } else {
-    await expect(page.locator('#sceneTabs')).toBeHidden();
-    await expect(page.locator('#studioContextEyebrow')).toHaveText(
-      'Живой образец',
-    );
-    await expect(page.locator('#studioContextTitle')).toHaveText(
-      'Предпросмотр ленты',
-    );
     await expect(
-      page.locator('#productShowcase .showcase-ribbon:visible'),
+      page.locator('[data-products-host="desktop"] #mobileProductsSlot'),
     ).toHaveCount(1);
+    await expect(page.locator('.mobile-products-panel')).toBeVisible();
+    await expect(page.locator('.production-renderer')).toBeHidden();
     await expect(
-      page.locator('#productShowcase .showcase-sticker:visible'),
-    ).toHaveCount(0);
+      page.locator('[data-mobile-product-sample="ribbon"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-mobile-product-sample="sticker"]'),
+    ).toBeHidden();
     await page
       .locator('#contentProductChoice [data-content-product="sticker"]')
       .click();
-    await expect(page.locator('#studioContextTitle')).toHaveText(
-      'Предпросмотр стикера',
-    );
     await expect(
-      page.locator('#productShowcase .showcase-ribbon:visible'),
-    ).toHaveCount(0);
+      page.locator('[data-mobile-product-sample="ribbon"]'),
+    ).toBeHidden();
     await expect(
-      page.locator('#productShowcase .showcase-sticker:visible'),
-    ).toHaveCount(1);
+      page.locator('[data-mobile-product-sample="sticker"]'),
+    ).toBeVisible();
     await page
       .locator('#contentProductChoice [data-content-product="ribbon"]')
       .click();
   }
-  await expectShowcaseCaptionClear(page);
-
-  const demoText =
-    testInfo.project.name === 'mobile'
-      ? page.locator('.dynamic-showcase-text').first()
-      : page.locator('.dynamic-showcase-text').first();
+  const demoText = page.locator('.mobile-products-ribbon-text');
   await expect(demoText).toContainText('ленты');
-  const demoOverflowCard = page.locator(
-    testInfo.project.name === 'mobile'
-      ? '.ribbon-overflow-card-mobile'
-      : '.ribbon-overflow-card-desktop',
-  );
+  const demoOverflowCard = page.locator('.ribbon-overflow-card-mobile');
   await expect(demoOverflowCard).toBeHidden();
   await expect(page.locator('body')).toHaveAttribute(
     'data-ribbon-overflow',
     'false',
   );
-  const previewText =
-    testInfo.project.name === 'mobile'
-      ? page.locator('.mobile-products-ribbon-text')
-      : page.locator('#ribbonContent [data-preview-overlay] text').first();
+  const previewText = page.locator('.mobile-products-ribbon-text');
   await expect(previewText).toHaveCSS('font-family', /Comfortaa/);
 
   if (testInfo.project.name === 'mobile') {
@@ -284,10 +290,6 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await expect(page.locator('#previewContextCopy')).toBeHidden();
   await expect(page.locator('#continueUpload')).toBeEnabled();
   await expect(page.locator('#continueUploadHelp')).toBeHidden();
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    true,
-  );
   let snapshot = await readContentSnapshot(page);
   expect(snapshot.text.common).toBe('Мой бренд');
   expect(snapshot.logo.common).toBeNull();
@@ -300,10 +302,6 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await page.reload({ waitUntil: 'networkidle' });
   await expect(textInput).toHaveValue('Мой бренд');
   await expect(page.locator('#continueUpload')).toBeEnabled();
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    true,
-  );
   snapshot = await readContentSnapshot(page);
   expect(snapshot.logo.common).toBeNull();
   await textInput.fill('');
@@ -450,8 +448,10 @@ test('legacy Studio content migrates to common content', async ({
   expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
-  await expect(page.locator('#macroLogoText')).toHaveText('старый общий текст');
-  await expect(page.locator('#macroStickerText')).toHaveText(
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'старый общий текст',
+  );
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
     'старый общий текст',
   );
   await expect(page.locator('body')).toHaveAttribute(
@@ -459,14 +459,8 @@ test('legacy Studio content migrates to common content', async ({
     'false',
   );
   await expect(page.locator('.ribbon-overflow-card-mobile')).toBeHidden();
-  await expect(page.locator('#macroLogoImage')).not.toHaveAttribute(
-    'hidden',
-    '',
-  );
-  await expect(page.locator('#macroStickerImage')).not.toHaveAttribute(
-    'hidden',
-    '',
-  );
+  await expect(page.locator('#ribbonContent image').first()).toBeAttached();
+  await expect(page.locator('#stickerContent image').first()).toBeAttached();
 
   await page.reload({ waitUntil: 'networkidle' });
   snapshot = await readContentSnapshot(page);
@@ -539,19 +533,12 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
 
   await expect(page.locator('#textInput')).toHaveValue('');
-  await expect(page.locator('#macroLogoText')).toBeHidden();
-  await expect(page.locator('#macroStickerText')).toHaveText(
-    'новый общий текст',
-  );
   await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
   await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
     'новый общий текст',
   );
-  await expect(page.locator('#macroLogoImage')).toHaveAttribute('hidden', '');
-  await expect(page.locator('#macroStickerImage')).not.toHaveAttribute(
-    'hidden',
-    '',
-  );
+  await expect(page.locator('#ribbonContent image').first()).toHaveCount(0);
+  await expect(page.locator('#stickerContent image').first()).toBeAttached();
 
   await page.reload({ waitUntil: 'networkidle' });
   snapshot = await readContentSnapshot(page);
@@ -560,11 +547,12 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.text.resolvedSticker).toBe('новый общий текст');
   expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
   expect(snapshot.logo.resolvedRibbon).toBeNull();
-  await expect(page.locator('#macroLogoText')).toBeHidden();
-  await expect(page.locator('#macroStickerText')).toHaveText(
+  await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
+  await expect(page.locator('.mobile-products-sticker-text')).toHaveText(
     'новый общий текст',
   );
 
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#resetProject').click();
   await page.waitForLoadState('networkidle');
   snapshot = await readContentSnapshot(page);
@@ -623,10 +611,10 @@ test('resolved logo assets render independently across product scenes', async ({
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await openSettings(page);
 
-  const macroRibbon = page.locator('#macroLogoImage');
-  const macroSticker = page.locator('#macroStickerImage');
-  const boxRibbon = page.locator('#boxRibbonImage');
-  const boxSticker = page.locator('#boxStickerImage');
+  const macroRibbon = page.locator('#ribbonContent image').first();
+  const macroSticker = page.locator('#stickerContent image').first();
+  const boxRibbon = page.locator('#ribbonContent image').first();
+  const boxSticker = page.locator('#stickerContent image').first();
   const mobileRibbon = page.locator('.mobile-products-ribbon-logo');
   const mobileSticker = page.locator('.mobile-products-sticker-logo');
   const ribbonSvg = page.locator('#ribbonContent image').first();
@@ -678,13 +666,13 @@ test('resolved logo assets render independently across product scenes', async ({
   expect(JSON.stringify(detail.logo)).not.toContain('<svg');
   await expect
     .poll(async () => {
-      const src = await macroRibbon.getAttribute('src');
+      const src = await macroRibbon.getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
     .toContain('#ffffff');
   await expect
     .poll(async () => {
-      const src = await macroSticker.getAttribute('src');
+      const src = await macroSticker.getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
     .toContain('#171717');
@@ -695,7 +683,7 @@ test('resolved logo assets render independently across product scenes', async ({
   await page.locator('#printColorSelect').selectOption('#ffffff');
   await expect
     .poll(async () => {
-      const src = await macroSticker.getAttribute('src');
+      const src = await macroSticker.getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
     .toContain('#ffffff');
@@ -741,7 +729,7 @@ test('resolved logo assets render independently across product scenes', async ({
   await expect(macroRibbon).toBeHidden();
   await expect(boxRibbon).toBeHidden();
   await expect(mobileRibbon).toBeHidden();
-  await expect(page.locator('#ribbonContent image')).toHaveCount(0);
+  await expect(page.locator('#ribbonContent image').first()).toHaveCount(0);
   await expect(macroSticker).not.toHaveAttribute('hidden', '');
   await expectSvgDataToContain(macroSticker, 'common-logo-marker');
   expect((await readContentSnapshot(page)).logo.ribbon).toEqual({
@@ -790,8 +778,8 @@ test('logo upload target persists through SVG callbacks and sequential uploads',
   });
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
-  const ribbon = page.locator('#macroLogoImage');
-  const sticker = page.locator('#macroStickerImage');
+  const ribbon = page.locator('#ribbonContent image').first();
+  const sticker = page.locator('#stickerContent image').first();
 
   await page
     .locator('#logoInput')
@@ -826,20 +814,18 @@ test('raster upload target survives tracing and crop cancellation', async ({
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
-  const ribbon = page.locator('#macroLogoImage');
-  const sticker = page.locator('#macroStickerImage');
-  const initialRibbon = await ribbon.getAttribute('src');
-  const initialSticker = await sticker.getAttribute('src');
+  const ribbon = page.locator('#ribbonContent image').first();
+  const sticker = page.locator('#stickerContent image').first();
+  const initialRibbon = await ribbon.getAttribute('href');
 
   await setLogoUploadTarget(page, 'ribbon');
   await page
     .locator('#logoInput')
     .setInputFiles(fixturePath('transparent-logo.png'));
   await expect(page.locator('#traceStatus')).toBeVisible();
-  await expect.poll(() => ribbon.getAttribute('src')).not.toBe(initialRibbon);
-  await expect(sticker).toHaveAttribute('hidden', '');
-  await expect(sticker).not.toHaveAttribute('src', initialSticker);
-  const tracedRibbon = await ribbon.getAttribute('src');
+  await expect.poll(() => ribbon.getAttribute('href')).not.toBe(initialRibbon);
+  await expect(page.locator('#stickerContent image')).toHaveCount(0);
+  const tracedRibbon = await ribbon.getAttribute('href');
 
   await setLogoUploadTarget(page, 'sticker');
   await page
@@ -850,10 +836,10 @@ test('raster upload target survives tracing and crop cancellation', async ({
   await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
   await expect(page.locator('#fileCardName')).toHaveText('opaque-logo.png');
   await expect
-    .poll(() => sticker.getAttribute('src'))
+    .poll(() => sticker.getAttribute('href'))
     .toMatch(/^data:image\/svg\+xml;base64,/);
-  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
-  const tracedSticker = await sticker.getAttribute('src');
+  await expect(ribbon).toHaveAttribute('href', tracedRibbon);
+  const tracedSticker = await sticker.getAttribute('href');
 
   await page.locator('#logoInput').setInputFiles([]);
   await setLogoUploadTarget(page, 'ribbon');
@@ -863,12 +849,12 @@ test('raster upload target survives tracing and crop cancellation', async ({
   await expect(page.locator('#cropModal')).toHaveClass(/open/);
   await page.locator('#cropCancel').click();
   await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
-  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
-  await expect(sticker).toHaveAttribute('src', tracedSticker);
+  await expect(ribbon).toHaveAttribute('href', tracedRibbon);
+  await expect(sticker).toHaveAttribute('href', tracedSticker);
 
   await page.reload({ waitUntil: 'networkidle' });
-  await expect(ribbon).toHaveAttribute('src', tracedRibbon);
-  await expect(sticker).toHaveAttribute('src', tracedSticker);
+  await expect(ribbon).toHaveAttribute('href', tracedRibbon);
+  await expect(sticker).toHaveAttribute('href', tracedSticker);
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -905,8 +891,8 @@ test('resolved product text stays independent from common editing', async ({
   await page.goto('/studio/', { waitUntil: 'networkidle' });
 
   const textInput = page.locator('#textInput');
-  const macroRibbonText = page.locator('#macroLogoText');
-  const macroStickerText = page.locator('#macroStickerText');
+  const macroRibbonText = page.locator('.mobile-products-ribbon-text');
+  const macroStickerText = page.locator('.mobile-products-sticker-text');
   const mobileRibbonText = page.locator('.mobile-products-ribbon-text');
   const mobileStickerText = page.locator('.mobile-products-sticker-text');
 
@@ -1112,14 +1098,7 @@ test('Create step validates input and manages the common logo @smoke', async ({
   await expect(counter).toHaveText('9 / 60');
   await expect(textStatus).toHaveClass(/is-complete/);
   await expect(continueUpload).toBeEnabled();
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    true,
-  );
-  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
-    'hidden',
-    false,
-  );
+  await expect(page.locator('#ribbonContent text').first()).toBeAttached();
   await expect(page.locator('#dropZone')).toBeVisible();
 
   await textInput.fill('Очень длинное название '.repeat(4));
@@ -1135,25 +1114,16 @@ test('Create step validates input and manages the common logo @smoke', async ({
   await expect(page.locator('#fileCard')).toBeHidden();
   await expect(logoStatus).not.toHaveClass(/is-complete/);
   await expect(continueUpload).toBeEnabled();
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    true,
-  );
-  await expect(page.locator('#macroLogoText')).toHaveJSProperty(
-    'hidden',
-    false,
-  );
+  await expect(page.locator('#ribbonContent image').first()).toHaveCount(0);
+  await expect(page.locator('#ribbonContent text').first()).toBeAttached();
 
   await textInput.fill('');
   await expect(counter).toHaveText('0 / 60');
   await expect(continueUpload).toBeDisabled();
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(continueUpload).toBeEnabled();
-  await expect(page.locator('#macroLogoImage')).toHaveJSProperty(
-    'hidden',
-    false,
-  );
-  await expect(page.locator('#macroLogoText')).toHaveJSProperty('hidden', true);
+  await expect(page.locator('#ribbonContent image').first()).toBeAttached();
+  await expect(page.locator('#ribbonContent text')).toHaveCount(0);
   await expect(textInput).toBeEnabled();
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);

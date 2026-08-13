@@ -28,19 +28,8 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
-  await expect(page.locator('#studioContextTitle')).toHaveText(
-    'Настройте ленту',
-  );
-  await expect(page.locator('#sceneKitTitle')).toHaveText('Сатиновая лента');
-  await expect(page.locator('#sceneTabs')).toBeHidden();
-  if ((await page.viewportSize()).width > 700) {
-    await expect(
-      page.locator('#productShowcase .showcase-ribbon:visible'),
-    ).toHaveCount(1);
-    await expect(
-      page.locator('#productShowcase .showcase-sticker:visible'),
-    ).toHaveCount(0);
-  }
+  await expect(ribbonSample).toBeVisible();
+  await expect(stickerSample).toBeVisible();
   await expect(page.locator('#fontSelect')).toHaveJSProperty(
     'tagName',
     'SELECT',
@@ -95,18 +84,6 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await stickerSample.click();
   await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
-  await expect(page.locator('#studioContextTitle')).toHaveText(
-    'Настройте стикер',
-  );
-  await expect(page.locator('#sceneKitTitle')).toHaveText('Круглый стикер');
-  if ((await page.viewportSize()).width > 700) {
-    await expect(
-      page.locator('#productShowcase .showcase-ribbon:visible'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('#productShowcase .showcase-sticker:visible'),
-    ).toHaveCount(1);
-  }
   await expect(page.locator('#mobileTextEditor')).toBeHidden();
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
   await expect(
@@ -251,7 +228,9 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await expect(panel).toHaveAttribute('data-mode', 'settings');
   await expect(
-    page.locator('[data-products-host="settings"] #mobileProductsSlot'),
+    page.locator(
+      `[data-products-host="${testInfo.project.name === 'desktop' ? 'desktop' : 'settings'}"] #mobileProductsSlot`,
+    ),
   ).toHaveCount(1);
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
@@ -266,7 +245,10 @@ test('selected product owns the visible settings and manual transforms', async (
   );
   await expect
     .poll(async () => {
-      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      const src = await page
+        .locator('#ribbonContent image')
+        .first()
+        .getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
     .toContain('#171717');
@@ -277,7 +259,10 @@ test('selected product owns the visible settings and manual transforms', async (
   );
   await expect
     .poll(async () => {
-      const src = await page.locator('#macroLogoImage').getAttribute('src');
+      const src = await page
+        .locator('#ribbonContent image')
+        .first()
+        .getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
     .toContain('#b69249');
@@ -474,11 +459,7 @@ test('selected product owns the visible settings and manual transforms', async (
   expect(runtimeErrors).toEqual([]);
 });
 
-test('mobile product switches control the static previews', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
+test('product switches control the unified preview', async ({ page }) => {
   const runtimeErrors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') runtimeErrors.push(message.text());
@@ -551,11 +532,9 @@ test('mobile product switches control the static previews', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('mobile product switches control order quantities and price @smoke', async ({
+test('product switches control order quantities and price @smoke', async ({
   page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-
+}) => {
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);

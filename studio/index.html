@@ -66,8 +66,8 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=20260812.1">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20260808.1">
+  <link rel="stylesheet" href="assets/css/app.css?v=b18c9034c4d3">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=20db2cbb6bc1">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -477,21 +477,9 @@
   </aside>
 
   <main class="studio">
-    <div class="studio-head">
-      <div>
-        <p class="eyebrow" id="studioContextEyebrow">Живой образец</p>
-        <h1 id="studioContextTitle">Так будет выглядеть ваш комплект</h1>
-        <div class="content-product-editor-host content-product-editor-host-desktop" data-content-product-host="desktop"></div>
-      </div>
-      <div class="studio-tabs scene-tabs" id="sceneTabs">
-        <button class="active" data-scene="kit">Комплект</button>
-        <button data-scene="macro">Макро</button>
-        <button data-scene="package">Упаковка</button>
-      </div>
-    </div>
+    <div class="mobile-products-host mobile-products-host-desktop" data-products-host="desktop"></div>
 
-    
-    <section class="canvas render-canvas" id="canvas">
+    <section class="canvas render-canvas production-renderer" id="canvas" aria-hidden="true">
       <div class="scene active" id="scene-kit">
         <div class="scene-caption">
           <span id="sceneKitLabel">Фирменный комплект</span>
@@ -600,53 +588,6 @@
               </svg>
             </div>
             <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="scene" id="scene-macro">
-        <div class="scene-caption">
-          <span>Макро</span>
-          <strong>Фактура сатина и качество печати</strong>
-        </div>
-        <div class="macro-stage" id="macroStage">
-          <div class="macro-ribbon" id="macroRibbon">
-            <div class="macro-fibers"></div>
-            <div class="macro-printable-guide" data-preview-overlay aria-hidden="true"></div>
-            <div class="macro-logo" id="macroLogo">
-              <img id="macroLogoImage" alt="" hidden>
-              <span id="macroLogoText">ленты по любви</span>
-            </div>
-          </div>
-
-          <div class="macro-sticker" id="macroSticker">
-            <div class="macro-sticker-paper">
-              <div class="macro-sticker-printable-guide" data-preview-overlay aria-hidden="true"></div>
-              <img id="macroStickerImage" alt="" hidden>
-              <span id="macroStickerText">ленты по любви</span>
-            </div>
-          </div>
-
-          <div class="macro-note">Крупный план материала и печати</div>
-        </div>
-      </div>
-
-      <div class="scene" id="scene-package">
-        <div class="scene-caption">
-          <span>Упаковка</span>
-          <strong>Готовый комплект на подарочной коробке</strong>
-        </div>
-        <div class="package-stage">
-          <div class="gift-box">
-            <div class="box-top"></div>
-            <div class="box-front"></div>
-            <div class="box-ribbon-v" id="boxRibbonV"></div>
-            <div class="box-ribbon-h" id="boxRibbonH">
-              <img id="boxRibbonImage" alt="" hidden><span id="boxRibbonText">печатаетмаксим</span>
-            </div>
-            <div class="box-sticker" id="boxSticker">
-              <img id="boxStickerImage" alt="" hidden><span id="boxStickerText">печатаетмаксим</span>
-            </div>
           </div>
         </div>
       </div>
@@ -767,7 +708,7 @@
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=eae83d685c97"></script>
-<script src="assets/js/mobile-products.js?v=20260812.1"></script>
+<script src="assets/js/app.js?v=fee680b8b703"></script>
+<script src="assets/js/mobile-products.js?v=abfa466bb255"></script>
 </body>
 </html>
