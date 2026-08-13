@@ -87,7 +87,11 @@ function getCommitSha() {
 }
 
 async function copyPublicEntry(entry) {
-  const source = resolve(repositoryRoot, entry);
+  const sourceEntry =
+    entry === 'index.html' && process.env.USE_ALTERNATIVE_HOMEPAGE === '1'
+      ? 'index-alternative-production.html'
+      : entry;
+  const source = resolve(repositoryRoot, sourceEntry);
   const target = resolve(outputRoot, entry);
 
   await mkdir(resolve(target, '..'), { recursive: true });
@@ -162,6 +166,8 @@ await Promise.all(legacyRedirects.map(createLegacyRedirect));
 
 const version = {
   commit: getCommitSha(),
+  homepage:
+    process.env.USE_ALTERNATIVE_HOMEPAGE === '1' ? 'alternative' : 'current',
   builtAt: new Date().toISOString(),
 };
 

@@ -59,6 +59,57 @@ test('Studio opens without console errors or horizontal scrolling @smoke', async
   });
 });
 
+test('homepage entry context selects the requested Studio product @smoke', async ({
+  page,
+}, testInfo) => {
+  const cases = [
+    {
+      query: 'product=ribbon',
+      banner: 'Вы создаёте макет ленты.',
+      inputLabel: 'Надпись на ленте',
+      ribbon: true,
+      sticker: false,
+    },
+    {
+      query: 'product=sticker',
+      banner: 'Вы создаёте макет стикера.',
+      inputLabel: 'Надпись на стикере',
+      ribbon: false,
+      sticker: true,
+    },
+    {
+      query: 'product=set&material=satin',
+      banner: 'Вы создаёте комплект ленты и стикеров. Материал: сатин.',
+      inputLabel: 'Надпись на ленте',
+      ribbon: true,
+      sticker: true,
+    },
+  ];
+
+  for (const entry of cases) {
+    await page.goto(`/studio/?${entry.query}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('#studioEntryContext')).toBeVisible();
+    await expect(page.locator('#studioEntryContextText')).toContainText(
+      entry.banner,
+    );
+    await expect(page.locator('#textInputLabel')).toHaveText(entry.inputLabel);
+    await expect(page.locator('[data-mobile-product="ribbon"]')).toBeChecked({
+      checked: entry.ribbon,
+    });
+    await expect(page.locator('[data-mobile-product="sticker"]')).toBeChecked({
+      checked: entry.sticker,
+    });
+  }
+
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await expect(page.locator('#studioEntryContext')).toBeHidden();
+  await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
+
+  if (testInfo.project.name === 'desktop') {
+    await expect(page.locator('main.studio')).toBeVisible();
+  }
+});
+
 test('one preview component survives continuous viewport changes @smoke', async ({
   page,
 }, testInfo) => {

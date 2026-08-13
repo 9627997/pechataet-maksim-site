@@ -23,6 +23,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,Arial,sa
 button,input,select,textarea{font:inherit}
 :where(button,input,select,textarea,[role="button"]):focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .topbar{height:72px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;background:#fff;border-bottom:1px solid var(--line)}
+.studio-entry-context{display:flex;align-items:center;gap:10px;min-height:42px;padding:9px 22px;border-bottom:1px solid #ead9bd;background:#fff7e8;color:#6f4a1e;font-size:13px}
+.studio-entry-context[hidden]{display:none}
+.studio-entry-context-mark{display:inline-grid;place-items:center;width:23px;height:23px;border-radius:50%;color:#fff;background:#bd7e29;font-weight:800}
+.studio-entry-context-close{margin-left:auto;border:0;padding:0 4px;color:#6f4a1e;background:transparent;font-size:20px;line-height:1;cursor:pointer}
+.studio-entry-context-close:focus-visible{outline:2px solid #bd7e29;outline-offset:3px}
+@media(max-width:700px){.studio-entry-context{min-height:46px;padding:9px 14px;font-size:12px}}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
 .brand-mark{font-size:28px}.brand strong,.brand small{display:block}.brand small{font-size:10px;color:var(--muted)}
 .top-actions{display:flex;align-items:center;gap:10px}.version{background:#171717;color:#fff;border-radius:999px;padding:6px 9px;font-size:11px}

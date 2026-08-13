@@ -669,6 +669,19 @@ Playwright-конфигурация:
 - контрольная ширина:
 ```
 
+## Входной контекст из альтернативного лендинга
+
+Альтернативная главная хранится в `prototypes/homepage-alternative/` и передаёт в Studio только безопасные параметры выбора продукта:
+
+- `/studio/?product=ribbon` — начать с ленты;
+- `/studio/?product=sticker` — начать со стикера;
+- `/studio/?product=set` — начать с комплекта;
+- `material=satin|silicone` — информационный контекст материала, который подтверждается перед печатью.
+
+Адаптер находится в `studio/assets/js/app.js` в функциях `readStudioEntryContext` и `applyStudioEntryContext`. Он применяется после восстановления состояния и до первого основного render. При пустом проекте он выбирает состав и активное изделие; при наличии пользовательского текста или логотипа сохранённый проект не перезаписывается, а показывается только уведомление.
+
+В `studio/index.html` добавлен `#studioEntryContext`, а additive-стили находятся в `studio/assets/css/app.css`. Адаптер не изменяет crop, raster-to-logo/tracing, safe-area geometry, `localStorage` key `ribbon-studio-v042`, production SVG или order payload. Query-параметры не содержат текст, файлы, SVG, base64 или персональные данные.
+
 ## Когда обновлять этот файл
 
 Обновление обязательно в той же задаче, если изменились:

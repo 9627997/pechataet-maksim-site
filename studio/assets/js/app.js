@@ -1008,6 +1008,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function readStudioEntryContext() {
+    const params = new URLSearchParams(window.location.search);
+    const product = ['ribbon', 'sticker', 'set'].includes(params.get('product'))
+      ? params.get('product')
+      : null;
+    const material = ['satin', 'silicone'].includes(params.get('material'))
+      ? params.get('material')
+      : null;
+    return product ? {product, material} : null;
+  }
+
+  function applyStudioEntryContext() {
+    const entry = readStudioEntryContext();
+    if (!entry) return;
+
+    const hasExistingProject = hasUserContent();
+    if (!hasExistingProject) {
+      const activeProduct = entry.product === 'sticker' ? 'sticker' : 'ribbon';
+      state.activeContentProduct = activeProduct;
+      state.activeSettingsProduct = activeProduct;
+      setProductSelection({
+        ribbon: entry.product !== 'sticker',
+        sticker: entry.product !== 'ribbon',
+      });
+    }
+
+    const productLabel = {
+      ribbon: 'Вы создаёте макет ленты.',
+      sticker: 'Вы создаёте макет стикера.',
+      set: 'Вы создаёте комплект ленты и стикеров.',
+    }[entry.product];
+    const materialLabel = entry.material === 'satin'
+      ? ' Материал: сатин.'
+      : entry.material === 'silicone'
+        ? ' Материал: силикон.'
+        : '';
+    const context = $('#studioEntryContext');
+    const text = $('#studioEntryContextText');
+    if (!context || !text) return;
+    text.textContent = hasExistingProject
+      ? `${productLabel} Сохранённый проект не изменён.`
+      : `${productLabel}${materialLabel} Настройте макет — материал подтвердим перед печатью.`;
+    context.hidden = false;
+    $('#studioEntryContextClose')?.addEventListener('click', () => {
+      context.hidden = true;
+    }, {once: true});
+  }
+
   function updateStudioContext() {
     const eyebrow = $('#studioContextEyebrow');
     const title = $('#studioContextTitle');
@@ -4780,6 +4828,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncLegacyContentAliasesFromContent();
   }
   loadDefaultLogo();
+  applyStudioEntryContext();
   setActiveContentProduct(state.activeContentProduct, {renderPreview: false});
   setActiveSettingsProduct(state.activeSettingsProduct);
   updateFirstStepAvailability();
