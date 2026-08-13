@@ -27,6 +27,8 @@ for (const requiredContract of [
   'pm_check_rate_limit',
   'pm_store_order',
   'pm_run_notifications',
+  "'preferredContact'",
+  "['phone', 'telegram']",
 ]) {
   assert.ok(
     endpoint.includes(requiredContract),

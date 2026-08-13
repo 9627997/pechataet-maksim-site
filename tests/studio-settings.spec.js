@@ -794,7 +794,8 @@ test('order dialog sends production files, retries safely and keeps a local copy
 
   const dialog = page.getByRole('dialog', { name: 'Отправить заявку' });
   const customerName = page.getByLabel('Имя');
-  const customerPhone = page.getByLabel('Телефон');
+  const phonePreference = page.getByLabel('Позвонить');
+  const customerPhone = page.getByLabel('Ваш телефон');
   const submitOrder = page.getByRole('button', { name: 'Отправить заявку' });
   await expect(dialog).toBeVisible();
   await expect(customerName).toBeFocused();
@@ -802,10 +803,12 @@ test('order dialog sends production files, retries safely and keeps a local copy
   await customerName.fill('Максим');
   await submitOrder.click();
   await expect(page.locator('#orderFormStatus')).toHaveText(
-    'Укажите телефон или Telegram.',
+    'Выберите удобный способ связи.',
   );
-  await expect(customerPhone).toBeFocused();
+  await expect(phonePreference).toBeFocused();
 
+  await phonePreference.check();
+  await expect(customerPhone).toBeVisible();
   await customerPhone.fill('+7 900 000-00-00');
   await submitOrder.click();
   await expect(page.locator('#orderFormStatus')).toContainText(
@@ -830,6 +833,7 @@ test('order dialog sends production files, retries safely and keeps a local copy
   expect(requests[0].requestId).toBe(requests[1].requestId);
   expect(requests[1].artifacts.ribbonSvg).toContain('<svg');
   expect(requests[1].artifacts.stickerSvg).toContain('<svg');
+  expect(requests[1].customer.preferredContact).toBe('phone');
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Скачать копию' }).click();

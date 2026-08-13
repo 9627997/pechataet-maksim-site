@@ -99,6 +99,31 @@ textarea:focus-visible {
   gap: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.header-phone,
+.contact-phone-link,
+.site-footer a {
+  color: var(--color-text);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: rgba(176, 39, 48, 0.35);
+  text-underline-offset: 0.2em;
+}
+
+.header-phone:hover,
+.header-phone:focus-visible,
+.contact-phone-link:hover,
+.contact-phone-link:focus-visible,
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  color: var(--color-accent);
+}
+
 .brand {
   font-size: 1.05rem;
   font-weight: 700;
@@ -496,6 +521,11 @@ h3 {
   justify-content: center;
 }
 
+.contact-phone-link {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
 .field {
   display: grid;
   gap: 0.35rem;
@@ -587,6 +617,15 @@ h3 {
     flex-wrap: wrap;
   }
 
+  .header-actions {
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .header-phone {
+    font-size: 0.88rem;
+  }
+
   h1 {
     max-width: 100%;
     font-size: clamp(1.95rem, 7vw, 2.75rem);
@@ -663,13 +702,8 @@ h3 {
     gap: 0.75rem;
   }
 
-  .hero-actions,
-  .header-cta {
+  .hero-actions {
     width: 100%;
-  }
-
-  .header-cta {
-    justify-content: center;
   }
 
   .steps,

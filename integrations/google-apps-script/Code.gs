@@ -24,6 +24,7 @@ function orderSummary(order) {
     `Имя: ${order.customer?.name || ''}`,
     `Телефон: ${order.customer?.phone || 'не указан'}`,
     `Telegram: ${order.customer?.telegram || 'не указан'}`,
+    `Предпочтительный способ связи: ${order.customer?.preferredContact || 'не указан'}`,
     `Комментарий: ${order.customer?.comment || 'не указан'}`,
     ribbon?.enabled
       ? `Лента: ${ribbon.widthMm} мм · ${ribbon.meters} м · шаг ${ribbon.repeatMm} мм`
@@ -86,6 +87,7 @@ function doPost(event) {
         safeCell(order.customer.name),
         safeCell(order.customer.phone),
         safeCell(order.customer.telegram),
+        safeCell(order.customer.preferredContact),
         safeCell(order.customer.comment),
         safeCell(summary),
         folder.getUrl(),
