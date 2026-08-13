@@ -497,6 +497,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('#settingsContentStatus')) {
       const settingsProduct = state.activeSettingsProduct;
+      const hasSettingsText = Boolean(getResolvedText(settingsProduct).trim());
+      const hasSettingsLogo = Boolean(getResolvedLogo(settingsProduct)?.logo);
       const textMode =
         state.content.text[settingsProduct].mode === 'override'
           ? getResolvedText(settingsProduct).trim()
@@ -514,6 +516,22 @@ document.addEventListener('DOMContentLoaded', () => {
             ? 'общий логотип'
             : 'логотип не добавлен';
       $('#settingsContentStatus').textContent = `${textMode} · ${logoMode}`;
+      $$('[data-setting-requires]').forEach((control) => {
+        control.hidden =
+          control.dataset.settingRequires === 'text'
+            ? !hasSettingsText
+            : !hasSettingsLogo;
+      });
+      if ($('#editSettingsText')) {
+        $('#editSettingsText').textContent = hasSettingsText
+          ? 'Изменить надпись'
+          : 'Добавить надпись';
+      }
+      if ($('#editSettingsLogo')) {
+        $('#editSettingsLogo').textContent = hasSettingsLogo
+          ? 'Заменить логотип'
+          : 'Добавить логотип';
+      }
     }
   }
 
@@ -2307,9 +2325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `Лента ${state.width} мм · ${state.bundle === 'bundle' ? 'стикер Ø' + state.stickerSize + ' мм · ' : ''}шаг ${state.repeatMm} мм`;
     }
 
-    if ($('#orderRibbon')) $('#orderRibbon').textContent = `${state.width} мм · ${state.meters} м`;
-    if ($('#orderSticker')) $('#orderSticker').textContent = `Ø${state.stickerSize} мм · ${state.stickerQty} шт.`;
-    if ($('#orderRepeat')) $('#orderRepeat').textContent = state.repeatMm + ' мм';
     const price = calculatePrice();
     if ($('#totalPrice')) {
       $('#totalPrice').textContent = price.unavailable
@@ -2333,29 +2348,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function updateOrderProductControls() {
-    const hasRibbon = state.meters > 0;
-    const hasSticker = state.stickerQty > 0;
-    const noticeId = 'orderProductNotice';
-    const explanation = 'В заказе должен остаться хотя бы один продукт.';
-
-    const updateButton = (button, active, onlyActive) => {
-      if (!button) return;
-      button.textContent = active ? 'Убрать' : 'Добавить';
-      button.disabled = onlyActive;
-      if (onlyActive) {
-        button.title = explanation;
-        button.setAttribute('aria-describedby', noticeId);
-      } else {
-        button.removeAttribute('title');
-        button.removeAttribute('aria-describedby');
-      }
-    };
-
-    updateButton($('#toggleOrderRibbon'), hasRibbon, hasRibbon && !hasSticker);
-    updateButton($('#toggleOrderSticker'), hasSticker, hasSticker && !hasRibbon);
-
     if ($('#orderProductNotice')) {
-      $('#orderProductNotice').hidden = hasRibbon && hasSticker;
+      $('#orderProductNotice').hidden = true;
     }
   }
 
@@ -3463,8 +3457,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
-    if ($('#meters')) $('#meters').disabled = state.meters === 0;
-    if ($('#stickerQty')) $('#stickerQty').disabled = state.stickerQty === 0;
     if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
     if ($('#logoOffsetX')) {
       $('#logoOffsetX').min = ribbonSettings ? MIN_RIBBON_REPEAT_MM : -100;
@@ -3897,20 +3889,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  $('#toggleOrderRibbon').addEventListener('click', () => {
-    setProductSelection({
-      ribbon: state.meters === 0,
-      sticker: state.stickerQty > 0
-    });
-  });
-
-  $('#toggleOrderSticker').addEventListener('click', () => {
-    setProductSelection({
-      ribbon: state.meters > 0,
-      sticker: state.stickerQty === 0
-    });
-  });
-
   $$('#stickerSizeChoice button').forEach((button) =>
     button.addEventListener('click', () => {
       activate('#stickerSizeChoice', button);
@@ -4260,15 +4238,41 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#meters').addEventListener('input', (event) => {
-    state.meters = +event.target.value;
-    if (state.meters > 0) state.lastMeters = state.meters;
-    render();
+    const meters = +event.target.value;
+    if (
+      !setProductSelection({
+        ribbon: meters > 0,
+        sticker: state.stickerQty > 0,
+      })
+    ) {
+      syncControls();
+      $('#orderProductNotice').hidden = false;
+      return;
+    }
+    if (meters > 0) {
+      state.meters = meters;
+      state.lastMeters = meters;
+      render();
+    }
   });
 
   $('#stickerQty').addEventListener('input', (event) => {
-    state.stickerQty = +event.target.value;
-    if (state.stickerQty > 0) state.lastStickerQty = state.stickerQty;
-    render();
+    const stickerQty = +event.target.value;
+    if (
+      !setProductSelection({
+        ribbon: state.meters > 0,
+        sticker: stickerQty > 0,
+      })
+    ) {
+      syncControls();
+      $('#orderProductNotice').hidden = false;
+      return;
+    }
+    if (stickerQty > 0) {
+      state.stickerQty = stickerQty;
+      state.lastStickerQty = stickerQty;
+      render();
+    }
   });
 
   $('#logoScale').addEventListener('input', (event) => {
