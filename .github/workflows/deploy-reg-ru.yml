@@ -40,6 +40,8 @@ jobs:
         run: npm ci
 
       - name: Build public deployment artifact
+        env:
+          USE_ALTERNATIVE_HOMEPAGE: '1'
         run: npm run build:deploy
 
       - name: Save deployment artifact
@@ -141,7 +143,21 @@ jobs:
             exit 1
           fi
 
-          curl --fail --location --retry 3 "${PRODUCTION_URL}/" >/dev/null
+          deployed_homepage="$(
+            VERSION_JSON="${version_json}" node -e \
+              "process.stdout.write(JSON.parse(process.env.VERSION_JSON).homepage || '')"
+          )"
+          if [ "${deployed_homepage}" != "alternative" ]; then
+            echo "Expected alternative homepage, received ${deployed_homepage}" >&2
+            exit 1
+          fi
+
+          homepage_html="$(curl --fail --location --retry 3 "${PRODUCTION_URL}/")"
+          grep -q '<title>Печать лент и наклеек с логотипом — Печатает Максим</title>' <<<"${homepage_html}"
+          grep -q 'rel="canonical" href="https://xn--80aaarctnodv3agc9d.xn--p1ai/"' <<<"${homepage_html}"
+          grep -q 'name="robots" content="index,follow,max-image-preview:large"' <<<"${homepage_html}"
+          grep -q 'application/ld+json' <<<"${homepage_html}"
+
           curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/sitemap.xml" >/dev/null
