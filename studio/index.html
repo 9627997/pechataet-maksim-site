@@ -384,10 +384,10 @@
             Круглый · Ø40 мм
           </button>
           <button type="button" data-variant="roundrect-80x20" data-enabled="true">
-            Прямоугольный · 80 × 20 мм
+            Прямоугольный · 80 × 20 мм · радиус 2 мм
           </button>
         </div>
-        <p class="field-hint" id="stickerVariantHint">Форму можно выбрать до настройки текста и логотипа. Crop и трассировка работают одинаково для обоих вариантов.</p>
+        <p class="field-hint" id="stickerVariantHint">Выберите форму до настройки текста и логотипа. Прямоугольник — 80 × 20 мм с радиусом скругления 2 мм. Crop и трассировка работают одинаково для обоих вариантов.</p>
         <label id="stickerSizeLabelControl">Размер круглого стикера</label>
         <div class="segmented" id="stickerSizeChoice">
           <button data-value="25" type="button">25 мм</button>
@@ -681,16 +681,16 @@
       <button class="close" id="closeOrder" type="button" aria-label="Закрыть заявку">×</button>
     </div>
     <div class="summary" id="orderSummary"></div>
-    <label for="customerName">Имя</label><input class="input" id="customerName" name="customerName" autocomplete="name" maxlength="120" placeholder="Как к вам обращаться" required>
+    <label for="customerName">Имя <span aria-hidden="true">*</span></label><input class="input" id="customerName" name="customerName" autocomplete="name" maxlength="120" placeholder="Как к вам обращаться" required>
     <fieldset class="contact-preference">
-      <legend>Как с вами удобнее связаться?</legend>
+      <legend>Куда удобнее отправить ответ? <span aria-hidden="true">*</span></legend>
       <label class="contact-preference-option"><input type="radio" name="preferredContact" value="phone"> Позвонить</label>
       <label class="contact-preference-option"><input type="radio" name="preferredContact" value="telegram"> Написать в Telegram</label>
     </fieldset>
     <div class="contact-field" id="customerPhoneField" hidden><label for="customerPhone">Ваш телефон</label><input class="input" id="customerPhone" name="customerPhone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="+7"></div>
     <div class="contact-field" id="customerTelegramField" hidden><label for="customerTelegram">Ваш Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" maxlength="80" placeholder="@username"></div>
     <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" maxlength="2000" placeholder="Срок, доставка, пожелания"></textarea>
-    <p class="order-form-help">Достаточно одного удобного контакта. После отправки вы получите номер заявки, а Максим свяжется с вами выбранным способом.</p>
+    <p class="order-form-help">Укажите имя и один контакт. После отправки вы получите номер заявки, а Максим свяжется с вами выбранным способом.</p>
     <p class="order-form-status" id="orderFormStatus" role="status" aria-live="polite"></p>
     <button class="button primary wide" id="submitOrder" type="submit">Отправить заявку</button>
     <button class="button ghost wide order-copy" id="downloadOrderCopy" type="button">Скачать копию</button>
@@ -741,11 +741,11 @@
 </div>
 
 <script src="assets/js/geometry.js?v=292b714a06bb"></script>
-<script src="assets/js/layout.js?v=dc87d5926c11"></script>
+<script src="assets/js/layout.js?v=4215d38e86d4"></script>
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=3c7b3f126b8a"></script>
+<script src="assets/js/app.js?v=e4f4f9f70e89"></script>
 <script src="assets/js/mobile-products.js?v=293366e6b035"></script>
 </body>
 </html>
