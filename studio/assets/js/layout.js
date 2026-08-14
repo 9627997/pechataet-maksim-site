@@ -175,6 +175,7 @@
   }
 
   function getStickerContentLayout({
+    stickerArea,
     circle,
     logo,
     text,
@@ -189,101 +190,110 @@
     textScale = 1,
   }) {
     const geometry = window.RibbonStudioGeometry;
+    const area = stickerArea || {
+      shape: 'circle',
+      circle,
+      bounds: null,
+    };
+    const isCircle = area.shape === 'circle';
+    const contentBounds = isCircle
+      ? {
+          x: area.circle.cx - area.circle.radius * 0.86,
+          y: area.circle.cy - area.circle.radius * 0.86,
+          width: area.circle.radius * 1.72,
+          height: area.circle.radius * 1.72,
+        }
+      : area.bounds;
+    const centerX = isCircle ? area.circle.cx : area.bounds.x + area.bounds.width / 2;
+    const centerY = isCircle ? area.circle.cy : area.bounds.y + area.bounds.height / 2;
     const hasLogo = Boolean(logo);
     const hasText = Boolean(text);
     let logoBox = null;
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
+    const source = logo?.ratio >= 1
+      ? {x: 0, y: 0, width: logo.ratio, height: 1}
+      : {x: 0, y: 0, width: 1, height: 1 / (logo?.ratio || 1)};
+    const fitText = () => isCircle
+      ? fitTextToCircle({text, metrics: textMetrics, circle: area.circle, requestedScale: textScale})
+      : fitTextToArea({
+          text,
+          metrics: textMetrics,
+          preferredSize: preferredFontSize,
+          maxWidth: contentBounds.width,
+          maxHeight: contentBounds.height,
+          centerX,
+          centerY,
+        });
 
     if (hasLogo && hasText && manualLayout) {
-      const source = logo.ratio >= 1
-        ? {x: 0, y: 0, width: logo.ratio, height: 1}
-        : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
-      logoBox = geometry.fitRectToCircle(source, circle, logoScale, 0);
-      textResult = fitTextToCircle({
-        text,
-        metrics: textMetrics,
-        circle,
-        requestedScale: textScale,
-      });
+      logoBox = geometry.fitRectToSticker(source, area, logoScale);
+      textResult = fitText();
     } else if (hasLogo && hasText) {
-      const maxContentWidth = circle.radius * 1.72;
-      const maxLogoHeight = circle.radius * 0.64;
-      const maxTextHeight = circle.radius * 0.28;
-      const gap = circle.radius * 0.06;
-      const source = logo.ratio >= 1
-        ? {x: 0, y: 0, width: logo.ratio, height: 1}
-        : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
+      const maxContentWidth = isCircle
+        ? area.circle.radius * 1.72
+        : contentBounds.width * 0.88;
+      const maxLogoHeight = isCircle
+        ? area.circle.radius * 0.64
+        : contentBounds.height * 0.58;
+      const maxTextHeight = isCircle
+        ? area.circle.radius * 0.28
+        : contentBounds.height * 0.30;
+      const gap = isCircle ? area.circle.radius * 0.06 : contentBounds.height * 0.08;
       logoBox = geometry.fitRectToBounds(
         source,
         {
-          x: circle.cx - maxContentWidth / 2,
-          y: circle.cy - maxLogoHeight / 2,
+          x: centerX - maxContentWidth / 2,
+          y: centerY - maxLogoHeight / 2,
           width: maxContentWidth,
           height: maxLogoHeight,
         },
         logoScale,
       );
-      textResult = fitTextToArea({
-        text,
-        metrics: textMetrics,
-        preferredSize: preferredFontSize,
-        maxWidth: maxContentWidth,
-        maxHeight: maxTextHeight,
-        centerX: circle.cx,
-        centerY: circle.cy,
-      });
+      textResult = isCircle
+        ? fitTextToArea({
+            text,
+            metrics: textMetrics,
+            preferredSize: preferredFontSize,
+            maxWidth: maxContentWidth,
+            maxHeight: maxTextHeight,
+            centerX,
+            centerY,
+          })
+        : fitTextToArea({
+            text,
+            metrics: textMetrics,
+            preferredSize: preferredFontSize,
+            maxWidth: maxContentWidth,
+            maxHeight: maxTextHeight,
+            centerX,
+            centerY,
+          });
       const textHeight = textResult.height || 0;
       const stackHeight = logoBox.height + gap + textHeight;
-      const stackTop = circle.cy - stackHeight / 2;
-      logoBox = {
-        ...logoBox,
-        x: circle.cx - logoBox.width / 2,
-        y: stackTop,
-      };
+      const stackTop = centerY - stackHeight / 2;
+      logoBox = {...logoBox, x: centerX - logoBox.width / 2, y: stackTop};
       if (textResult.bbox) {
         textResult.bbox = {
           ...textResult.bbox,
-          x: circle.cx - textResult.bbox.width / 2,
+          x: centerX - textResult.bbox.width / 2,
           y: stackTop + logoBox.height + gap,
         };
       }
     } else if (hasLogo) {
-      const source = logo.ratio >= 1
-        ? {x: 0, y: 0, width: logo.ratio, height: 1}
-        : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
-      logoBox = geometry.fitRectToCircle(source, circle, logoScale, 0);
+      logoBox = geometry.fitRectToSticker(source, area, logoScale);
     } else if (hasText) {
-      textResult = fitTextToCircle({
-        text,
-        metrics: textMetrics,
-        circle,
-        requestedScale: textScale,
-      });
+      textResult = fitText();
     }
-
 
     if (manualLayout && logoBox) {
-      logoBox = geometry.clampRectOffsetToCircle(
-        logoBox,
-        circle,
-        logoOffsetX,
-        logoOffsetY,
-      );
+      logoBox = geometry.clampRectOffsetToSticker(logoBox, area, logoOffsetX, logoOffsetY);
     }
     if (manualLayout && textResult.bbox) {
-      textResult.bbox = geometry.clampRectOffsetToCircle(
-        textResult.bbox,
-        circle,
-        textOffsetX,
-        textOffsetY,
-      );
+      textResult.bbox = geometry.clampRectOffsetToSticker(textResult.bbox, area, textOffsetX, textOffsetY);
     }
 
-    const logoFits =
-      !logoBox || geometry.areRectCornersInsideCircle(logoBox, circle, 0);
-    const textFits =
-      !textResult.bbox ||
-      geometry.areRectCornersInsideCircle(textResult.bbox, circle, 0);
+    const logoFits = !logoBox || geometry.areRectCornersInsideSticker(logoBox, area);
+    const textFits = !textResult.bbox || geometry.areRectCornersInsideSticker(textResult.bbox, area);
     const valid = textResult.fits && logoFits && textFits;
     return {
       valid,
@@ -291,7 +301,8 @@
         textResult.reason ||
         (!logoFits ? 'logo-outside-printable-area' : undefined) ||
         (!textFits ? 'text-outside-printable-area' : undefined),
-      circle,
+      circle: area.circle,
+      stickerArea: area,
       logoBox: logoFits ? logoBox : null,
       textBox: textResult.fits && textFits ? textResult.bbox : null,
       fontSize: textResult.fontSize,

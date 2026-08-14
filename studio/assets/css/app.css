@@ -46,6 +46,10 @@ textarea.input{min-height:100px;resize:vertical}
 .segmented{display:flex;background:#eeeae3;padding:3px;border-radius:12px;gap:3px}
 .segmented button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 7px;font-size:12px;cursor:pointer}
 .segmented button.active{background:#fff;box-shadow:0 2px 9px rgba(0,0,0,.08);font-weight:800}
+.sticker-variant-choice button{display:flex;align-items:center;justify-content:center;gap:6px;line-height:1.25}
+.sticker-variant-choice button small{font-size:10px;color:#8d857c;font-weight:700}
+.sticker-variant-choice button:disabled{cursor:not-allowed;opacity:.58}
+.field-hint{display:block;margin:-5px 0 12px;color:#8d857c;font-size:11px;line-height:1.45}
 .swatches{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .swatch{aspect-ratio:1;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
 .swatch.active{box-shadow:0 0 0 3px #171717}
@@ -64,7 +68,7 @@ textarea.input{min-height:100px;resize:vertical}
 .recommendation strong{font-size:12px}.recommendation p{font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0}
 .order-product-notice{margin:7px 0 0;color:var(--muted);font-size:10px;line-height:1.4}
 .order-product-notice[hidden]{display:none}
-[data-setting-requires][hidden]{display:none!important}
+[data-setting-requires][hidden],.segmented[hidden],label[hidden],.field-hint[hidden]{display:none!important}
 .total{display:flex;justify-content:space-between;align-items:flex-end;margin-top:15px;padding-top:15px;border-top:1px solid var(--line)}
 .total span{font-size:11px;color:var(--muted)}.total strong{font-size:24px}
 .studio{min-width:0;padding:26px;display:flex;flex-direction:column}
@@ -432,6 +436,8 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .sticker-paper{width:250px;height:250px;border-radius:50%;background:#fff;box-shadow:
  0 28px 32px rgba(54,42,30,.28),0 3px 3px rgba(0,0,0,.12),inset 0 2px 4px rgba(255,255,255,.9);position:relative}
 .sticker-paper:after{content:"";position:absolute;inset:4px;border-radius:50%;background:linear-gradient(145deg,rgba(255,255,255,.42),transparent 45%);pointer-events:none}
+.sticker-paper[data-shape="roundrect"]{width:300px;height:112px;border-radius:16px}
+.sticker-paper[data-shape="roundrect"]:after{border-radius:12px}
 #stickerSvg{width:100%;height:100%}
 .macro-stage{position:absolute;inset:0;display:grid;place-items:center;background:
  radial-gradient(circle at 30% 20%,rgba(255,255,255,.85),transparent 36%),
