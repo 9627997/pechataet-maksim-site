@@ -643,7 +643,7 @@
             shape: 'roundrect',
             widthMm: stickerWidthMm,
             heightMm: stickerHeightMm,
-            cornerRadiusMm: 4,
+            cornerRadiusMm: 2,
             x: 0,
             y: 0,
             width: mobileStickerWidth,
@@ -656,9 +656,17 @@
             radius: stickerSize / 2,
           });
       if (isRoundRect) {
+        const cornerRadiusPx = Math.min(
+          mobileStickerHeight / 2,
+          (2 / stickerHeightMm) * mobileStickerHeight,
+        );
+        stickerSurface.style.aspectRatio = `${stickerWidthMm} / ${stickerHeightMm}`;
+        stickerSurface.style.borderRadius = `${cornerRadiusPx}px`;
         stickerGuide.style.inset = '6% 5%';
-        stickerGuide.style.borderRadius = '10px';
+        stickerGuide.style.borderRadius = `${Math.max(0, cornerRadiusPx - 4)}px`;
       } else {
+        stickerSurface.style.aspectRatio = '1';
+        stickerSurface.style.borderRadius = '50%';
         const stickerInset =
           ((stickerSize / 2 - stickerGeometry.circle.radius) / stickerSize) * 100;
         stickerGuide.style.inset = `${stickerInset}%`;
