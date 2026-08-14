@@ -127,14 +127,18 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
   );
 });
 
-test('landing page exposes the verified project phone @smoke', async ({page}) => {
-  await page.goto('/', {waitUntil: 'networkidle'});
+test('landing page exposes the verified project phone @smoke', async ({
+  page,
+}) => {
+  await page.goto('/', { waitUntil: 'networkidle' });
   const phoneLinks = page.locator('a[href="tel:+79129008011"]');
   await expect(phoneLinks).toHaveCount(3);
   await expect(phoneLinks.first()).toContainText('+7 912 900-80-11');
 
   const organizationPhone = await page.evaluate(() => {
-    const scripts = [...document.querySelectorAll('script[type="application/ld+json"]')];
+    const scripts = [
+      ...document.querySelectorAll('script[type="application/ld+json"]'),
+    ];
     const nodes = scripts.flatMap((script) => {
       const value = JSON.parse(script.textContent || '{}');
       return Array.isArray(value['@graph']) ? value['@graph'] : [value];
@@ -155,11 +159,11 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   await expect(page.locator('#region')).toContainText('ХМАО');
   await expectNoHorizontalOverflow(page);
 
-  const studioLinks = page.locator('a[href="/studio/"]');
+  const studioLinks = page.locator('a[href^="/studio/"]');
   await expect(studioLinks).toHaveCount(5);
   await expect(
     page.getByRole('link', { name: 'Создать макет онлайн' }),
-  ).toHaveAttribute('href', '/studio/');
+  ).toHaveAttribute('href', '/studio/?product=choose');
   await expect(page.locator('#contact')).toContainText(
     'Заявка и макеты сохраняются в защищённом архиве.',
   );

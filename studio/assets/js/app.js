@@ -5162,9 +5162,9 @@ document.addEventListener('DOMContentLoaded', () => {
     state.meters = 0;
     state.stickerQty = 0;
     state.bundle = 'ribbon';
-  } else {
-    // Legacy direct links and product=set must not inherit a previous
-    // product-first draft from LocalStorage.
+  } else if (state.productFirstMode) {
+    // A plain legacy route must not inherit a product-first draft. Preserve
+    // genuine legacy ribbon-only/sticker-only LocalStorage projects.
     state.productFirstMode = false;
     state.primaryProduct = null;
     state.meters = state.lastMeters || 100;

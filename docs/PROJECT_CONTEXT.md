@@ -100,7 +100,7 @@ Production-скрипты Studio подключаются как обычные 
 
 Главная страница использует `product=choose` для общих CTA комплекта и `product=ribbon|sticker` для продуктовых CTA. В product-first режиме пользователь редактирует одно выбранное изделие, а второй продукт добавляет только на шаге 03 «Получить». `state.primaryProduct` хранит основное изделие, `state.productFirstMode` — режим нового пути. Legacy direct `/studio/` сохраняет прежнее поведение для совместимости старых deep links и regression suite.
 
-На шаге 03 «Получить» используется frontend-представление `orderItems[]`: лента и стикер становятся независимыми позициями одного заказа. Payload сохраняет старые `products.ribbon`/`products.sticker` поля и добавляет `orderSchemaVersion: 2`, `primaryProduct` и `orderItems` для постепенной миграции PHP endpoint. Текст и логотип при добавлении второго продукта переиспользуются как стартовый источник, но существующая модель продолжает хранить продуктовые overrides.
+На шаге 03 «Получить» используется frontend-представление `orderItems[]`: лента и стикер становятся независимыми позициями одного заказа. Payload сохраняет старые `products.ribbon`/`products.sticker` поля и добавляет `orderSchemaVersion: 2`, `primaryProduct` и `orderItems` для постепенной миграции PHP endpoint. Текст и логотип при добавлении второго продукта переиспользуются как стартовый источник, но существующая модель продолжает хранить продуктовые overrides. Query `product=ribbon|sticker|choose` имеет приоритет над сохранённым product-first draft; legacy `/studio/` и `product=set` возвращают совместимое bundle-поведение.
 
 ## Пользовательский сценарий Studio
 
