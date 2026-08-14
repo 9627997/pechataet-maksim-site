@@ -29,6 +29,17 @@ const bootStudio = () => {
   const MAX_COMMON_TEXT_LENGTH = 60;
   const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
   const STICKER_VARIANTS = Object.freeze({
+    'circle-24': Object.freeze({
+      id: 'circle-24',
+      shape: 'circle',
+      label: 'Круглый стикер',
+      displaySize: 'Ø24 мм',
+      widthMm: 24,
+      heightMm: 24,
+      diameterMm: 24,
+      cornerRadiusMm: null,
+      enabled: true,
+    }),
     'circle-25': Object.freeze({
       id: 'circle-25',
       shape: 'circle',
@@ -90,7 +101,7 @@ const bootStudio = () => {
     STICKER_VARIANTS[variantId] || STICKER_VARIANTS[DEFAULT_STICKER_VARIANT_ID];
   const getStickerVariantIdFromLegacyState = (value) => {
     const diameter = Number(value);
-    return [25, 30, 40, 50].includes(diameter)
+    return [24, 25, 30, 40, 50].includes(diameter)
       ? `circle-${diameter}`
       : DEFAULT_STICKER_VARIANT_ID;
   };
@@ -2014,6 +2025,7 @@ const bootStudio = () => {
     });
     renderStickerFrame(printable, state.stickerBg);
     const stickerPreferred = {
+      24: {combined: 27, textOnly: 33},
       25: {combined: 28, textOnly: 34},
       30: {combined: 30, textOnly: 38},
       40: {combined: 32, textOnly: 44},
@@ -2143,7 +2155,7 @@ const bootStudio = () => {
     if (variant.id === 'roundrect-80x20') {
       return {requiresIndividualCalculation: true};
     }
-    if (variant.id === 'circle-25') {
+    if (variant.id === 'circle-24' || variant.id === 'circle-25') {
       return {requiresIndividualCalculation: true};
     }
     return {
@@ -2491,7 +2503,7 @@ const bootStudio = () => {
 
   function getStickerScale() {
     return getStickerVariant(state.stickerVariantId).shape === 'circle'
-      ? ({25: 0.625, 30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1)
+      ? ({24: 0.60, 25: 0.625, 30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1)
       : 1;
   }
 
@@ -2693,6 +2705,33 @@ const bootStudio = () => {
     const layoutHelp = $('#layoutModeHelp');
     if (fontLabel && state.productFirstMode) fontLabel.textContent = 'Размер текста';
     if (layoutHelp && state.productFirstMode) layoutHelp.textContent = `Studio автоматически компонует ${productName}`;
+    syncStickerProductPicker();
+  }
+
+  function syncStickerProductPicker() {
+    const picker = $('#stickerProductPicker');
+    if (!picker) return;
+    const visible = state.productFirstMode && state.primaryProduct === 'sticker' && state.panel === 'upload';
+    picker.hidden = !visible;
+    const activeVariant = getStickerVariant(state.stickerVariantId);
+    $$('#stickerProductPicker [data-sticker-option]').forEach((option) => {
+      const selected = option.dataset.stickerOption === activeVariant.id &&
+        (option.dataset.stickerBg || '#ffffff') === (state.stickerBg || '#ffffff');
+      option.classList.toggle('active', selected);
+      option.setAttribute('aria-pressed', String(selected));
+    });
+  }
+
+  function selectStickerProductOption(option) {
+    const variant = getStickerVariant(option.dataset.stickerOption);
+    state.activeContentProduct = 'sticker';
+    state.activeSettingsProduct = 'sticker';
+    state.stickerVariantId = variant.id;
+    state.stickerSize = variant.diameterMm || 40;
+    state.stickerBg = option.dataset.stickerBg || '#ffffff';
+    syncControls();
+    syncProductFirstShell();
+    render();
   }
 
   function syncProductFirstShell() {
@@ -4386,6 +4425,10 @@ const bootStudio = () => {
     })
   );
 
+  $$('#stickerProductPicker [data-sticker-option]').forEach((button) =>
+    button.addEventListener('click', () => selectStickerProductOption(button))
+  );
+
   document.addEventListener('studio:logo-upload-target-set', (event) => {
     setPendingLogoTarget(event.detail?.target);
   });
@@ -4651,6 +4694,7 @@ const bootStudio = () => {
     if (product === 'sticker' && layout?.fontSize) {
       const variant = getStickerVariant(state.stickerVariantId);
       const preferred = {
+        24: {combined: 27, textOnly: 33},
         25: {combined: 28, textOnly: 34},
         30: {combined: 30, textOnly: 38},
         40: {combined: 32, textOnly: 44},
