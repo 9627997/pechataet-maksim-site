@@ -361,13 +361,12 @@
           <button class="active" type="button" data-variant="circle-40" data-enabled="true">
             Круглый · Ø40 мм
           </button>
-          <button type="button" data-variant="roundrect-80x20" data-enabled="false" disabled aria-disabled="true">
+          <button type="button" data-variant="roundrect-80x20" data-enabled="true">
             Прямоугольный · 80 × 20 мм
-            <small>Скоро</small>
           </button>
         </div>
-        <p class="field-hint" id="stickerVariantHint">Сейчас доступен круглый стикер. Прямоугольная форма добавляется отдельным этапом после проверки геометрии и предпросмотра.</p>
-        <label>Размер круглого стикера</label>
+        <p class="field-hint" id="stickerVariantHint">Форму можно выбрать до настройки текста и логотипа. Crop и трассировка работают одинаково для обоих вариантов.</p>
+        <label id="stickerSizeLabelControl">Размер круглого стикера</label>
         <div class="segmented" id="stickerSizeChoice">
           <button data-value="25" type="button">25 мм</button>
           <button data-value="30" type="button">30 мм</button>
@@ -586,12 +585,9 @@
           <div class="sticker-mockup" id="stickerArea">
             <div class="sticker-paper">
               <svg id="stickerSvg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-                <circle id="stickerBg" cx="200" cy="200" r="178" fill="#fff"/>
-                <circle cx="200" cy="200" r="178" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="3"/>
+                <g id="stickerFrame" data-print-content></g>
                 <g id="stickerContent" data-print-content></g>
-                <g id="stickerPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none">
-                  <circle cx="200" cy="200" r="150"/>
-                </g>
+                <g id="stickerPrintableGuide" data-preview-overlay aria-hidden="true" pointer-events="none"></g>
               </svg>
             </div>
             <div class="sticker-size" id="stickerSizeLabel">Ø40 мм</div>

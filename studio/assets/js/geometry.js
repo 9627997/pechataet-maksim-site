@@ -52,6 +52,97 @@
     };
   }
 
+  function getStickerGeometry({
+    shape = 'circle',
+    widthMm,
+    heightMm,
+    diameterMm,
+    cornerRadiusMm = 0,
+    x = 22,
+    y = 22,
+    width = 356,
+    height = 356,
+  }) {
+    const isCircle = shape === 'circle';
+    const physicalWidth = Number(widthMm || diameterMm || 40);
+    const physicalHeight = Number(heightMm || diameterMm || physicalWidth);
+    if (isCircle) {
+      const radius = Math.min(width, height) / 2;
+      const cx = x + width / 2;
+      const cy = y + height / 2;
+      const circle = getStickerPrintableGeometry({
+        diameterMm: physicalWidth,
+        cx,
+        cy,
+        radius,
+      }).circle;
+      return {
+        shape: 'circle',
+        widthMm: physicalWidth,
+        heightMm: physicalHeight,
+        outer: {x, y, width, height},
+        bounds: null,
+        circle,
+        radius,
+      };
+    }
+
+    const scale = Math.min(width / physicalWidth, height / physicalHeight);
+    const shapeWidth = physicalWidth * scale;
+    const shapeHeight = physicalHeight * scale;
+    const shapeX = x + (width - shapeWidth) / 2;
+    const shapeY = y + (height - shapeHeight) / 2;
+    const unitsPerMmX = scale;
+    const unitsPerMmY = scale;
+    const marginX = PRINT_MARGIN_MM * unitsPerMmX;
+    const marginY = PRINT_MARGIN_MM * unitsPerMmY;
+    const printableWidth = Math.max(0, shapeWidth - 2 * marginX);
+    const printableHeight = Math.max(0, shapeHeight - 2 * marginY);
+    const printableRadius = Math.min(
+      printableWidth / 2,
+      printableHeight / 2,
+      Number(cornerRadiusMm || 0) * Math.min(unitsPerMmX, unitsPerMmY),
+    );
+    return {
+      shape: 'roundrect',
+      widthMm: physicalWidth,
+      heightMm: physicalHeight,
+      outer: {x: shapeX, y: shapeY, width: shapeWidth, height: shapeHeight},
+      bounds: {
+        x: shapeX + marginX,
+        y: shapeY + marginY,
+        width: printableWidth,
+        height: printableHeight,
+        radius: printableRadius,
+      },
+      circle: null,
+      radius: null,
+    };
+  }
+
+  function fitRectToSticker(rect, sticker, requestedScale = 1) {
+    if (sticker?.shape === 'circle') return fitRectToCircle(rect, sticker.circle, requestedScale, 0);
+    return fitRectToBounds(rect, sticker.bounds, requestedScale);
+  }
+
+  function clampRectOffsetToSticker(rect, sticker, offsetX = 0, offsetY = 0) {
+    if (sticker?.shape === 'circle') return clampRectOffsetToCircle(rect, sticker.circle, offsetX, offsetY);
+    return clampRectOffsetToBounds(rect, sticker.bounds, offsetX, offsetY);
+  }
+
+  function areRectCornersInsideSticker(rect, sticker) {
+    if (sticker?.shape === 'circle') return areRectCornersInsideCircle(rect, sticker.circle, 0);
+    const bounds = sticker?.bounds;
+    if (!bounds) return false;
+    const corners = rectCorners(rect, 0);
+    return corners.every((corner) =>
+      corner.x >= bounds.x - EPSILON &&
+      corner.x <= bounds.x + bounds.width + EPSILON &&
+      corner.y >= bounds.y - EPSILON &&
+      corner.y <= bounds.y + bounds.height + EPSILON,
+    );
+  }
+
   function rectCorners(rect, rotationDeg = 0) {
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
@@ -178,11 +269,15 @@
     PRINT_MARGIN_MM,
     getRibbonPrintableGeometry,
     getStickerPrintableGeometry,
+    getStickerGeometry,
     fitRectToBounds,
     fitRectToCircle,
     areRectCornersInsideCircle,
     clampRectOffsetToBounds,
     clampRectOffsetToCircle,
+    fitRectToSticker,
+    clampRectOffsetToSticker,
+    areRectCornersInsideSticker,
     serializeProductionSvg,
   });
 })();

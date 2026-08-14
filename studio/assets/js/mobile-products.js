@@ -500,10 +500,11 @@
       const ribbonWidth =
         Number(document.querySelector('#widthChoice button.active')?.dataset.value) ||
         15;
-      const stickerSize =
-        Number(
-          document.querySelector('#stickerSizeChoice button.active')?.dataset.value,
-        ) || 40;
+      const stickerShape = document.body.dataset.stickerShape || 'circle';
+      const stickerWidthMm = Number(document.body.dataset.stickerWidthMm) || 40;
+      const stickerHeightMm = Number(document.body.dataset.stickerHeightMm) || stickerWidthMm;
+      const stickerDisplaySize = document.body.dataset.stickerDisplaySize || `Ø${stickerWidthMm} мм`;
+      const stickerSize = stickerWidthMm;
       const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
@@ -626,31 +627,49 @@
         `${(ribbonGeometry.bounds.y / ribbonWidth) * 100}%`;
       ribbonGuide.style.bottom =
         `${(ribbonGeometry.bounds.y / ribbonWidth) * 100}%`;
-      stickerSurface.style.width = `${stickerSize * 2.5}px`;
-      panel.style.setProperty(
-        '--mobile-products-sticker-size',
-        `${Math.min(104, Math.max(88, stickerSize * 2.5))}px`,
-      );
-      panel.style.setProperty(
-        '--mobile-products-sticker-size-expanded',
-        `${Math.min(132, Math.max(104, stickerSize * 3))}px`,
-      );
-      const stickerGeometry =
-        window.RibbonStudioGeometry.getStickerPrintableGeometry({
-          diameterMm: stickerSize,
-          cx: stickerSize / 2,
-          cy: stickerSize / 2,
-          radius: stickerSize / 2,
-        });
-      const stickerInset =
-        ((stickerSize / 2 - stickerGeometry.circle.radius) / stickerSize) * 100;
-      stickerGuide.style.inset = `${stickerInset}%`;
+      const isRoundRect = stickerShape === 'roundrect';
+      const mobileStickerWidth = isRoundRect
+        ? Math.min(168, Math.max(132, stickerWidthMm * 2.1))
+        : Math.min(104, Math.max(88, stickerSize * 2.5));
+      const mobileStickerHeight = isRoundRect
+        ? Math.max(42, mobileStickerWidth * (stickerHeightMm / stickerWidthMm))
+        : mobileStickerWidth;
+      stickerSurface.style.width = `${mobileStickerWidth}px`;
+      stickerSurface.style.height = `${mobileStickerHeight}px`;
+      panel.style.setProperty('--mobile-products-sticker-size', `${mobileStickerWidth}px`);
+      panel.style.setProperty('--mobile-products-sticker-size-expanded', `${Math.max(mobileStickerWidth, mobileStickerHeight) * 1.25}px`);
+      const stickerGeometry = isRoundRect
+        ? window.RibbonStudioGeometry.getStickerGeometry({
+            shape: 'roundrect',
+            widthMm: stickerWidthMm,
+            heightMm: stickerHeightMm,
+            cornerRadiusMm: 4,
+            x: 0,
+            y: 0,
+            width: mobileStickerWidth,
+            height: mobileStickerHeight,
+          })
+        : window.RibbonStudioGeometry.getStickerPrintableGeometry({
+            diameterMm: stickerSize,
+            cx: stickerSize / 2,
+            cy: stickerSize / 2,
+            radius: stickerSize / 2,
+          });
+      if (isRoundRect) {
+        stickerGuide.style.inset = '6% 5%';
+        stickerGuide.style.borderRadius = '10px';
+      } else {
+        const stickerInset =
+          ((stickerSize / 2 - stickerGeometry.circle.radius) / stickerSize) * 100;
+        stickerGuide.style.inset = `${stickerInset}%`;
+        stickerGuide.style.borderRadius = '50%';
+      }
       panel.querySelector(
         '[data-mobile-product-sample="ribbon"] .mobile-products-sample-label',
       ).textContent = `Лента ${ribbonWidth} мм`;
       panel.querySelector(
         '[data-mobile-product-sample="sticker"] .mobile-products-sample-label',
-      ).textContent = `Стикер ${stickerSize} мм`;
+      ).textContent = `Стикер ${stickerDisplaySize.replace(/^Ø/, '')}`;
       const applyLayout = (surface, logoPart, textPart, layout) => {
         if (!layout) return;
         const sticker = surface === stickerSurface;

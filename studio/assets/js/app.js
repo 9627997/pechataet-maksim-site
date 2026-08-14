@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const {
     getRibbonPrintableGeometry,
     getStickerPrintableGeometry,
+    getStickerGeometry,
     fitRectToCircle,
   } = window.RibbonStudioGeometry;
   const {
@@ -26,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const REPEAT_ROUNDING_MM = 5;
   const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
-  const ENABLE_ADDITIONAL_STICKER_SHAPES = false;
+  const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
   const STICKER_VARIANTS = Object.freeze({
     'circle-25': Object.freeze({
       id: 'circle-25',
@@ -1713,6 +1714,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return layout;
   }
 
+  function renderStickerFrame(geometry, backgroundColor) {
+    const frame = $('#stickerFrame');
+    const guide = $('#stickerPrintableGuide');
+    const paper = document.querySelector('.sticker-paper');
+    if (!frame || !guide) return;
+    if (paper) paper.dataset.shape = geometry.shape;
+    frame.innerHTML = '';
+    guide.innerHTML = '';
+    const shape = geometry.shape === 'circle' ? 'circle' : 'rect';
+    const createShape = (target, printable = false) => {
+      const element = svgEl(shape);
+      if (shape === 'circle') {
+        const circle = printable ? geometry.circle : {
+          cx: geometry.outer.x + geometry.outer.width / 2,
+          cy: geometry.outer.y + geometry.outer.height / 2,
+          radius: geometry.radius,
+        };
+        element.setAttribute('cx', circle.cx);
+        element.setAttribute('cy', circle.cy);
+        element.setAttribute('r', printable ? circle.radius : circle.radius);
+      } else {
+        const bounds = printable ? geometry.bounds : geometry.outer;
+        element.setAttribute('x', bounds.x);
+        element.setAttribute('y', bounds.y);
+        element.setAttribute('width', bounds.width);
+        element.setAttribute('height', bounds.height);
+        element.setAttribute('rx', printable ? bounds.radius : Math.min(geometry.outer.height * 0.18, 18));
+      }
+      target.appendChild(element);
+      return element;
+    };
+    const base = createShape(frame);
+    base.setAttribute('id', 'stickerBg');
+    base.setAttribute('fill', backgroundColor || '#fff');
+    const edge = createShape(frame);
+    edge.setAttribute('fill', 'none');
+    edge.setAttribute('stroke', 'rgba(0,0,0,.10)');
+    edge.setAttribute('stroke-width', '3');
+    const safe = createShape(guide, true);
+    safe.setAttribute('data-preview-overlay', '');
+  }
+
   function renderRibbon() {
     const resolvedLogo = getResolvedLogo('ribbon');
     const previewLogo = getPreviewLogo('ribbon');
@@ -1871,7 +1914,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderSticker() {
     const style = getProductStyle('sticker');
-    if ($('#stickerBg')) $('#stickerBg').setAttribute('fill', state.stickerBg);
 
     const layer = $('#stickerContent');
     if (!layer) return;
@@ -1884,14 +1926,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const resolvedText = getResolvedText('sticker');
     const previewTextValue = getPreviewText('sticker');
     const hasText = Boolean(resolvedText.trim());
-    const printable = getStickerPrintableGeometry({
-      diameterMm: state.stickerSize,
-      cx: 200,
-      cy: 200,
-      radius: 178,
+    const variant = getStickerVariant(state.stickerVariantId);
+    const printable = getStickerGeometry({
+      shape: variant.shape,
+      widthMm: variant.widthMm,
+      heightMm: variant.heightMm,
+      diameterMm: variant.diameterMm,
+      cornerRadiusMm: variant.cornerRadiusMm,
+      x: 22,
+      y: 22,
+      width: 356,
+      height: 356,
     });
-    const guideCircle = $('#stickerPrintableGuide circle');
-    if (guideCircle) guideCircle.setAttribute('r', printable.circle.radius);
+    renderStickerFrame(printable, state.stickerBg);
     const stickerPreferred = {
       25: {combined: 28, textOnly: 34},
       30: {combined: 30, textOnly: 38},
@@ -1907,6 +1954,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasLogo = Boolean(logo?.logo);
       const layoutHasText = Boolean(textValue.trim());
       return getStickerContentLayout({
+        stickerArea: printable,
         circle: printable.circle,
         logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
         text: layoutHasText ? textValue : '',
@@ -1986,8 +2034,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if ($('#stickerSizeLabel')) {
-      $('#stickerSizeLabel').textContent = `Ø${state.stickerSize} мм`;
+      $('#stickerSizeLabel').textContent = variant.displaySize;
     }
+  }
+
+  function getStickerPricing() {
+    const variant = getStickerVariant(state.stickerVariantId);
+    if (variant.id === 'roundrect-80x20') {
+      return {requiresIndividualCalculation: true};
+    }
+    if (variant.id === 'circle-25') {
+      return {requiresIndividualCalculation: true};
+    }
+    return {
+      requiresIndividualCalculation: false,
+      byQuantity: {50: 450, 100: 700, 250: 1350, 500: 2200},
+    };
+  }
+
+  function getStickerOrderLabel() {
+    return `Стикер ${getStickerVariant(state.stickerVariantId).displaySize}`;
+  }
+
+  function getStickerOrderLabelPlural() {
+    return `Стикеры ${getStickerVariant(state.stickerVariantId).displaySize}`;
   }
 
   function calculatePrice() {
@@ -1995,12 +2065,12 @@ document.addEventListener('DOMContentLoaded', () => {
       ? ({10: 390, 25: 590, 50: 790, 100: 1090, 200: 1590}[state.meters] || 0)
       : 0;
     const widthExtra = state.meters > 0 && state.width === 20 ? 180 : 0;
+    const stickerPricing = getStickerPricing();
     const stickerPriceUnavailable =
-      state.stickerQty > 0 && state.stickerSize === 25;
+      state.stickerQty > 0 && stickerPricing.requiresIndividualCalculation;
     const stickerBase = state.stickerQty > 0 && !stickerPriceUnavailable
-      ? ({50: 450, 100: 700, 250: 1350, 500: 2200}[state.stickerQty] || 0)
+      ? (stickerPricing.byQuantity[state.stickerQty] || 0)
       : 0;
-
     return {
       amount: ribbonBase + widthExtra + stickerBase,
       unavailable: stickerPriceUnavailable,
@@ -2311,7 +2381,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getStickerScale() {
-    return {25: 0.625, 30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1;
+    return getStickerVariant(state.stickerVariantId).shape === 'circle'
+      ? ({25: 0.625, 30: 0.78, 40: 1, 50: 1.22}[state.stickerSize] || 1)
+      : 1;
   }
 
   function updateStickerScale() {
@@ -2324,7 +2396,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const stickerLabel = $('#stickerSizeLabel');
     if (stickerLabel) {
-      stickerLabel.textContent = `Ø${state.stickerSize} мм`;
+      stickerLabel.textContent = getStickerVariant(state.stickerVariantId).displaySize;
     }
   }
 
@@ -2372,7 +2444,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateRecommendationCard() {
     const rec = getRecommendation();
     if ($('#recWidth')) $('#recWidth').textContent = rec.width + ' мм';
-    if ($('#recSticker')) $('#recSticker').textContent = 'Ø' + rec.stickerSize + ' мм';
+    if ($('#recSticker')) $('#recSticker').textContent = `Ø${rec.stickerSize} мм`;
     if ($('#recRepeat')) $('#recRepeat').textContent = `Авто · ${state.repeatMm} мм`;
     if ($('#recommendReason')) $('#recommendReason').textContent = rec.reason;
   }
@@ -2417,7 +2489,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const kitTable = $('.kit-table');
     document.body.dataset.ribbonWidth = String(state.width);
     document.body.style.setProperty('--ribbon-live-color', state.ribbon);
+    const activeStickerVariant = getStickerVariant(state.stickerVariantId);
     document.body.dataset.stickerSize = String(state.stickerSize);
+    document.body.dataset.stickerVariantId = activeStickerVariant.id;
+    document.body.dataset.stickerShape = activeStickerVariant.shape;
+    document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
+    document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
+    document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
     document.body.style.setProperty('--ribbon-mm', String(state.width));
     document.body.style.setProperty('--sticker-mm', String(state.stickerSize));
     if (ribbonMockup) {
@@ -2441,7 +2519,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ($('#status')) {
       $('#status').textContent =
-        `Лента ${state.width} мм · ${state.bundle === 'bundle' ? 'стикер Ø' + state.stickerSize + ' мм · ' : ''}шаг ${state.repeatMm} мм`;
+        `Лента ${state.width} мм · ${state.bundle === 'bundle' ? `стикер ${activeStickerVariant.displaySize} · ` : ''}шаг ${state.repeatMm} мм`;
     }
 
     const price = calculatePrice();
@@ -3535,6 +3613,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function syncControls() {
     const style = getProductStyle(state.activeSettingsProduct);
+    const activeStickerVariant = getStickerVariant(state.stickerVariantId);
+    document.body.dataset.stickerVariantId = activeStickerVariant.id;
+    document.body.dataset.stickerShape = activeStickerVariant.shape;
+    document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
+    document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
+    document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
     $$('#widthChoice button').forEach((button) =>
       button.classList.toggle('active', +button.dataset.value === state.width)
     );
@@ -3548,6 +3632,14 @@ document.addEventListener('DOMContentLoaded', () => {
       button.disabled = button.dataset.enabled !== 'true';
       button.setAttribute('aria-disabled', String(button.disabled));
     });
+    const stickerIsCircle = activeStickerVariant.shape === 'circle';
+    if ($('#stickerSizeLabelControl')) {
+      $('#stickerSizeLabelControl').textContent = stickerIsCircle
+        ? 'Размер круглого стикера'
+        : 'Размер выбранного стикера';
+      $('#stickerSizeLabelControl').hidden = !stickerIsCircle;
+    }
+    if ($('#stickerSizeChoice')) $('#stickerSizeChoice').hidden = !stickerIsCircle;
     $$('#stickerSizeChoice button').forEach((button) =>
       button.classList.toggle('active', +button.dataset.value === state.stickerSize)
     );
@@ -3998,6 +4090,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activate('#stickerVariantChoice', button);
       state.stickerVariantId = getStickerVariant(button.dataset.variant).id;
       state.stickerSize = getStickerVariant(state.stickerVariantId).diameterMm || 40;
+      syncControls();
       render();
     })
   );
@@ -4006,6 +4099,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activate('#stickerSizeChoice', button);
       state.stickerSize = +button.dataset.value;
       state.stickerVariantId = getStickerVariantIdFromLegacyState(state.stickerSize);
+      syncControls();
       render();
     })
   );
@@ -4533,6 +4627,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.width = rec.width;
     state.repeatMode = 'auto';
     state.stickerSize = rec.stickerSize;
+    state.stickerVariantId = getStickerVariantIdFromLegacyState(rec.stickerSize);
     state.productStyles.ribbon.fontSize = rec.width === 20 ? 34 : 28;
     state.productStyles.ribbon.logoScale = rec.logoScale;
     state.productStyles.ribbon.logoOffsetX = 0;
@@ -4593,7 +4688,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `- Лента ${state.width} мм: ${state.meters} м, шаг ${state.repeatMm} мм`
         : '- Лента: не выбрана',
       state.stickerQty > 0
-        ? `- Стикеры Ø${state.stickerSize} мм: ${state.stickerQty} шт.`
+        ? `- ${getStickerOrderLabelPlural()}: ${state.stickerQty} шт.`
         : '- Стикеры: не выбраны',
       `- Цвет ленты: ${state.ribbon}`,
       `- Цвет печати на ленте: ${getProductStyle('ribbon').print}`,
@@ -4631,7 +4726,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const stickerStyle = getProductStyle('sticker');
     const ribbonEnabled = state.meters > 0;
     const stickerEnabled = state.stickerQty > 0;
-
+    const stickerVariant = getStickerVariant(state.stickerVariantId);
+    const stickerProduct = {
+      enabled: stickerEnabled,
+      variantId: stickerVariant.id,
+      shape: stickerVariant.shape,
+      widthMm: stickerVariant.widthMm,
+      heightMm: stickerVariant.heightMm,
+      cornerRadiusMm: stickerVariant.cornerRadiusMm,
+      quantity: state.stickerQty,
+      backgroundColor: state.stickerBg,
+      printColor: stickerStyle.print,
+    };
+    if (stickerVariant.shape === 'circle') {
+      stickerProduct.diameterMm = stickerVariant.diameterMm;
+    }
     return {
       schemaVersion: 1,
       requestId: pendingOrderRequestId,
@@ -4656,13 +4765,7 @@ document.addEventListener('DOMContentLoaded', () => {
           materialColor: state.ribbon,
           printColor: ribbonStyle.print,
         },
-        sticker: {
-          enabled: stickerEnabled,
-          diameterMm: state.stickerSize,
-          quantity: state.stickerQty,
-          backgroundColor: state.stickerBg,
-          printColor: stickerStyle.print,
-        },
+        sticker: stickerProduct,
       },
       design: {
         ribbon: {
@@ -4708,12 +4811,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#orderSummary').textContent = [
       state.meters > 0 ? `Лента ${state.width} мм · ${state.meters} м` : '',
       state.stickerQty > 0
-        ? `Стикер Ø${state.stickerSize} мм · ${state.stickerQty} шт.`
+        ? `${getStickerOrderLabel()}: ${state.stickerQty} шт.`
         : '',
       !artworkValid
         ? 'Макет не готов: текст не помещается в печатную область'
         : price.unavailable
-        ? 'Цена стикера Ø25 мм требует индивидуального расчёта'
+        ? getStickerVariant(state.stickerVariantId).shape === 'circle'
+          ? `Цена стикера ${getStickerVariant(state.stickerVariantId).displaySize} требует индивидуального расчёта`
+          : `${getStickerOrderLabelPlural()} требуют индивидуального расчёта`
         : `Итого: ${price.amount.toLocaleString('ru-RU')} ₽`,
     ]
       .filter(Boolean)
