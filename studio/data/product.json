@@ -20,7 +20,7 @@
     50
   ],
   "sticker_picker_options": [
-    {"id": "circle-40", "shape": "circle", "size_mm": 40, "colors": ["white"], "enabled": true},
+    {"id": "circle-40", "shape": "circle", "size_mm": 40, "colors": ["transparent"], "enabled": true},
     {"id": "circle-24-black", "shape": "circle", "size_mm": 24, "colors": ["black"], "enabled": true},
     {"id": "circle-24-gold", "shape": "circle", "size_mm": 24, "colors": ["gold"], "enabled": true},
     {"id": "circle-24-silver", "shape": "circle", "size_mm": 24, "colors": ["silver"], "enabled": true},

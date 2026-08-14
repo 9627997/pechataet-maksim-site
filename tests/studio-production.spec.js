@@ -966,6 +966,10 @@ test('sticker create step keeps one active model and compact future shape picker
   const picker = page.locator('#stickerProductPicker');
   await expect(picker).toBeVisible();
   await expect(picker.locator('[data-sticker-option]')).toHaveCount(9);
+  await expect(picker.locator('[data-sticker-group="transparent-circle"] [data-sticker-option]')).toHaveCount(3);
+  expect(await page.evaluate(() => document.querySelector('#stickerProductPicker .sticker-product-picker-options').scrollWidth <= document.querySelector('#stickerProductPicker .sticker-product-picker-options').clientWidth)).toBe(true);
+  await picker.locator('[data-sticker-group="transparent-circle"] > summary').click();
+  await expect(picker.locator('[data-sticker-group="transparent-circle"] [data-sticker-option="circle-40"]')).toBeVisible();
   await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveCount(1);
   await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveAttribute('aria-disabled', 'true');
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
