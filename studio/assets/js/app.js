@@ -397,13 +397,70 @@ const bootStudio = () => {
     };
   }
 
+  function retightenStoredLogoAsset(asset) {
+    if (!asset?.logoSvgSource || !['svg', 'svg-auto'].includes(asset.logoType)) return asset;
+    try {
+      const doc = new DOMParser().parseFromString(asset.logoSvgSource, 'image/svg+xml');
+      const svg = doc.documentElement;
+      if (svg.nodeName.toLowerCase() !== 'svg') return asset;
+      const host = document.createElement('div');
+      Object.assign(host.style, {
+        position: 'fixed',
+        left: '-10000px',
+        top: '0',
+        width: '1000px',
+        height: '1000px',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+      });
+      const clone = svg.cloneNode(true);
+      clone.querySelectorAll('[opacity="0"], [style*="opacity:0"], [style*="opacity: 0"]').forEach((node) => node.remove());
+      clone.removeAttribute('width');
+      clone.removeAttribute('height');
+      clone.style.width = '1000px';
+      clone.style.height = '1000px';
+      host.appendChild(clone);
+      document.body.appendChild(host);
+      let bbox;
+      try {
+        bbox = clone.getBBox({stroke: true});
+      } catch {
+        bbox = clone.getBBox();
+      }
+      if (!(bbox.width > 0 && bbox.height > 0)) return asset;
+      const padding = Math.max(bbox.width, bbox.height) * 0.002;
+      svg.setAttribute('viewBox', [bbox.x - padding, bbox.y - padding, bbox.width + padding * 2, bbox.height + padding * 2].join(' '));
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      const serialized = new XMLSerializer().serializeToString(svg);
+      const viewBox = svg.getAttribute('viewBox').trim().split(/\s+/).map(Number);
+      const ratio = viewBox.length === 4 && viewBox[3] > 0 ? viewBox[2] / viewBox[3] : asset.logo?.ratio;
+      const data = recolorSvgSource(serialized);
+      return {
+        ...asset,
+        logoSvgSource: serialized,
+        logo: asset.logo ? {...asset.logo, ...(data ? {data} : {}), ratio} : asset.logo,
+      };
+    } catch {
+      return asset;
+    } finally {
+      document.querySelectorAll('body > div').forEach((node) => {
+        if (node.style.left === '-10000px' && node.style.visibility === 'hidden') node.remove();
+      });
+    }
+  }
+
   function syncLegacyContentAliasesFromContent() {
     state.text = state.content.text.common;
+    state.content.logo.common = retightenStoredLogoAsset(state.content.logo.common);
     const commonLogo = state.content.logo.common;
     hydrateLogoAsset(commonLogo);
     ['ribbon', 'sticker'].forEach((product) => {
       const override = state.content.logo[product];
-      if (override.mode === 'override') hydrateLogoAsset(override.value);
+      if (override.mode === 'override') {
+        override.value = retightenStoredLogoAsset(override.value);
+        hydrateLogoAsset(override.value);
+      }
     });
     state.logoType = commonLogo?.logoType || null;
     state.logoSvgSource = commonLogo?.logoSvgSource || null;
