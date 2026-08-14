@@ -1181,7 +1181,9 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'Выбрана лента',
         sceneTitle:
           state.activeContentProduct === 'sticker'
-            ? 'Круглый стикер'
+            ? getStickerVariant(state.stickerVariantId).shape === 'roundrect'
+              ? 'Прямоугольный стикер 80 × 20 мм · радиус 2 мм'
+              : 'Круглый стикер'
             : 'Сатиновая лента',
       },
       settings: {
@@ -1196,14 +1198,18 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'Выбрана лента',
         sceneTitle:
           state.activeSettingsProduct === 'sticker'
-            ? 'Круглый стикер'
+            ? getStickerVariant(state.stickerVariantId).shape === 'roundrect'
+              ? 'Прямоугольный стикер 80 × 20 мм · радиус 2 мм'
+              : 'Круглый стикер'
             : 'Сатиновая лента',
       },
       order: {
         eyebrow: 'Итоговый просмотр',
         title: 'Проверьте комплект перед заявкой',
         sceneLabel: 'Фирменный комплект',
-        sceneTitle: 'Сатиновая лента и круглый стикер',
+        sceneTitle: state.stickerQty > 0 && getStickerVariant(state.stickerVariantId).shape === 'roundrect'
+          ? 'Сатиновая лента и прямоугольный стикер 80 × 20 мм'
+          : 'Сатиновая лента и круглый стикер',
       },
     }[state.panel];
 
@@ -2091,12 +2097,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function getStickerDisplayLabel() {
+    const variant = getStickerVariant(state.stickerVariantId);
+    return variant.shape === 'roundrect'
+      ? `${variant.displaySize} · радиус 2 мм`
+      : variant.displaySize;
+  }
+
   function getStickerOrderLabel() {
-    return `Стикер ${getStickerVariant(state.stickerVariantId).displaySize}`;
+    return `Стикер ${getStickerDisplayLabel()}`;
   }
 
   function getStickerOrderLabelPlural() {
-    return `Стикеры ${getStickerVariant(state.stickerVariantId).displaySize}`;
+    return `Стикеры ${getStickerDisplayLabel()}`;
   }
 
   function calculatePrice() {
@@ -2603,13 +2616,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const product = state.primaryProduct || state.activeSettingsProduct || 'ribbon';
     const isSticker = product === 'sticker';
     const productName = isSticker ? 'стикер' : 'ленту';
+    const productPrepositional = isSticker ? 'стикере' : 'ленте';
+    const productGenitive = isSticker ? 'стикера' : 'ленты';
     const textLabel = $(`#textInputLabel`);
     const panelCopy = $('#panel-upload .panel-copy');
     const continueButton = $('#continueUpload');
     const settingsNext = document.querySelector('#panel-settings .next-panel');
-    if (textLabel) textLabel.textContent = `Надпись на ${productName}`;
+    if (textLabel) textLabel.textContent = `Надпись на ${productPrepositional}`;
     if (panelCopy && state.productFirstMode) {
-      panelCopy.textContent = `Добавьте название или логотип для ${productName}.`;
+      panelCopy.textContent = `Добавьте название или логотип для ${productGenitive}.`;
     }
     if (continueButton && state.productFirstMode) {
       continueButton.textContent = `Далее: настроить ${isSticker ? 'стикер' : 'ленту'}`;
@@ -2619,7 +2634,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const fontLabel = $('#fontSizeLabel');
     const layoutHelp = $('#layoutModeHelp');
-    if (fontLabel && state.productFirstMode) fontLabel.textContent = `Размер текста на ${productName}`;
+    if (fontLabel && state.productFirstMode) fontLabel.textContent = `Размер текста на ${productPrepositional}`;
     if (layoutHelp && state.productFirstMode) layoutHelp.textContent = `Studio автоматически компонует ${productName}`;
   }
 
@@ -5020,9 +5035,7 @@ document.addEventListener('DOMContentLoaded', () => {
       !artworkValid
         ? 'Макет не готов: текст не помещается в печатную область'
         : price.unavailable
-        ? getStickerVariant(state.stickerVariantId).shape === 'circle'
-          ? `Цена стикера ${getStickerVariant(state.stickerVariantId).displaySize} требует индивидуального расчёта`
-          : `${getStickerOrderLabelPlural()} требуют индивидуального расчёта`
+        ? `Цена ${getStickerDisplayLabel()} требует индивидуального расчёта`
         : `Итого: ${price.amount.toLocaleString('ru-RU')} ₽`,
     ]
       .filter(Boolean)

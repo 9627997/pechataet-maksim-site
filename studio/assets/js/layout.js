@@ -232,52 +232,66 @@
       const maxContentWidth = isCircle
         ? area.circle.radius * 1.72
         : contentBounds.width * 0.88;
-      const maxLogoHeight = isCircle
-        ? area.circle.radius * 0.64
-        : contentBounds.height * 0.58;
-      const maxTextHeight = isCircle
-        ? area.circle.radius * 0.28
-        : contentBounds.height * 0.30;
-      const gap = isCircle ? area.circle.radius * 0.06 : contentBounds.height * 0.08;
-      logoBox = geometry.fitRectToBounds(
-        source,
-        {
-          x: centerX - maxContentWidth / 2,
-          y: centerY - maxLogoHeight / 2,
-          width: maxContentWidth,
-          height: maxLogoHeight,
-        },
-        logoScale,
-      );
-      textResult = isCircle
-        ? fitTextToArea({
-            text,
-            metrics: textMetrics,
-            preferredSize: preferredFontSize,
-            maxWidth: maxContentWidth,
-            maxHeight: maxTextHeight,
-            centerX,
-            centerY,
-          })
-        : fitTextToArea({
-            text,
-            metrics: textMetrics,
-            preferredSize: preferredFontSize,
-            maxWidth: maxContentWidth,
-            maxHeight: maxTextHeight,
-            centerX,
-            centerY,
-          });
-      const textHeight = textResult.height || 0;
-      const stackHeight = logoBox.height + gap + textHeight;
-      const stackTop = centerY - stackHeight / 2;
-      logoBox = {...logoBox, x: centerX - logoBox.width / 2, y: stackTop};
-      if (textResult.bbox) {
-        textResult.bbox = {
-          ...textResult.bbox,
-          x: centerX - textResult.bbox.width / 2,
-          y: stackTop + logoBox.height + gap,
+      const isWideRoundrect = !isCircle && area.widthMm / area.heightMm >= 3;
+      if (isWideRoundrect) {
+        const gap = contentBounds.width * 0.06;
+        const logoSlotWidth = contentBounds.width * 0.27;
+        const textSlotWidth = contentBounds.width * 0.57;
+        const logoSlot = {
+          x: centerX - (logoSlotWidth + gap + textSlotWidth) / 2,
+          y: centerY - contentBounds.height * 0.40,
+          width: logoSlotWidth,
+          height: contentBounds.height * 0.80,
         };
+        const textCenterX = logoSlot.x + logoSlot.width + gap + textSlotWidth / 2;
+        logoBox = geometry.fitRectToBounds(source, logoSlot, logoScale);
+        textResult = fitTextToArea({
+          text,
+          metrics: textMetrics,
+          preferredSize: preferredFontSize,
+          maxWidth: textSlotWidth,
+          maxHeight: contentBounds.height * 0.68,
+          centerX: textCenterX,
+          centerY,
+        });
+      } else {
+        const maxLogoHeight = isCircle
+          ? area.circle.radius * 0.64
+          : contentBounds.height * 0.58;
+        const maxTextHeight = isCircle
+          ? area.circle.radius * 0.28
+          : contentBounds.height * 0.30;
+        const gap = isCircle ? area.circle.radius * 0.06 : contentBounds.height * 0.08;
+        logoBox = geometry.fitRectToBounds(
+          source,
+          {
+            x: centerX - maxContentWidth / 2,
+            y: centerY - maxLogoHeight / 2,
+            width: maxContentWidth,
+            height: maxLogoHeight,
+          },
+          logoScale,
+        );
+        textResult = fitTextToArea({
+          text,
+          metrics: textMetrics,
+          preferredSize: preferredFontSize,
+          maxWidth: maxContentWidth,
+          maxHeight: maxTextHeight,
+          centerX,
+          centerY,
+        });
+        const textHeight = textResult.height || 0;
+        const stackHeight = logoBox.height + gap + textHeight;
+        const stackTop = centerY - stackHeight / 2;
+        logoBox = {...logoBox, x: centerX - logoBox.width / 2, y: stackTop};
+        if (textResult.bbox) {
+          textResult.bbox = {
+            ...textResult.bbox,
+            x: centerX - textResult.bbox.width / 2,
+            y: stackTop + logoBox.height + gap,
+          };
+        }
       }
     } else if (hasLogo) {
       logoBox = geometry.fitRectToSticker(source, area, logoScale);
