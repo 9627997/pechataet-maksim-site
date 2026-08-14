@@ -1017,6 +1017,9 @@
       effectiveLayouts = event.detail || {};
       syncStudioState();
     });
+    document.addEventListener('studio:sticker-variant-updated', () => {
+      syncStudioState();
+    });
 
     document.addEventListener('input', scheduleStudioSync);
     document.addEventListener('change', scheduleStudioSync);
