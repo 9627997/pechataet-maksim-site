@@ -172,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     activeContentProduct: 'ribbon',
     activeSettingsProduct: 'ribbon',
+    primaryProduct: null,
+    productFirstMode: false,
     repeatMm: 100,
     repeatMode: 'auto',
     bundle: 'bundle',
@@ -2563,9 +2565,78 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   });
 
+  function syncProductFirstLabels() {
+    const product = state.primaryProduct || state.activeSettingsProduct || 'ribbon';
+    const isSticker = product === 'sticker';
+    const productName = isSticker ? 'стикер' : 'ленту';
+    const textLabel = $(`#textInputLabel`);
+    const panelCopy = $('#panel-upload .panel-copy');
+    const continueButton = $('#continueUpload');
+    const settingsNext = document.querySelector('#panel-settings .next-panel');
+    if (textLabel) textLabel.textContent = `Надпись на ${productName}`;
+    if (panelCopy && state.productFirstMode) {
+      panelCopy.textContent = `Добавьте название или логотип для ${productName}.`;
+    }
+    if (continueButton && state.productFirstMode) {
+      continueButton.textContent = `Далее: настроить ${isSticker ? 'стикер' : 'ленту'}`;
+    }
+    if (settingsNext && state.productFirstMode) {
+      settingsNext.textContent = 'Далее: получить заказ';
+    }
+    const fontLabel = $('#fontSizeLabel');
+    const layoutHelp = $('#layoutModeHelp');
+    if (fontLabel && state.productFirstMode) fontLabel.textContent = `Размер текста на ${productName}`;
+    if (layoutHelp && state.productFirstMode) layoutHelp.textContent = `Studio автоматически компонует ${productName}`;
+  }
+
+  function syncProductFirstShell() {
+    const choice = $('#productFirstChoice');
+    const shell = document.querySelector('.app-shell');
+    const choosing = state.productFirstMode && !state.primaryProduct;
+    if (choice) choice.hidden = !choosing;
+    if (shell) shell.hidden = choosing;
+    document.body.classList.toggle('product-first-mode', state.productFirstMode && !choosing);
+    document.body.dataset.primaryProduct = state.primaryProduct || '';
+    document.body.dataset.productFirstChoosing = String(choosing);
+    syncProductFirstLabels();
+  }
+
   function updateOrderProductControls() {
     if ($('#orderProductNotice')) {
       $('#orderProductNotice').hidden = true;
+    }
+    const offer = $('#secondaryProductOffer');
+    const summary = $('#orderItemsSummary');
+    const list = $('#orderItemsSummaryList');
+    const ribbonEnabled = state.meters > 0;
+    const stickerEnabled = state.stickerQty > 0;
+    const canOffer = state.productFirstMode && state.primaryProduct && !(ribbonEnabled && stickerEnabled);
+    if (offer) {
+      offer.hidden = !canOffer;
+      if (canOffer) {
+        const addSticker = state.primaryProduct === 'ribbon';
+        $('#secondaryProductOfferTitle').textContent = addSticker
+          ? 'Стикеры в том же стиле?'
+          : 'Ленту к этому дизайну?';
+        $('#secondaryProductOfferCopy').textContent = addSticker
+          ? 'Используем текущую надпись и логотип. Настройки можно изменить отдельно.'
+          : 'Используем текущую надпись и логотип. Настройки можно изменить отдельно.';
+        $('#addSecondaryProduct').textContent = addSticker ? 'Добавить стикеры' : 'Добавить ленту';
+      }
+    }
+    if (summary && list) {
+      summary.hidden = !state.productFirstMode || !(ribbonEnabled || stickerEnabled);
+      list.innerHTML = '';
+      if (ribbonEnabled) {
+        const item = document.createElement('div');
+        item.textContent = `Лента ${state.width} мм · ${state.meters} м`;
+        list.appendChild(item);
+      }
+      if (stickerEnabled) {
+        const item = document.createElement('div');
+        item.textContent = `${getStickerOrderLabel()} · ${state.stickerQty} шт.`;
+        list.appendChild(item);
+      }
     }
   }
 
@@ -4711,6 +4782,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `Комментарий: ${customerComment || 'не указан'}`,
       '',
       'Состав заказа:',
+      `- Основное изделие: ${state.primaryProduct === 'sticker' ? 'стикер' : 'лента'}`,
       state.meters > 0
         ? `- Лента ${state.width} мм: ${state.meters} м, шаг ${state.repeatMm} мм`
         : '- Лента: не выбрана',
@@ -4768,8 +4840,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stickerVariant.shape === 'circle') {
       stickerProduct.diameterMm = stickerVariant.diameterMm;
     }
+    const orderItems = [
+      ribbonEnabled
+        ? {
+            itemId: 'ribbon-1',
+            productType: 'ribbon',
+            quantity: {meters: state.meters},
+            configuration: {
+              widthMm: state.width,
+              repeatMm: state.repeatMm,
+              materialColor: state.ribbon,
+              printColor: ribbonStyle.print,
+            },
+          }
+        : null,
+      stickerEnabled
+        ? {
+            itemId: 'sticker-1',
+            productType: 'sticker',
+            quantity: {pieces: state.stickerQty},
+            configuration: {
+              variantId: stickerVariant.id,
+              shape: stickerVariant.shape,
+              widthMm: stickerVariant.widthMm,
+              heightMm: stickerVariant.heightMm,
+              cornerRadiusMm: stickerVariant.cornerRadiusMm,
+              printColor: stickerStyle.print,
+              backgroundColor: state.stickerBg,
+            },
+          }
+        : null,
+    ].filter(Boolean);
     return {
       schemaVersion: 1,
+      orderSchemaVersion: 2,
+      primaryProduct: state.primaryProduct || (ribbonEnabled ? 'ribbon' : 'sticker'),
+      orderItems,
       requestId: pendingOrderRequestId,
       createdAt: new Date().toISOString(),
       source: {
@@ -5001,6 +5107,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  $$('[data-start-product]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const product = button.dataset.startProduct === 'sticker' ? 'sticker' : 'ribbon';
+      state.primaryProduct = product;
+      state.productFirstMode = true;
+      state.bundle = product;
+      state.meters = product === 'ribbon' ? (state.meters || state.lastMeters) : 0;
+      state.stickerQty = product === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
+      setActiveContentProduct(product, {renderPreview: false});
+      setActiveSettingsProduct(product);
+      syncControls();
+      syncProductFirstShell();
+      render();
+      document.querySelector('[data-panel="upload"]')?.focus({preventScroll: true});
+    });
+  });
+
+  $('#addSecondaryProduct')?.addEventListener('click', () => {
+    if (!state.primaryProduct) return;
+    const addSticker = state.primaryProduct === 'ribbon';
+    setProductSelection({ribbon: true, sticker: true});
+    state.lastMeters = state.meters || 100;
+    state.lastStickerQty = state.stickerQty || 100;
+    if (addSticker) state.stickerQty = state.lastStickerQty;
+    else state.meters = state.lastMeters;
+    state.bundle = 'bundle';
+    render();
+  });
+
   $('#resetProject').addEventListener('click', () => {
     if (
       hasUserContent() &&
@@ -5014,6 +5149,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initCropInteractions();
   restoreState();
+  const requestedProduct = new URLSearchParams(location.search).get('product');
+  if (['ribbon', 'sticker'].includes(requestedProduct)) {
+    state.productFirstMode = true;
+    state.primaryProduct = requestedProduct;
+    state.bundle = requestedProduct;
+    state.meters = requestedProduct === 'ribbon' ? (state.meters || state.lastMeters) : 0;
+    state.stickerQty = requestedProduct === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
+  } else if (requestedProduct === 'choose') {
+    state.productFirstMode = true;
+    state.primaryProduct = null;
+    state.meters = 0;
+    state.stickerQty = 0;
+    state.bundle = 'ribbon';
+  } else if (state.productFirstMode) {
+    // A plain legacy route must not inherit a product-first draft. Preserve
+    // genuine legacy ribbon-only/sticker-only LocalStorage projects.
+    state.productFirstMode = false;
+    state.primaryProduct = null;
+    state.meters = state.lastMeters || 100;
+    state.stickerQty = state.lastStickerQty || 100;
+    state.bundle = 'bundle';
+    state.activeContentProduct = 'ribbon';
+    state.activeSettingsProduct = 'ribbon';
+  }
   hasUsedCommonTextEditor =
     state.commonTextAuthored ||
     (Boolean(state.content.text.common.trim()) &&
@@ -5044,8 +5203,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadDefaultLogo();
   applyStudioEntryContext();
-  setActiveContentProduct(state.activeContentProduct, {renderPreview: false});
-  setActiveSettingsProduct(state.activeSettingsProduct);
+  if (state.primaryProduct) {
+    setActiveContentProduct(state.primaryProduct, {renderPreview: false});
+    setActiveSettingsProduct(state.primaryProduct);
+  }
+  syncProductFirstShell();
+  setActiveContentProduct(
+    state.productFirstMode && state.primaryProduct
+      ? state.primaryProduct
+      : state.activeContentProduct,
+    {renderPreview: false},
+  );
+  setActiveSettingsProduct(
+    state.productFirstMode && state.primaryProduct
+      ? state.primaryProduct
+      : state.activeSettingsProduct,
+  );
   updateFirstStepAvailability();
   render();
   updateShowcaseContent();
