@@ -972,11 +972,13 @@ test('sticker create step keeps one active model and compact future shape picker
   await expect(page.locator('#textInput')).toBeVisible();
   await expect(page.locator('#dropZone')).toBeVisible();
 
+  await picker.locator('[data-sticker-group="roundrect-80x20"] > summary').click();
   await picker.locator('[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]').click();
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
   await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'roundrect-80x20');
   await expect(page.locator('#textInput')).toBeVisible();
 
+  await picker.locator('[data-sticker-group="circle-24"] > summary').click();
   await picker.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]').click();
   await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'circle-24');
   await expect(page.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]')).toHaveAttribute('aria-pressed', 'true');
