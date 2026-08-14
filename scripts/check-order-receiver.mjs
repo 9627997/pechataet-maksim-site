@@ -29,6 +29,10 @@ for (const requiredContract of [
   'pm_run_notifications',
   "'preferredContact'",
   "['phone', 'telegram']",
+  'pm_write_technical_log',
+  "'request_normalized'",
+  "'order_accepted'",
+  "'archive_completed'",
 ]) {
   assert.ok(
     endpoint.includes(requiredContract),
@@ -36,6 +40,19 @@ for (const requiredContract of [
   );
 }
 
+const responsePosition = endpoint.indexOf(
+  "pm_json_response($order['duplicate'] ? 200 : 201",
+);
+const archivePosition = endpoint.indexOf("pm_create_zip($order['directory'])");
+assert.ok(responsePosition >= 0, 'Order receiver must send accepted response');
+assert.ok(
+  archivePosition > responsePosition,
+  'Archive creation must happen after accepted response',
+);
+assert.ok(
+  endpoint.includes("'/archive.json'"),
+  'Order receiver must persist archive lifecycle state',
+);
 console.log(
-  'Order receiver PHP syntax and public response contract are valid.',
+  'Order receiver PHP syntax, logging contract, and fast-acceptance lifecycle are valid.',
 );
