@@ -10,6 +10,7 @@
     centerX,
     centerY,
     scaleToFitWidth = true,
+    minFontSize = MIN_PRINT_FONT_SIZE,
   }) {
     if (!text) return {fits: true, fontSize: preferredSize, bbox: null};
     const widthAtPreferred = metrics.widthPerSize * preferredSize;
@@ -21,7 +22,7 @@
         : 1,
       maxHeight / Math.max(heightAtPreferred, 1e-7),
     );
-    const fontSize = Math.max(MIN_PRINT_FONT_SIZE, preferredSize * scale);
+    const fontSize = Math.max(minFontSize, preferredSize * scale);
     const width = metrics.widthPerSize * fontSize;
     const height = metrics.heightPerSize * fontSize;
     const fits = width <= maxWidth + 1e-7 && height <= maxHeight + 1e-7;
@@ -90,6 +91,7 @@
     manualLayout = false,
     preferredFontSize,
     scaleTextToFitWidth = false,
+    minFontSize = MIN_PRINT_FONT_SIZE,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -125,6 +127,7 @@
         centerX: bounds.x + logoWidth + gap + textWidth / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
+        minFontSize,
       });
     } else if (hasLogo) {
       const source = logo.ratio >= 1
@@ -148,6 +151,7 @@
         centerX: bounds.x + bounds.width / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
+        minFontSize,
       });
     }
 
