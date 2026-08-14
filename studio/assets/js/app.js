@@ -2496,6 +2496,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
     document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
     document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
+    document.dispatchEvent(
+      new CustomEvent('studio:sticker-variant-updated', {
+        detail: {
+          id: activeStickerVariant.id,
+          shape: activeStickerVariant.shape,
+          widthMm: activeStickerVariant.widthMm,
+          heightMm: activeStickerVariant.heightMm,
+          displaySize: activeStickerVariant.displaySize,
+        },
+      }),
+    );
     document.body.style.setProperty('--ribbon-mm', String(state.width));
     document.body.style.setProperty('--sticker-mm', String(state.stickerSize));
     if (ribbonMockup) {
