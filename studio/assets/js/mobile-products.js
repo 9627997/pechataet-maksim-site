@@ -678,8 +678,10 @@
         );
         stickerSurface.style.aspectRatio = `${stickerWidthMm} / ${stickerHeightMm}`;
         stickerSurface.style.borderRadius = `${cornerRadiusPx}px`;
-        stickerGuide.style.inset = '6% 5%';
-        stickerGuide.style.borderRadius = `${Math.max(0, cornerRadiusPx - 4)}px`;
+        const safeInsetY = `${(2.5 / stickerHeightMm) * 100}%`;
+        const safeInsetX = `${(2.5 / stickerWidthMm) * 100}%`;
+        stickerGuide.style.inset = `${safeInsetY} ${safeInsetX}`;
+        stickerGuide.style.borderRadius = '0px';
       } else {
         stickerSurface.style.aspectRatio = '1';
         stickerSurface.style.borderRadius = '50%';

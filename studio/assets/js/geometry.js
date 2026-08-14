@@ -103,10 +103,13 @@
       shapeHeight / 2,
       Number(cornerRadiusMm || 0) * Math.min(unitsPerMmX, unitsPerMmY),
     );
-    const printableRadius = Math.min(
-      printableWidth / 2,
-      printableHeight / 2,
-      Number(cornerRadiusMm || 0) * Math.min(unitsPerMmX, unitsPerMmY),
+    const printableRadius = Math.max(
+      0,
+      Math.min(
+        printableWidth / 2,
+        printableHeight / 2,
+        (Number(cornerRadiusMm || 0) - PRINT_MARGIN_MM) * Math.min(unitsPerMmX, unitsPerMmY),
+      ),
     );
     return {
       shape: 'roundrect',

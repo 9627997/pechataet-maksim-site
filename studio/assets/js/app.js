@@ -1998,12 +1998,34 @@ document.addEventListener('DOMContentLoaded', () => {
     ) => {
       const hasLogo = Boolean(logo?.logo);
       const layoutHasText = Boolean(textValue.trim());
+      const contentLogo = hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null;
+      const contentText = layoutHasText ? textValue : '';
+      const contentMetrics = getTextMetrics(textValue, 'sticker', font);
+      const preferredFontSize = hasLogo && layoutHasText
+        ? stickerPreferred.combined * (style.fontSize / 32)
+        : stickerPreferred.textOnly * (style.fontSize / 32);
+      if (variant.shape === 'roundrect') {
+        return getRibbonContentLayout({
+          bounds: printable.bounds,
+          centerY: printable.bounds.y + printable.bounds.height / 2,
+          logo: contentLogo,
+          text: contentText,
+          textMetrics: contentMetrics,
+          logoScale: style.logoScale,
+          logoOffsetX: style.logoOffsetX,
+          logoOffsetY: style.logoOffsetY,
+          textOffsetX: style.textOffsetX,
+          textOffsetY: style.textOffsetY,
+          manualLayout: style.layoutMode === 'manual',
+          preferredFontSize,
+        });
+      }
       return getStickerContentLayout({
         stickerArea: printable,
         circle: printable.circle,
-        logo: hasLogo ? {ratio: Number(logo.logo.ratio) || 1} : null,
-        text: layoutHasText ? textValue : '',
-        textMetrics: getTextMetrics(textValue, 'sticker', font),
+        logo: contentLogo,
+        text: contentText,
+        textMetrics: contentMetrics,
         logoScale: style.logoScale,
         logoOffsetX: style.logoOffsetX,
         logoOffsetY: style.logoOffsetY,
@@ -2011,9 +2033,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textOffsetY: style.textOffsetY,
         manualLayout: style.layoutMode === 'manual',
         textScale: style.fontSize / 64,
-        preferredFontSize: hasLogo && layoutHasText
-          ? stickerPreferred.combined * (style.fontSize / 32)
-          : stickerPreferred.textOnly * (style.fontSize / 32),
+        preferredFontSize,
       });
     };
     const stickerLayout = getLayout(resolvedLogo);
