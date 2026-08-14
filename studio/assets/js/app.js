@@ -258,13 +258,14 @@ const bootStudio = () => {
 
   function getPaintedLogo(product, asset) {
     if (!asset?.logo) return asset;
+    const normalizedAsset = retightenStoredLogoAsset(asset);
     const style = getProductStyle(product);
-    const data = asset.logoSvgSource
-      ? recolorSvgSource(asset.logoSvgSource, style.print)
-      : asset.logo.data;
+    const data = normalizedAsset.logoSvgSource
+      ? recolorSvgSource(normalizedAsset.logoSvgSource, style.print)
+      : normalizedAsset.logo.data;
     return data
-      ? {...asset, logo: {...asset.logo, data}}
-      : asset;
+      ? {...normalizedAsset, logo: {...normalizedAsset.logo, data}}
+      : normalizedAsset;
   }
   let hasUsedCommonTextEditor = false;
   let hasUsedCommonLogoEditor = false;
@@ -457,7 +458,7 @@ const bootStudio = () => {
   }
 
   function retightenStoredLogoAsset(asset) {
-    if (!asset?.logoSvgSource || !['svg', 'svg-auto'].includes(asset.logoType)) return asset;
+    if (!asset?.logoSvgSource || !['svg', 'svg-auto'].includes(asset.logoType) || asset.inkBoundsVersion === 2) return asset;
     try {
       const doc = new DOMParser().parseFromString(asset.logoSvgSource, 'image/svg+xml');
       const svg = doc.documentElement;
@@ -493,6 +494,7 @@ const bootStudio = () => {
       return {
         ...asset,
         logoSvgSource: serialized,
+        inkBoundsVersion: 2,
         logo: asset.logo ? {...asset.logo, ...(data ? {data} : {}), ratio} : asset.logo,
       };
     } catch {
@@ -749,7 +751,16 @@ const bootStudio = () => {
 
   function getResolvedLogo(product) {
     const override = state.content.logo[product];
-    return override?.mode === 'override' ? override.value : state.content.logo.common;
+    const source = override?.mode === 'override' ? override.value : state.content.logo.common;
+    const normalized = retightenStoredLogoAsset(source);
+    if (normalized !== source) {
+      if (override?.mode === 'override') {
+        override.value = normalized;
+      } else {
+        state.content.logo.common = normalized;
+      }
+    }
+    return normalized;
   }
 
   function isDemoLogoPreview(product) {

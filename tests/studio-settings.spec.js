@@ -142,7 +142,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(ribbonSample).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
-  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#layoutModeChoice')).toBeVisible();
+  await expect(page.locator('#stickerVariantChoice')).toHaveCount(0);
+  await expect(page.locator('#stickerSizeChoice')).toHaveCount(0);
   await expect(page.locator('#fontSelect')).toHaveValue('Manrope');
   await expect(page.locator('#printColorSelect')).toHaveValue('#171717');
 
@@ -417,7 +419,9 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await stickerSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
-  await expect(page.locator('[data-settings-product="sticker"]')).toBeVisible();
+  await expect(page.locator('#layoutModeChoice')).toBeVisible();
+  await expect(page.locator('#stickerVariantChoice')).toHaveCount(0);
+  await expect(page.locator('#stickerSizeChoice')).toHaveCount(0);
   await expect(page.locator('#fontSelectLabel')).toContainText('стикере');
   await expect(
     page.locator('#layoutModeChoice [data-value="auto"]'),
