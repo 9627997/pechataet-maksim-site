@@ -83,3 +83,7 @@ Manual mode должен управлять реальным содержимы�
 ## Статус
 
 Диагностика завершена. Production код не изменялся. Следующий шаг — согласовать и реализовать roundrect printable-control contract локально, добавить ink-bound regressions и только после этого планировать staged deployment.
+
+## Live verification after PR #60
+
+Production correctly serves the new `app.js?v=871079993dbf`, but still serves `layout.js?v=d3d2d02fa443`, which is the previous cache version. The live serialized roundrect text-only layout is valid and has a textBox width equal to the printable width, but the visual preview is still not a trustworthy final verification of the new layout until the current layout.js hash is published. This is a cache-busting deployment gap, not a geometry conclusion. The next staged correction must update the layout.js hash, rerun CI, and deploy again before live UX verification.
