@@ -4108,6 +4108,14 @@ document.addEventListener('DOMContentLoaded', () => {
       state.stickerSize = getStickerVariant(state.stickerVariantId).diameterMm || 40;
       syncControls();
       render();
+      setTimeout(() => {
+        const displaySize = getStickerVariant(state.stickerVariantId).displaySize;
+        document
+          .querySelectorAll('[data-mobile-product-sample="sticker"] .mobile-products-sample-label')
+          .forEach((label) => {
+            label.textContent = `Стикер ${displaySize.replace(/^Ø/, '')}`;
+          });
+      }, 0);
     })
   );
   $$('#stickerSizeChoice button').forEach((button) =>
