@@ -2729,6 +2729,7 @@ const bootStudio = () => {
     state.stickerVariantId = variant.id;
     state.stickerSize = variant.diameterMm || 40;
     state.stickerBg = option.dataset.stickerBg || '#ffffff';
+    option.closest('details')?.removeAttribute('open');
     syncControls();
     syncProductFirstShell();
     render();
@@ -4427,6 +4428,16 @@ const bootStudio = () => {
 
   $$('#stickerProductPicker [data-sticker-option]').forEach((button) =>
     button.addEventListener('click', () => selectStickerProductOption(button))
+  );
+  $$('#stickerProductPicker .sticker-product-group > summary').forEach((summary) =>
+    summary.addEventListener('click', () => {
+      setTimeout(() => {
+        const current = summary.closest('details');
+        $$('#stickerProductPicker .sticker-product-group').forEach((group) => {
+          if (group !== current) group.removeAttribute('open');
+        });
+      }, 0);
+    })
   );
 
   document.addEventListener('studio:logo-upload-target-set', (event) => {

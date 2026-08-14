@@ -2278,3 +2278,15 @@ body.product-first-mode .mobile-products-switches,body.product-first-mode .conte
 .sticker-product-option-disabled{cursor:not-allowed;opacity:.52;filter:grayscale(1)}.sticker-product-option-disabled:hover{transform:none;border-color:rgba(23,23,23,.12)}.sticker-product-option-disabled small{font-size:9px}
 @media(max-width:700px){.sticker-product-picker{margin-inline:0;padding:12px}.sticker-product-picker-head{display:block}.sticker-product-picker-head small{display:block;margin-top:5px;max-width:none;text-align:left}.sticker-product-option{min-width:69px}}
 body:not(.product-first-mode) #stickerProductPicker,body[data-primary-product="ribbon"] #stickerProductPicker{display:none!important}
+
+/* Compact grouped sticker picker: detail menus keep the primary row short. */
+.sticker-product-picker-options{overflow:visible;flex-wrap:wrap;align-items:flex-start}
+.sticker-product-group{position:relative;flex:0 0 auto}
+.sticker-product-group>summary{list-style:none}
+.sticker-product-group>summary::-webkit-details-marker{display:none}
+.sticker-product-group-caret{display:inline-block;margin-left:2px;color:#8b8178;font-size:12px}
+.sticker-product-group[open]>summary{border-color:#b7202d;background:#fff8f5;box-shadow:inset 0 0 0 1px #b7202d}
+.sticker-product-group-menu{position:absolute;z-index:8;top:calc(100% + 7px);left:0;display:grid;grid-template-columns:repeat(2,minmax(88px,1fr));gap:6px;min-width:200px;padding:8px;border:1px solid rgba(23,23,23,.14);border-radius:14px;background:#fff;box-shadow:0 16px 34px rgba(23,23,23,.16)}
+.sticker-product-group-menu .sticker-product-option{min-width:0;min-height:58px;padding:7px;font-size:10px}
+.sticker-product-group-menu .sticker-product-option.active{border-color:#b7202d;background:#fff8f5;box-shadow:inset 0 0 0 1px #b7202d}
+@media(max-width:700px){.sticker-product-picker-options{flex-wrap:nowrap;overflow:visible}.sticker-product-group-menu{position:fixed;left:12px;right:12px;top:auto;bottom:18px;grid-template-columns:repeat(2,1fr);min-width:0}.sticker-product-option{min-width:69px}}
