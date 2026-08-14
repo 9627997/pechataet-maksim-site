@@ -26,6 +26,73 @@ document.addEventListener('DOMContentLoaded', () => {
   const REPEAT_ROUNDING_MM = 5;
   const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
+  const ENABLE_ADDITIONAL_STICKER_SHAPES = false;
+  const STICKER_VARIANTS = Object.freeze({
+    'circle-25': Object.freeze({
+      id: 'circle-25',
+      shape: 'circle',
+      label: 'Круглый стикер',
+      displaySize: 'Ø25 мм',
+      widthMm: 25,
+      heightMm: 25,
+      diameterMm: 25,
+      cornerRadiusMm: null,
+      enabled: true,
+    }),
+    'circle-30': Object.freeze({
+      id: 'circle-30',
+      shape: 'circle',
+      label: 'Круглый стикер',
+      displaySize: 'Ø30 мм',
+      widthMm: 30,
+      heightMm: 30,
+      diameterMm: 30,
+      cornerRadiusMm: null,
+      enabled: true,
+    }),
+    'circle-40': Object.freeze({
+      id: 'circle-40',
+      shape: 'circle',
+      label: 'Круглый стикер',
+      displaySize: 'Ø40 мм',
+      widthMm: 40,
+      heightMm: 40,
+      diameterMm: 40,
+      cornerRadiusMm: null,
+      enabled: true,
+    }),
+    'circle-50': Object.freeze({
+      id: 'circle-50',
+      shape: 'circle',
+      label: 'Круглый стикер',
+      displaySize: 'Ø50 мм',
+      widthMm: 50,
+      heightMm: 50,
+      diameterMm: 50,
+      cornerRadiusMm: null,
+      enabled: true,
+    }),
+    'roundrect-80x20': Object.freeze({
+      id: 'roundrect-80x20',
+      shape: 'roundrect',
+      label: 'Прямоугольный со скруглением',
+      displaySize: '80 × 20 мм',
+      widthMm: 80,
+      heightMm: 20,
+      diameterMm: null,
+      cornerRadiusMm: 4,
+      enabled: ENABLE_ADDITIONAL_STICKER_SHAPES,
+    }),
+  });
+  const DEFAULT_STICKER_VARIANT_ID = 'circle-40';
+  const getStickerVariant = (variantId = DEFAULT_STICKER_VARIANT_ID) =>
+    STICKER_VARIANTS[variantId] || STICKER_VARIANTS[DEFAULT_STICKER_VARIANT_ID];
+  const getStickerVariantIdFromLegacyState = (value) => {
+    const diameter = Number(value);
+    return [25, 30, 40, 50].includes(diameter)
+      ? `circle-${diameter}`
+      : DEFAULT_STICKER_VARIANT_ID;
+  };
   const MAX_LOGO_FILE_BYTES = 20 * 1024 * 1024;
   const PDF_RENDER_MAX_SIDE = 1600;
   const PDFJS_MODULE_URL = new URL(
@@ -107,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     repeatMm: 100,
     repeatMode: 'auto',
     bundle: 'bundle',
+    stickerVariantId: DEFAULT_STICKER_VARIANT_ID,
     stickerSize: 40,
     stickerBg: '#ffffff',
     showPrintGuides: false,
@@ -763,9 +831,9 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       syncLegacyStyleAliases();
       state.showPrintGuides = restored.showPrintGuides === true;
-      if (![25, 30, 40, 50].includes(Number(state.stickerSize))) {
-        state.stickerSize = 40;
-      }
+      state.stickerVariantId = getStickerVariant(restored.stickerVariantId || getStickerVariantIdFromLegacyState(restored.stickerSize)).id;
+      const selectedStickerVariant = getStickerVariant(state.stickerVariantId);
+      state.stickerSize = selectedStickerVariant.diameterMm || 40;
       state.repeatMm = Math.min(
         MAX_RIBBON_REPEAT_MM,
         Math.max(
@@ -3475,6 +3543,11 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('active', button.dataset.value === state.bundle)
     );
 
+    $$('#stickerVariantChoice button').forEach((button) => {
+      button.classList.toggle('active', getStickerVariant(button.dataset.variant).shape === getStickerVariant(state.stickerVariantId).shape);
+      button.disabled = button.dataset.enabled !== 'true';
+      button.setAttribute('aria-disabled', String(button.disabled));
+    });
     $$('#stickerSizeChoice button').forEach((button) =>
       button.classList.toggle('active', +button.dataset.value === state.stickerSize)
     );
@@ -3919,10 +3992,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  $$('#stickerVariantChoice button').forEach((button) =>
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      activate('#stickerVariantChoice', button);
+      state.stickerVariantId = getStickerVariant(button.dataset.variant).id;
+      state.stickerSize = getStickerVariant(state.stickerVariantId).diameterMm || 40;
+      render();
+    })
+  );
   $$('#stickerSizeChoice button').forEach((button) =>
     button.addEventListener('click', () => {
       activate('#stickerSizeChoice', button);
       state.stickerSize = +button.dataset.value;
+      state.stickerVariantId = getStickerVariantIdFromLegacyState(state.stickerSize);
       render();
     })
   );

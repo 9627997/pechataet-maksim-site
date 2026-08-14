@@ -356,12 +356,23 @@
       </div>
 
       <div class="settings-product-fields" data-settings-product="sticker" hidden>
+        <label>Форма стикера</label>
+        <div class="segmented sticker-variant-choice" id="stickerVariantChoice" aria-label="Форма стикера">
+          <button class="active" type="button" data-variant="circle-40" data-enabled="true">
+            Круглый · Ø40 мм
+          </button>
+          <button type="button" data-variant="roundrect-80x20" data-enabled="false" disabled aria-disabled="true">
+            Прямоугольный · 80 × 20 мм
+            <small>Скоро</small>
+          </button>
+        </div>
+        <p class="field-hint" id="stickerVariantHint">Сейчас доступен круглый стикер. Прямоугольная форма добавляется отдельным этапом после проверки геометрии и предпросмотра.</p>
         <label>Размер круглого стикера</label>
         <div class="segmented" id="stickerSizeChoice">
-          <button data-value="25">25 мм</button>
-          <button data-value="30">30 мм</button>
-          <button class="active" data-value="40">40 мм</button>
-          <button data-value="50">50 мм</button>
+          <button data-value="25" type="button">25 мм</button>
+          <button data-value="30" type="button">30 мм</button>
+          <button class="active" data-value="40" type="button">40 мм</button>
+          <button data-value="50" type="button">50 мм</button>
         </div>
       </div>
 

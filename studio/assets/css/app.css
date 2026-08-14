@@ -46,6 +46,10 @@ textarea.input{min-height:100px;resize:vertical}
 .segmented{display:flex;background:#eeeae3;padding:3px;border-radius:12px;gap:3px}
 .segmented button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 7px;font-size:12px;cursor:pointer}
 .segmented button.active{background:#fff;box-shadow:0 2px 9px rgba(0,0,0,.08);font-weight:800}
+.sticker-variant-choice button{display:flex;align-items:center;justify-content:center;gap:6px;line-height:1.25}
+.sticker-variant-choice button small{font-size:10px;color:#8d857c;font-weight:700}
+.sticker-variant-choice button:disabled{cursor:not-allowed;opacity:.58}
+.field-hint{display:block;margin:-5px 0 12px;color:#8d857c;font-size:11px;line-height:1.45}
 .swatches{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .swatch{aspect-ratio:1;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
 .swatch.active{box-shadow:0 0 0 3px #171717}
