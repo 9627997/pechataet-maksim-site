@@ -305,6 +305,28 @@ function pm_request_text(array $order): string
     ]) . "\n";
 }
 
+function pm_write_technical_log(string $storage, string $event, array $context = []): void
+{
+    $safeContext = [];
+    foreach ($context as $key => $value) {
+        if (is_scalar($value) || $value === null) {
+            $safeContext[$key] = $value;
+        }
+    }
+    $entry = [
+        'at' => gmdate('c'),
+        'event' => $event,
+        'context' => $safeContext,
+    ];
+    $path = rtrim($storage, '/') . '/runtime.log';
+    @file_put_contents(
+        $path,
+        json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n",
+        FILE_APPEND | LOCK_EX,
+    );
+    @chmod($path, 0600);
+}
+
 function pm_create_zip(string $directory): ?string
 {
     if (!class_exists('ZipArchive')) {
@@ -401,7 +423,10 @@ function pm_store_order(string $storage, array $payload, array $config): array
             $temporary . '/notifications.json',
             json_encode(['status' => 'pending'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
         );
-        pm_create_zip($temporary);
+        pm_write_private_file(
+            $temporary . '/archive.json',
+            json_encode(['status' => 'pending'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+        );
 
         if (!rename($temporary, $directory)) {
             throw new RuntimeException('Не удалось зафиксировать заявку в архиве.');
@@ -571,7 +596,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     pm_fail(405, 'method_not_allowed', 'Используйте POST для отправки заявки.');
 }
 
-try {
+$requestStartedAt = microtime(true);
+$technicalStorage = null;
+
+try
+{
     $config = pm_load_config();
     pm_assert_origin($config);
     $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
@@ -589,10 +618,23 @@ try {
     if (!is_array($input)) {
         pm_fail(400, 'invalid_json', 'Некорректный формат заявки.');
     }
-    $payload = pm_normalize_payload($input);
+        $payload = pm_normalize_payload($input);
     $storage = pm_prepare_storage($config);
+    $technicalStorage = $storage;
+    pm_write_technical_log($storage, 'request_normalized', [
+        'requestId' => $payload['requestId'],
+        'rawBytes' => strlen($raw),
+        'ribbonSvgBytes' => strlen($payload['artifacts']['ribbonSvg']),
+        'stickerSvgBytes' => strlen($payload['artifacts']['stickerSvg']),
+        'elapsedMs' => (int) round((microtime(true) - $requestStartedAt) * 1000),
+    ]);
     $order = pm_store_order($storage, $payload, $config);
-
+    pm_write_technical_log($storage, $order['duplicate'] ? 'duplicate_detected' : 'order_accepted', [
+        'requestId' => $payload['requestId'],
+        'orderId' => $order['orderId'],
+        'duplicate' => $order['duplicate'],
+        'elapsedMs' => (int) round((microtime(true) - $requestStartedAt) * 1000),
+    ]);
     pm_json_response($order['duplicate'] ? 200 : 201, [
         'status' => 'accepted',
         'orderId' => $order['orderId'],
@@ -604,9 +646,45 @@ try {
     if (function_exists('fastcgi_finish_request')) {
         fastcgi_finish_request();
     }
-    try {
+        if (!$order['duplicate']) {
+        $archiveStartedAt = microtime(true);
+        try {
+            $archivePath = pm_create_zip($order['directory']);
+            pm_write_private_file(
+                $order['directory'] . '/archive.json',
+                json_encode([
+                    'status' => $archivePath ? 'ready' : 'unavailable',
+                    'completedAt' => gmdate('c'),
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+            );
+            pm_write_technical_log($technicalStorage, 'archive_completed', [
+                'requestId' => $order['payload']['requestId'],
+                'orderId' => $order['orderId'],
+                'status' => $archivePath ? 'ready' : 'unavailable',
+                'elapsedMs' => (int) round((microtime(true) - $archiveStartedAt) * 1000),
+            ]);
+        } catch (Throwable $archiveError) {
+            pm_write_private_file(
+                $order['directory'] . '/archive.json',
+                json_encode(['status' => 'failed', 'completedAt' => gmdate('c')], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+            );
+            pm_write_technical_log($technicalStorage, 'archive_failed', [
+                'requestId' => $order['payload']['requestId'],
+                'orderId' => $order['orderId'],
+                'error' => $archiveError->getMessage(),
+                'elapsedMs' => (int) round((microtime(true) - $archiveStartedAt) * 1000),
+            ]);
+        }
+    }
+    try
+    {
         pm_run_notifications($config, $order);
     } catch (Throwable $notificationError) {
+        pm_write_technical_log($technicalStorage, 'notification_failed', [
+            'requestId' => $order['payload']['requestId'],
+            'orderId' => $order['orderId'],
+            'error' => $notificationError->getMessage(),
+        ]);
         error_log('Pechataet Maksim order notification: ' . $notificationError->getMessage());
     }
 } catch (JsonException $error) {
@@ -614,6 +692,12 @@ try {
 } catch (InvalidArgumentException $error) {
     pm_fail(422, 'validation_failed', $error->getMessage());
 } catch (Throwable $error) {
+    if ($technicalStorage !== null) {
+        pm_write_technical_log($technicalStorage, 'receiver_failed', [
+            'error' => $error->getMessage(),
+            'elapsedMs' => (int) round((microtime(true) - $requestStartedAt) * 1000),
+        ]);
+    }
     error_log('Pechataet Maksim order receiver: ' . $error->getMessage());
     pm_fail(503, 'receiver_unavailable', 'Не удалось сохранить заявку. Повторите попытку или скачайте копию.');
 }
