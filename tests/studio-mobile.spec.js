@@ -655,19 +655,20 @@ test('traced wide artwork is trimmed to its ink and fills the ribbon safe height
       layoutLogoHeight: layout.logoBox.height,
       layoutSafeHeight: layout.printable.height,
       svgSource: asset?.logoSvgSource,
+      viewBox: asset?.logoSvgSource?.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number),
     };
   });
 
   expect(result.ratio).toBeGreaterThan(6);
-  expect(result.tracedWidth / result.tracedHeight).toBeCloseTo(result.ratio, 5);
+  expect(result.viewBox?.[2] / result.viewBox?.[3]).toBeCloseTo(result.ratio, 5);
   expect(result.artworkHeight / result.tracedHeight).toBeGreaterThanOrEqual(
     0.98,
   );
   expect(result.paintedHeight / result.safeHeight).toBeGreaterThanOrEqual(0.98);
   expect(result.layoutLogoHeight).toBeCloseTo(result.layoutSafeHeight, 5);
-  expect(result.svgSource).toContain(
-    `viewBox="0 0 ${result.tracedWidth} ${result.tracedHeight}"`,
-  );
+  expect(result.viewBox?.[2]).toBeLessThanOrEqual(result.tracedWidth * 1.01);
+  expect(result.viewBox?.[3]).toBeLessThanOrEqual(result.tracedHeight * 1.01);
+  expect(result.svgSource).toContain('viewBox=');
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });

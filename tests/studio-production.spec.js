@@ -173,6 +173,58 @@ test('roundrect text-only expands to the printable area and manual movement stay
   );
 });
 
+test('roundrect traced logo and text fill printable height @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.locator('#textInput').fill('Текст на максимум');
+  await page.locator('#logoInput').setInputFiles(fixturePath('transparent-logo.png'));
+  await expect(page.locator('#traceStatus')).toBeVisible();
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+
+  const metrics = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    const image = document.querySelector('#stickerContent image');
+    const href = image?.getAttribute('href') || '';
+    const svg = href.startsWith('data:image/svg+xml;base64,')
+      ? atob(href.split(',')[1])
+      : '';
+    const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number);
+    return {layout, viewBox};
+  });
+
+  expect(metrics.layout.valid).toBe(true);
+  expect(metrics.layout.logoBox.height / metrics.layout.printable.height).toBeGreaterThan(0.99);
+  expect(metrics.layout.textBox.height / metrics.layout.printable.height).toBeGreaterThan(0.99);
+  expect(metrics.layout.textScaleY).toBeGreaterThan(1.2);
+  expect(metrics.viewBox?.[2]).toBeLessThan(46);
+  expect(metrics.viewBox?.[3]).toBeLessThan(48);
+});
+
+test('roundrect vertical text scale is isolated and clamped @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.locator('#textInput').fill('Вертикальный текст');
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+  await page.locator('#layoutModeChoice button[data-value="manual"]').click();
+  await expect(page.locator('#textScaleY')).toBeVisible();
+  await page.locator('#textScaleY').evaluate((input) => {
+    input.value = input.max;
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  const roundrect = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker);
+  expect(roundrect.textScaleY).toBeGreaterThan(1.4);
+  expect(roundrect.textScaleY).toBeLessThanOrEqual(3);
+  expect(roundrect.textBox.y).toBeGreaterThanOrEqual(roundrect.printable.y - 0.001);
+  expect(roundrect.textBox.y + roundrect.textBox.height).toBeLessThanOrEqual(roundrect.printable.y + roundrect.printable.height + 0.001);
+
+  await page.locator('[data-variant="circle-40"]').click();
+  await expect(page.locator('#textScaleY')).toBeHidden();
+});
+
 test('roundrect manual mode allows independent logo and text placement @smoke', async ({
   page,
 }) => {
