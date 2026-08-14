@@ -84,7 +84,7 @@ test('production geometry enforces 2.5 mm printable margins and circular bounds 
 test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Линейный live тест');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#continueUpload').click();
@@ -118,20 +118,25 @@ test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', asyn
   const scale = result.outer.width / 80;
   expect(result.bounds.x / scale).toBeCloseTo(2.5, 5);
   expect(result.bounds.y / scale).toBeCloseTo(2.5, 5);
-  expect((result.outer.width - result.bounds.x - result.bounds.width) / scale).toBeCloseTo(2.5, 5);
-  expect((result.outer.height - result.bounds.y - result.bounds.height) / scale).toBeCloseTo(2.5, 5);
+  expect(
+    (result.outer.width - result.bounds.x - result.bounds.width) / scale,
+  ).toBeCloseTo(2.5, 5);
+  expect(
+    (result.outer.height - result.bounds.y - result.bounds.height) / scale,
+  ).toBeCloseTo(2.5, 5);
   expect(result.bounds.radius).toBe(0);
   expect(result.layout.valid).toBe(true);
   expect(result.layout.logoBox.x).toBeLessThan(result.layout.textBox.x);
-  expect(result.layout.logoBox.height / result.layout.printable.height).toBeGreaterThan(0.99);
-  expect(result.layout.logoBox.y + result.layout.logoBox.height / 2).toBeCloseTo(
-    result.layout.textBox.y + result.layout.textBox.height / 2,
-    2,
-  );
+  expect(
+    result.layout.logoBox.height / result.layout.printable.height,
+  ).toBeGreaterThan(0.99);
+  expect(
+    result.layout.logoBox.y + result.layout.logoBox.height / 2,
+  ).toBeCloseTo(result.layout.textBox.y + result.layout.textBox.height / 2, 2);
   expect(result.layout.textBox.width).toBeGreaterThan(0);
-  expect(result.layout.textBox.x + result.layout.textBox.width).toBeLessThanOrEqual(
-    result.bounds.x + result.bounds.width + 0.001,
-  );
+  expect(
+    result.layout.textBox.x + result.layout.textBox.width,
+  ).toBeLessThanOrEqual(result.bounds.x + result.bounds.width + 0.001);
   expect(result.images).toBe(1);
   expect(result.texts).toBe(1);
 });
@@ -139,13 +144,13 @@ test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', asyn
 test('roundrect text-only expands to the printable area and manual movement stays clamped @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('OK');
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();
 
-  const auto = await page.evaluate(() =>
-    JSON.parse(document.body.dataset.studioLayout).sticker,
+  const auto = await page.evaluate(
+    () => JSON.parse(document.body.dataset.studioLayout).sticker,
   );
   expect(auto.valid).toBe(true);
   const widthFill = auto.textBox.width / auto.printable.width;
@@ -156,15 +161,15 @@ test('roundrect text-only expands to the printable area and manual movement stay
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
   await page.locator('#fontSize').evaluate((input) => {
     input.value = input.max;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.locator('#textOffsetX').evaluate((input) => {
     input.value = input.max;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  const manual = await page.evaluate(() =>
-    JSON.parse(document.body.dataset.studioLayout).sticker,
+  const manual = await page.evaluate(
+    () => JSON.parse(document.body.dataset.studioLayout).sticker,
   );
   expect(manual.valid).toBe(true);
   expect(manual.textBox.x).toBeGreaterThanOrEqual(manual.printable.x - 0.001);
@@ -176,9 +181,11 @@ test('roundrect text-only expands to the printable area and manual movement stay
 test('roundrect traced logo and text fill printable height @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Текст на максимум');
-  await page.locator('#logoInput').setInputFiles(fixturePath('transparent-logo.png'));
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('transparent-logo.png'));
   await expect(page.locator('#traceStatus')).toBeVisible();
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();
@@ -190,12 +197,17 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
     const svg = href.startsWith('data:image/svg+xml;base64,')
       ? atob(href.split(',')[1])
       : '';
-    const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number);
-    return {layout, viewBox};
+    const viewBox = svg
+      .match(/viewBox="([^"]+)"/)?.[1]
+      ?.split(/\s+/)
+      .map(Number);
+    return { layout, viewBox };
   });
 
   expect(metrics.layout.valid).toBe(true);
-  expect(metrics.layout.logoBox.height / metrics.layout.printable.height).toBeGreaterThan(0.99);
+  expect(
+    metrics.layout.logoBox.height / metrics.layout.printable.height,
+  ).toBeGreaterThan(0.99);
   expect(metrics.layout.textBox.height).toBeGreaterThan(0);
   expect(metrics.layout.textScaleY).toBe(1);
   expect(metrics.viewBox?.[2]).toBeLessThan(46);
@@ -205,21 +217,37 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
 test('plain entry opens an isolated sticker editor with proportional text size @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/', {waitUntil: 'networkidle'});
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.locator('[data-start-product="sticker"]').click();
   await page.locator('#textInput').fill('Отдельный стикер');
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();
-  expect(await page.locator('[data-product-type="ribbon"]').evaluateAll((items) => items.every((item) => item.classList.contains('is-hidden')))).toBe(true);
-  expect(await page.locator('[data-product-type="sticker"]').evaluateAll((items) => items.some((item) => !item.classList.contains('is-hidden')))).toBe(true);
+  expect(
+    await page
+      .locator('[data-product-type="ribbon"]')
+      .evaluateAll((items) =>
+        items.every((item) => item.classList.contains('is-hidden')),
+      ),
+  ).toBe(true);
+  expect(
+    await page
+      .locator('[data-product-type="sticker"]')
+      .evaluateAll((items) =>
+        items.some((item) => !item.classList.contains('is-hidden')),
+      ),
+  ).toBe(true);
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
   await expect(page.locator('#textScaleY')).toHaveCount(0);
-  const before = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker.fontSizeRatio);
+  const before = await page.evaluate(
+    () => JSON.parse(document.body.dataset.studioLayout).sticker.fontSizeRatio,
+  );
   await page.locator('#fontSize').evaluate((input) => {
     input.value = input.max;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  const after = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker);
+  const after = await page.evaluate(
+    () => JSON.parse(document.body.dataset.studioLayout).sticker,
+  );
   expect(after.fontSizeRatio).toBeGreaterThan(0);
   expect(after.fontSizeRatio).toBeGreaterThanOrEqual(before);
   expect(after.textScaleY).toBe(1);
@@ -230,7 +258,7 @@ test('plain entry opens an isolated sticker editor with proportional text size @
 test('roundrect uses proportional text size and ink-bound text box @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Вертикальный текст');
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();
@@ -238,19 +266,31 @@ test('roundrect uses proportional text size and ink-bound text box @smoke', asyn
   await expect(page.locator('#textScaleY')).toHaveCount(0);
   await page.locator('#fontSize').evaluate((input) => {
     input.value = input.max;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   const roundrect = await page.evaluate(() => {
     const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
-    return {layout};
+    return { layout };
   });
   expect(roundrect.layout.textScaleY).toBe(1);
   expect(roundrect.layout.textBox.width).toBeGreaterThan(0);
   expect(roundrect.layout.textBox.height).toBeGreaterThan(0);
-  expect(roundrect.layout.textBox.x).toBeGreaterThanOrEqual(roundrect.layout.printable.x - 0.001);
-  expect(roundrect.layout.textBox.x + roundrect.layout.textBox.width).toBeLessThanOrEqual(roundrect.layout.printable.x + roundrect.layout.printable.width + 0.001);
-  expect(roundrect.layout.textBox.y).toBeGreaterThanOrEqual(roundrect.layout.printable.y - 0.001);
-  expect(roundrect.layout.textBox.y + roundrect.layout.textBox.height).toBeLessThanOrEqual(roundrect.layout.printable.y + roundrect.layout.printable.height + 0.001);
+  expect(roundrect.layout.textBox.x).toBeGreaterThanOrEqual(
+    roundrect.layout.printable.x - 0.001,
+  );
+  expect(
+    roundrect.layout.textBox.x + roundrect.layout.textBox.width,
+  ).toBeLessThanOrEqual(
+    roundrect.layout.printable.x + roundrect.layout.printable.width + 0.001,
+  );
+  expect(roundrect.layout.textBox.y).toBeGreaterThanOrEqual(
+    roundrect.layout.printable.y - 0.001,
+  );
+  expect(
+    roundrect.layout.textBox.y + roundrect.layout.textBox.height,
+  ).toBeLessThanOrEqual(
+    roundrect.layout.printable.y + roundrect.layout.printable.height + 0.001,
+  );
 
   await page.locator('[data-variant="circle-40"]').click();
   await expect(page.locator('#textScaleY')).toHaveCount(0);
@@ -259,7 +299,7 @@ test('roundrect uses proportional text size and ink-bound text box @smoke', asyn
 test('roundrect manual mode allows independent logo and text placement @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Свободная композиция');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#continueUpload').click();
@@ -267,15 +307,15 @@ test('roundrect manual mode allows independent logo and text placement @smoke', 
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
   await page.locator('#logoOffsetX').evaluate((input) => {
     input.value = input.max;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.locator('#textOffsetX').evaluate((input) => {
     input.value = input.min;
-    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  const layout = await page.evaluate(() =>
-    JSON.parse(document.body.dataset.studioLayout).sticker,
+  const layout = await page.evaluate(
+    () => JSON.parse(document.body.dataset.studioLayout).sticker,
   );
   expect(layout.valid).toBe(true);
   for (const box of [layout.logoBox, layout.textBox]) {
@@ -959,31 +999,121 @@ test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
   }
 });
 
-test('sticker create step keeps one active model and compact future shape picker @smoke', async ({ page }) => {
-  await page.goto('/studio/', {waitUntil: 'networkidle'});
+test('sticker create step keeps one active model and compact future shape picker @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.locator('[data-start-product="sticker"]').click();
 
   const picker = page.locator('#stickerProductPicker');
   await expect(picker).toBeVisible();
   await expect(picker.locator('[data-sticker-option]')).toHaveCount(9);
-  await expect(picker.locator('[data-sticker-group="transparent-circle"] [data-sticker-option]')).toHaveCount(3);
-  expect(await page.evaluate(() => document.querySelector('#stickerProductPicker .sticker-product-picker-options').scrollWidth <= document.querySelector('#stickerProductPicker .sticker-product-picker-options').clientWidth)).toBe(true);
-  await picker.locator('[data-sticker-group="transparent-circle"] > summary').click();
-  await expect(picker.locator('[data-sticker-group="transparent-circle"] [data-sticker-option="circle-40"]')).toBeVisible();
-  await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveCount(1);
-  await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(
+    picker.locator(
+      '[data-sticker-group="transparent-circle"] [data-sticker-option]',
+    ),
+  ).toHaveCount(3);
+  expect(
+    await page.evaluate(
+      () =>
+        document.querySelector(
+          '#stickerProductPicker .sticker-product-picker-options',
+        ).scrollWidth <=
+        document.querySelector(
+          '#stickerProductPicker .sticker-product-picker-options',
+        ).clientWidth,
+    ),
+  ).toBe(true);
+  await picker
+    .locator('[data-sticker-group="transparent-circle"] > summary')
+    .click();
+  await expect(
+    picker.locator(
+      '[data-sticker-group="transparent-circle"] [data-sticker-option="circle-40"]',
+    ),
+  ).toBeVisible();
+  await expect(
+    picker.locator('[data-sticker-option-disabled="heart"]'),
+  ).toHaveCount(1);
+  await expect(
+    picker.locator('[data-sticker-option-disabled="heart"]'),
+  ).toHaveAttribute('aria-disabled', 'true');
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
   await expect(page.locator('#textInput')).toBeVisible();
   await expect(page.locator('#dropZone')).toBeVisible();
 
-  await picker.locator('[data-sticker-group="roundrect-80x20"] > summary').click();
-  await picker.locator('[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]').click();
+  await picker
+    .locator('[data-sticker-group="roundrect-80x20"] > summary')
+    .click();
+  await picker
+    .locator(
+      '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]',
+    )
+    .click();
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
-  await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'roundrect-80x20');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-variant-id',
+    'roundrect-80x20',
+  );
   await expect(page.locator('#textInput')).toBeVisible();
 
   await picker.locator('[data-sticker-group="circle-24"] > summary').click();
-  await picker.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]').click();
-  await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'circle-24');
-  await expect(page.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]')).toHaveAttribute('aria-pressed', 'true');
+  await picker
+    .locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]')
+    .click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-variant-id',
+    'circle-24',
+  );
+  await expect(
+    page.locator(
+      '[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]',
+    ),
+  ).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('restored traced logo is retightened before roundrect layout @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+
+  await page.evaluate(() => {
+    const key = 'ribbon-studio-v042';
+    const stored = JSON.parse(localStorage.getItem(key));
+    const logo = stored?.content?.logo?.common;
+    if (!logo?.logoSvgSource) throw new Error('stored common logo is missing');
+    logo.logoSvgSource = logo.logoSvgSource.replace(
+      /viewBox="[^"]+"/,
+      'viewBox="0 0 1000 1000"',
+    );
+    logo.logo = { ...logo.logo, ratio: 1 };
+    localStorage.setItem(key, JSON.stringify(stored));
+  });
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+  const result = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    const image = document.querySelector('#stickerContent image');
+    const href = image?.getAttribute('href') || '';
+    const svg = href.startsWith('data:image/svg+xml;base64,')
+      ? atob(href.split(',')[1])
+      : '';
+    const viewBox = svg
+      .match(/viewBox="([^"]+)"/)?.[1]
+      ?.split(/\s+/)
+      .map(Number);
+    return { layout, viewBox };
+  });
+  expect(result.layout.valid).toBe(true);
+  expect(
+    result.layout.logoBox.height / result.layout.printable.height,
+  ).toBeGreaterThan(0.99);
+  expect(result.viewBox?.[2]).toBeLessThan(200);
+  expect(result.viewBox?.[3]).toBeLessThan(200);
 });
