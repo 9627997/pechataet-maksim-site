@@ -98,6 +98,11 @@
     const marginY = PRINT_MARGIN_MM * unitsPerMmY;
     const printableWidth = Math.max(0, shapeWidth - 2 * marginX);
     const printableHeight = Math.max(0, shapeHeight - 2 * marginY);
+    const outerRadius = Math.min(
+      shapeWidth / 2,
+      shapeHeight / 2,
+      Number(cornerRadiusMm || 0) * Math.min(unitsPerMmX, unitsPerMmY),
+    );
     const printableRadius = Math.min(
       printableWidth / 2,
       printableHeight / 2,
@@ -107,7 +112,14 @@
       shape: 'roundrect',
       widthMm: physicalWidth,
       heightMm: physicalHeight,
-      outer: {x: shapeX, y: shapeY, width: shapeWidth, height: shapeHeight},
+      cornerRadiusMm: Number(cornerRadiusMm || 0),
+      outer: {
+        x: shapeX,
+        y: shapeY,
+        width: shapeWidth,
+        height: shapeHeight,
+        radius: outerRadius,
+      },
       bounds: {
         x: shapeX + marginX,
         y: shapeY + marginY,

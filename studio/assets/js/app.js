@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       widthMm: 80,
       heightMm: 20,
       diameterMm: null,
-      cornerRadiusMm: 4,
+      cornerRadiusMm: 2,
       enabled: ENABLE_ADDITIONAL_STICKER_SHAPES,
     }),
   });
@@ -1740,7 +1740,10 @@ document.addEventListener('DOMContentLoaded', () => {
         element.setAttribute('y', bounds.y);
         element.setAttribute('width', bounds.width);
         element.setAttribute('height', bounds.height);
-        element.setAttribute('rx', printable ? bounds.radius : Math.min(geometry.outer.height * 0.18, 18));
+        element.setAttribute(
+          'rx',
+          printable ? bounds.radius : geometry.outer.radius || 0,
+        );
       }
       target.appendChild(element);
       return element;
