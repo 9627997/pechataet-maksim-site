@@ -85,7 +85,7 @@ test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', asyn
   page,
 }) => {
   await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
-  await page.locator('#textInput').fill('Мой бренд');
+  await page.locator('#textInput').fill('Линейный live тест');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();

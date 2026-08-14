@@ -2018,6 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
           textOffsetY: style.textOffsetY,
           manualLayout: style.layoutMode === 'manual',
           preferredFontSize,
+          scaleTextToFitWidth: true,
         });
       }
       return getStickerContentLayout({

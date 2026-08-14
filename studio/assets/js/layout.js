@@ -89,6 +89,7 @@
     textOffsetY = 0,
     manualLayout = false,
     preferredFontSize,
+    scaleTextToFitWidth = false,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -123,7 +124,7 @@
         maxHeight: bounds.height,
         centerX: bounds.x + logoWidth + gap + textWidth / 2,
         centerY,
-        scaleToFitWidth: false,
+        scaleToFitWidth: scaleTextToFitWidth,
       });
     } else if (hasLogo) {
       const source = logo.ratio >= 1
