@@ -2711,7 +2711,8 @@ const bootStudio = () => {
   function syncStickerProductPicker() {
     const picker = $('#stickerProductPicker');
     if (!picker) return;
-    const visible = state.productFirstMode && state.primaryProduct === 'sticker' && state.panel === 'upload';
+    const activeUploadPanel = state.panel === 'upload' || document.body.dataset.activePanel === 'upload';
+    const visible = state.productFirstMode && state.primaryProduct === 'sticker' && activeUploadPanel;
     picker.hidden = !visible;
     const activeVariant = getStickerVariant(state.stickerVariantId);
     $$('#stickerProductPicker [data-sticker-option]').forEach((option) => {
