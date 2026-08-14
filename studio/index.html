@@ -66,7 +66,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=aa78ffdec740">
+  <link rel="stylesheet" href="assets/css/app.css?v=b9089f4f5e00">
   <link rel="stylesheet" href="assets/css/mobile-products.css?v=adb56e55713d">
 </head>
 <body data-active-panel="upload">
@@ -88,6 +88,28 @@
   <span id="studioEntryContextText"></span>
   <button class="studio-entry-context-close" id="studioEntryContextClose" type="button" aria-label="Скрыть подсказку">×</button>
 </div>
+
+<section class="product-first-choice" id="productFirstChoice" aria-labelledby="productFirstChoiceTitle" hidden>
+  <div class="product-first-choice-head">
+    <p>Новый макет</p>
+    <h1 id="productFirstChoiceTitle">Что создаём?</h1>
+    <span>Сначала настроим одно изделие. Второй продукт можно добавить к заказу позже.</span>
+  </div>
+  <div class="product-first-choice-grid">
+    <button class="product-first-choice-card" type="button" data-start-product="ribbon">
+      <span class="product-first-choice-art product-first-choice-art-ribbon" aria-hidden="true"><span>печатает максим</span></span>
+      <strong>Ленту</strong>
+      <small>Текст, логотип и печать на ленте</small>
+      <em>Создать ленту →</em>
+    </button>
+    <button class="product-first-choice-card" type="button" data-start-product="sticker">
+      <span class="product-first-choice-art product-first-choice-art-sticker" aria-hidden="true"><span>печатает<br>максим</span></span>
+      <strong>Стикер</strong>
+      <small>Круглый или прямоугольный стикер</small>
+      <em>Создать стикер →</em>
+    </button>
+  </div>
+</section>
 
 <div class="app-shell">
   <aside class="sidebar">
@@ -473,6 +495,18 @@
       </select>
       <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>В заказе должен остаться хотя бы один продукт.</p>
 
+      <section class="secondary-product-offer" id="secondaryProductOffer" aria-live="polite" hidden>
+        <span class="secondary-product-offer-kicker">Можно добавить к заказу</span>
+        <strong id="secondaryProductOfferTitle">Стикеры в том же стиле?</strong>
+        <p id="secondaryProductOfferCopy">Используем текущую надпись и логотип. Настройки можно изменить отдельно.</p>
+        <button class="button ghost wide" id="addSecondaryProduct" type="button">Добавить стикеры</button>
+      </section>
+
+      <section class="order-items-summary" id="orderItemsSummary" aria-live="polite" hidden>
+        <strong>В заказе</strong>
+        <div id="orderItemsSummaryList"></div>
+      </section>
+
       <div class="total">
         <span>Предварительная стоимость</span>
         <strong id="totalPrice">1 790 ₽</strong>
@@ -711,7 +745,7 @@
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=571fff0be4b8"></script>
+<script src="assets/js/app.js?v=d0dff6906cd1"></script>
 <script src="assets/js/mobile-products.js?v=b2dad9c1ff1e"></script>
 </body>
 </html>
