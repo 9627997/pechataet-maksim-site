@@ -1,5 +1,5 @@
 
-document.addEventListener('DOMContentLoaded', () => {
+const bootStudio = () => {
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const NS = 'http://www.w3.org/2000/svg';
@@ -5348,4 +5348,10 @@ document.addEventListener('DOMContentLoaded', () => {
   updateShowcaseContent();
   updateProductShowcase();
   document.fonts?.ready.then(() => render());
-});
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootStudio, {once: true});
+} else {
+  bootStudio();
+}
