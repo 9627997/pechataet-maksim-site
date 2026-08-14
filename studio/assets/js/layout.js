@@ -91,6 +91,7 @@
     preferredFontSize,
     scaleTextToFitWidth = false,
     minFontSize = MIN_PRINT_FONT_SIZE,
+    textScaleY = 1,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -162,6 +163,27 @@
       });
     }
 
+    if (textResult.bbox) {
+      const requestedTextScaleY = manualLayout
+        ? Math.min(3, Math.max(0.5, textScaleY || 1))
+        : scaleTextToFitWidth
+          ? Math.min(3, Math.max(1, bounds.height / Math.max(textResult.bbox.height, 1e-7)))
+          : 1;
+      const baseTextHeight = textResult.bbox.height;
+      const verticalScaleY = Math.min(
+        requestedTextScaleY,
+        bounds.height / Math.max(baseTextHeight, 1e-7),
+      );
+      const scaledHeight = baseTextHeight * verticalScaleY;
+      textResult.bbox = {
+        ...textResult.bbox,
+        y: centerY - scaledHeight / 2,
+        height: scaledHeight,
+      };
+      textResult.textScaleY = verticalScaleY;
+      textResult.fits = textResult.fits && scaledHeight <= bounds.height + 1e-7;
+    }
+
     if (manualLayout && textResult.bbox) {
       const clamped = geometry.clampRectOffsetToBounds(
         textResult.bbox,
@@ -183,6 +205,7 @@
       logoBox,
       textBox: textResult.bbox,
       fontSize: textResult.fontSize,
+      textScaleY: textResult.textScaleY || 1,
     };
   }
 

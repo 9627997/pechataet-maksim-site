@@ -167,7 +167,8 @@ const bootStudio = () => {
         textOffsetY: 0,
         logoScale: 1,
         logoOffsetX: 0,
-        logoOffsetY: 0
+        logoOffsetY: 0,
+        textScaleY: 1
       }
     },
     activeContentProduct: 'ribbon',
@@ -226,7 +227,8 @@ const bootStudio = () => {
       textOffsetY: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.textOffsetY) || 0)),
       logoScale: Math.min(1, Math.max(0.1, Number(value?.logoScale ?? fallback.logoScale) || 1)),
       logoOffsetX: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0)),
-      logoOffsetY: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.logoOffsetY) || 0))
+      logoOffsetY: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.logoOffsetY) || 0)),
+      textScaleY: Math.min(3, Math.max(0.5, Number(value?.textScaleY ?? fallback.textScaleY) || 1))
     };
   }
 
@@ -1364,6 +1366,7 @@ const bootStudio = () => {
     product,
     anchor = 'middle',
     font = getProductStyle(product).font,
+    scaleY = 1,
   ) {
     if (!value) return;
     const style = getProductStyle(product);
@@ -1380,6 +1383,12 @@ const bootStudio = () => {
     });
 
     text.textContent = value;
+    if (scaleY !== 1) {
+      text.setAttribute(
+        'transform',
+        `translate(${x} ${y}) scale(1 ${scaleY}) translate(${-x} ${-y})`,
+      );
+    }
     parent.appendChild(text);
     return text;
   }
@@ -2024,6 +2033,7 @@ const bootStudio = () => {
           preferredFontSize,
           scaleTextToFitWidth: true,
           minFontSize: 4,
+          textScaleY: style.textScaleY,
         });
       }
       return getStickerContentLayout({
@@ -2076,6 +2086,9 @@ const bootStudio = () => {
         stickerLayout.fontSize,
         resolvedText,
         'sticker',
+        'middle',
+        style.font,
+        stickerLayout.textScaleY,
       );
       text.dataset.effectiveFontSize = String(stickerLayout.fontSize);
     }
@@ -2097,6 +2110,7 @@ const bootStudio = () => {
           'sticker',
           'middle',
           getPreviewFont('sticker'),
+          previewLayout.textScaleY,
         );
       }
       layer.appendChild(previewContent);
@@ -2172,6 +2186,7 @@ const bootStudio = () => {
       reason: layout.reason || null,
       logoBox: normalizeBox(layout.logoBox),
       textBox: normalizeBox(layout.textBox),
+      textScaleY: layout.textScaleY || 1,
       fontSizeRatio: layout.fontSize / outer.height,
       printable: layout.printable?.bounds || layout.bounds
         ? normalizeBox(layout.printable?.bounds || layout.bounds)
@@ -2224,6 +2239,7 @@ const bootStudio = () => {
         text.style.top = `${(textBox.y + textBox.height / 2) * 100}%`;
         text.style.width = `${textBox.width * 100}%`;
         text.style.height = `${textBox.height * 100}%`;
+        text.style.transform = `translate(-50%, -50%) scale(1, ${layout.textScaleY || 1})`;
         text.style.setProperty(
           'font-size',
           `${fontSizeRatio * root.getBoundingClientRect().height}px`,
@@ -2808,6 +2824,7 @@ const bootStudio = () => {
       pointerEvents: 'none',
     });
     const clone = svg.cloneNode(true);
+    clone.querySelectorAll('[opacity="0"], [style*="opacity:0"], [style*="opacity: 0"]').forEach((node) => node.remove());
     clone.removeAttribute('width');
     clone.removeAttribute('height');
     clone.style.width = '1000px';
@@ -2842,6 +2859,23 @@ const bootStudio = () => {
       host.remove();
     }
     return svg;
+  }
+
+  async function tightenSvgSource(svgSource) {
+    if (!svgSource) return null;
+    const doc = new DOMParser().parseFromString(svgSource, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (svg.nodeName.toLowerCase() !== 'svg') return null;
+    await tightenSvgArtwork(svg);
+    const viewBox = (svg.getAttribute('viewBox') || '')
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+    if (viewBox.length !== 4 || !(viewBox[3] > 0)) return null;
+    return {
+      svgSource: new XMLSerializer().serializeToString(svg),
+      ratio: viewBox[2] / viewBox[3],
+    };
   }
 
   function isNonePaint(value) {
@@ -3477,7 +3511,7 @@ const bootStudio = () => {
     };
   }
 
-  function applyTracePolarity(polarity) {
+  async function applyTracePolarity(polarity) {
     const session = tracePolaritySession;
     if (!session) return;
     const normalizedPolarity =
@@ -3491,14 +3525,17 @@ const bootStudio = () => {
     );
     if (!variant?.svgSource || !traceInfo) return;
 
+    const tightened = await tightenSvgSource(variant.svgSource);
+    const logoSvgSource = tightened?.svgSource || variant.svgSource;
+    const logoRatio = tightened?.ratio || variant.ratio;
     const asset = {
       originalRaster: session.originalRaster,
       traceInfo,
-      logoSvgSource: variant.svgSource,
+      logoSvgSource,
       logoType: 'svg-auto',
       logo: {
-        data: recolorSvgSource(variant.svgSource),
-        ratio: variant.ratio,
+        data: recolorSvgSource(logoSvgSource),
+        ratio: logoRatio,
       },
     };
 
@@ -3865,7 +3902,11 @@ const bootStudio = () => {
       $('#fontSize').min = '16';
       $('#fontSize').max = roundrectSticker ? '120' : '64';
       $('#fontSize').value = Math.min(+$('#fontSize').max, Math.max(+$('#fontSize').min, style.fontSize));
+      $$('[data-roundrect-only="true"]').forEach((control) => {
+        control.hidden = !roundrectSticker;
+      });
     }
+    if ($('#textScaleY')) $('#textScaleY').value = Math.round((style.textScaleY || 1) * 100);
     const ribbonSettings = state.activeSettingsProduct === 'ribbon';
     const offsetLimit =
       state.activeSettingsProduct === 'sticker' && activeStickerVariant.shape === 'roundrect'
@@ -4704,6 +4745,7 @@ const bootStudio = () => {
       style.textOffsetY = 0;
       style.logoOffsetX = 0;
       style.logoOffsetY = 0;
+      if (state.activeSettingsProduct === 'sticker') style.textScaleY = 1;
       if (state.activeSettingsProduct === 'ribbon') state.repeatMode = 'auto';
     }
     syncControls();
@@ -4734,6 +4776,13 @@ const bootStudio = () => {
   $('#textOffsetY').addEventListener('input', (event) => {
     useManualLayout();
     getProductStyle(state.activeSettingsProduct).textOffsetY = +event.target.value;
+    render();
+  });
+
+  $('#textScaleY').addEventListener('input', (event) => {
+    useManualLayout();
+    getProductStyle(state.activeSettingsProduct).textScaleY =
+      Math.min(3, Math.max(0.5, +event.target.value / 100));
     render();
   });
 
@@ -4842,6 +4891,7 @@ const bootStudio = () => {
     style.layoutMode = 'manual';
     style.logoOffsetX = 0;
     style.logoOffsetY = 0;
+    if (state.activeSettingsProduct === 'sticker') style.textScaleY = 1;
     syncLegacyStyleAliases();
     syncControls();
     render();

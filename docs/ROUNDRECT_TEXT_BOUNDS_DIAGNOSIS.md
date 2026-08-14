@@ -93,3 +93,9 @@ Production correctly serves the new `app.js?v=871079993dbf`, but still serves `l
 After PR #61, production serves both current hashes: `layout.js?v=191dd813439d` and `app.js?v=871079993dbf`. The serialized roundrect text-only layout is valid; its normalized textBox width is `0.9375`, exactly equal to normalized printable width `0.9375`, and its height is `0.1669` versus printable height `0.1875`. This confirms that the text-only auto layout now uses the full printable width while remaining inside the 2.5 mm bounds.
 
 The sandbox browser upload helper could not attach the local SVG to the hidden production file input, so the final production logo+text check is covered by the local Playwright regression (including maximum printable-height logo and independent opposite-direction manual placement) rather than a live uploaded asset. No order was submitted.
+
+## Traced-logo and vertical-text correction
+
+The reproduced automatic tracing output contained an invisible opacity-zero rectangle in the SVG path list and retained a larger `46×48` viewBox while visible artwork occupied approximately `1..45 × 1..47`. The layout therefore filled the printable logo box with the full viewBox, not the visible artwork. The tracing commit now removes invisible paths from the ink-bounds measurement clone and tightens the traced SVG viewBox before it is persisted.
+
+A second independent issue affected text. Width fitting selected the largest proportional font that fit the horizontal line, leaving visible glyph height at roughly 56% of the 15 mm printable height. Roundrect now stores `textScaleY`; auto mode expands the text vertically to the available printable height, while manual mode exposes a dedicated vertical text scale control and keeps the resulting box clamped to the exact printable bounds. Desktop SVG and mobile HTML previews use the same scale value.
