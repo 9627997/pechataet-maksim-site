@@ -147,7 +147,7 @@
         maxHeight: bounds.height,
         centerX: bounds.x + bounds.width / 2,
         centerY,
-        scaleToFitWidth,
+        scaleToFitWidth: scaleTextToFitWidth,
       });
     }
 
