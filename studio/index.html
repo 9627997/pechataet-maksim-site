@@ -66,7 +66,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=f47a6cb9a2fa">
+  <link rel="stylesheet" href="assets/css/app.css?v=303341ca1105">
   <link rel="stylesheet" href="assets/css/mobile-products.css?v=adb56e55713d">
 </head>
 <body data-active-panel="upload">
@@ -182,6 +182,46 @@
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
       <p class="panel-copy">Добавьте название, логотип или оба элемента.</p>
       <div class="mobile-products-host" data-products-host="upload"></div>
+
+      <section class="sticker-product-picker" id="stickerProductPicker" aria-labelledby="stickerProductPickerTitle" hidden>
+        <div class="sticker-product-picker-head">
+          <div>
+            <span class="create-option-number">03</span>
+            <strong id="stickerProductPickerTitle">Выберите стикер</strong>
+          </div>
+          <small>Один вариант остаётся активным и открытым для редактирования</small>
+        </div>
+        <div class="sticker-product-picker-options" role="list" aria-label="Варианты стикеров">
+          <button class="sticker-product-option active" type="button" role="listitem" data-sticker-option="circle-40" data-sticker-bg="#ffffff" aria-pressed="true" aria-label="Круглый стикер 40 мм">
+            <span class="sticker-product-shape sticker-product-shape-circle" aria-hidden="true"></span>
+            <span>Круглый<br>40 мм</span>
+          </button>
+          <button class="sticker-product-option" type="button" role="listitem" data-sticker-option="circle-24" data-sticker-bg="#171717" aria-pressed="false" aria-label="Чёрный круглый стикер 24 мм">
+            <span class="sticker-product-shape sticker-product-shape-circle sticker-product-shape-black" aria-hidden="true"></span>
+            <span>Круглый<br>24 мм</span>
+          </button>
+          <button class="sticker-product-option" type="button" role="listitem" data-sticker-option="circle-24" data-sticker-bg="#b69249" aria-pressed="false" aria-label="Золотой круглый стикер 24 мм">
+            <span class="sticker-product-shape sticker-product-shape-circle sticker-product-shape-gold" aria-hidden="true"></span>
+            <span>Круглый<br>24 мм · золото</span>
+          </button>
+          <button class="sticker-product-option" type="button" role="listitem" data-sticker-option="circle-30" data-sticker-bg="transparent" aria-pressed="false" aria-label="Прозрачный круглый стикер 30 мм">
+            <span class="sticker-product-shape sticker-product-shape-circle sticker-product-shape-clear" aria-hidden="true"></span>
+            <span>Прозрачный<br>30 мм</span>
+          </button>
+          <button class="sticker-product-option" type="button" role="listitem" data-sticker-option="roundrect-80x20" data-sticker-bg="#171717" aria-pressed="false" aria-label="Чёрный прямоугольный стикер 80 на 20 мм">
+            <span class="sticker-product-shape sticker-product-shape-roundrect sticker-product-shape-black" aria-hidden="true"></span>
+            <span>Прямоугольный<br>80×20 мм</span>
+          </button>
+          <button class="sticker-product-option" type="button" role="listitem" data-sticker-option="roundrect-80x20" data-sticker-bg="#b7202d" aria-label="Красный прямоугольный стикер 80 на 20 мм" aria-pressed="false">
+            <span class="sticker-product-shape sticker-product-shape-roundrect sticker-product-shape-red" aria-hidden="true"></span>
+            <span>Прямоугольный<br>80×20 мм · красный</span>
+          </button>
+          <a class="sticker-product-option sticker-product-option-disabled" href="#future-heart-stickers" aria-disabled="true" tabindex="-1" data-sticker-option-disabled="heart">
+            <span class="sticker-product-shape sticker-product-shape-heart" aria-hidden="true">♥</span>
+            <span>Сердечко<br><small>скоро</small></span>
+          </a>
+        </div>
+      </section>
 
       <div class="upload-text-card create-option">
         <div class="upload-text-head">
@@ -390,6 +430,7 @@
         <p class="field-hint" id="stickerVariantHint">Выберите форму до настройки текста и логотипа. Прямоугольник — 80 × 20 мм с радиусом скругления 2 мм. Crop и трассировка работают одинаково для обоих вариантов.</p>
         <label id="stickerSizeLabelControl">Размер круглого стикера</label>
         <div class="segmented" id="stickerSizeChoice">
+          <button data-value="24" type="button">24 мм</button>
           <button data-value="25" type="button">25 мм</button>
           <button data-value="30" type="button">30 мм</button>
           <button class="active" data-value="40" type="button">40 мм</button>
@@ -745,7 +786,7 @@
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=546e64f02f86"></script>
+<script src="assets/js/app.js?v=338c68aaeab7"></script>
 <script src="assets/js/mobile-products.js?v=de7867e3088f"></script>
 </body>
 </html>

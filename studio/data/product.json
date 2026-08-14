@@ -13,10 +13,20 @@
     20
   ],
   "sticker_sizes_mm": [
+    24,
     25,
     30,
     40,
     50
+  ],
+  "sticker_picker_options": [
+    {"id": "circle-40", "shape": "circle", "size_mm": 40, "colors": ["white"], "enabled": true},
+    {"id": "circle-24-black", "shape": "circle", "size_mm": 24, "colors": ["black"], "enabled": true},
+    {"id": "circle-24-gold", "shape": "circle", "size_mm": 24, "colors": ["gold"], "enabled": true},
+    {"id": "circle-30-transparent", "shape": "circle", "size_mm": 30, "colors": ["transparent"], "enabled": true},
+    {"id": "roundrect-80x20-black", "shape": "roundrect", "width_mm": 80, "height_mm": 20, "corner_radius_mm": 2, "colors": ["black"], "enabled": true},
+    {"id": "roundrect-80x20-red", "shape": "roundrect", "width_mm": 80, "height_mm": 20, "corner_radius_mm": 2, "colors": ["red"], "enabled": true},
+    {"id": "heart", "shape": "heart", "enabled": false, "future_link": true}
   ],
   "upload_formats": [
     "svg",

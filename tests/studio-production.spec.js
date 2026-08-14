@@ -958,3 +958,26 @@ test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
     expect(parseFloat(result.guideLeft)).toBeCloseTo((2.5 / repeatMm) * 100, 5);
   }
 });
+
+test('sticker create step keeps one active model and compact future shape picker @smoke', async ({ page }) => {
+  await page.goto('/studio/', {waitUntil: 'networkidle'});
+  await page.locator('[data-start-product="sticker"]').click();
+
+  const picker = page.locator('#stickerProductPicker');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('[data-sticker-option]')).toHaveCount(6);
+  await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveCount(1);
+  await expect(picker.locator('[data-sticker-option-disabled="heart"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
+  await expect(page.locator('#textInput')).toBeVisible();
+  await expect(page.locator('#dropZone')).toBeVisible();
+
+  await picker.locator('[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]').click();
+  await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
+  await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'roundrect-80x20');
+  await expect(page.locator('#textInput')).toBeVisible();
+
+  await picker.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-sticker-variant-id', 'circle-24');
+  await expect(page.locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]')).toHaveAttribute('aria-pressed', 'true');
+});
