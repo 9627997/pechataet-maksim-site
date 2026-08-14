@@ -172,10 +172,25 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   expect(runtimeErrors).toEqual([]);
 });
 
-test('Studio protects a created project from an accidental reset @smoke', async ({
+test('Plain Studio entry starts with the product chooser @smoke', async ({
   page,
 }) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await expect(page.locator('#productFirstChoice')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Создать ленту →' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Создать стикер →' })).toBeVisible();
+  await expect(page.locator('.app-shell')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Создать ленту →' }).click();
+  await expect(page.locator('#productFirstChoice')).toBeHidden();
+  await expect(page.getByRole('textbox', { name: 'Надпись на ленте' })).toBeVisible();
+  await expect(page.locator('[data-mobile-product="sticker"]')).toBeHidden();
+});
+
+test('Studio protects a created project from an accidental reset @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const textInput = page.getByRole('textbox', { name: 'Надпись на ленте' });
   await textInput.fill('Макет для проверки');
 

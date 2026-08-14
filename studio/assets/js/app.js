@@ -5380,9 +5380,17 @@ const bootStudio = () => {
     state.meters = 0;
     state.stickerQty = 0;
     state.bundle = 'ribbon';
+  } else if (!requestedProduct) {
+    // The plain Studio entry is intentionally product-first. Do not revive the
+    // legacy combined ribbon+sticker workspace from LocalStorage: the user must
+    // choose one editor first, then may add the second product at Get/Order.
+    state.productFirstMode = true;
+    state.primaryProduct = null;
+    state.meters = 0;
+    state.stickerQty = 0;
+    state.bundle = 'ribbon';
   } else if (state.productFirstMode) {
-    // A plain legacy route must not inherit a product-first draft. Preserve
-    // genuine legacy ribbon-only/sticker-only LocalStorage projects.
+    // Keep explicit non-product routes compatible with a restored draft.
     state.productFirstMode = false;
     state.primaryProduct = null;
     state.meters = state.lastMeters || 100;

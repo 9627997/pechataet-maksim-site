@@ -33,6 +33,7 @@ button,input,select,textarea{font:inherit}
 .brand-mark{font-size:28px}.brand strong,.brand small{display:block}.brand small{font-size:10px;color:var(--muted)}
 .top-actions{display:flex;align-items:center;gap:10px}.version{background:#171717;color:#fff;border-radius:999px;padding:6px 9px;font-size:11px}
 .app-shell{display:grid;grid-template-columns:370px 1fr;min-height:calc(100vh - 72px)}
+.app-shell[hidden],.product-first-choice[hidden]{display:none!important}
 .sidebar{background:#fff;border-right:1px solid var(--line);padding:16px;overflow:auto;max-height:calc(100vh - 72px)}
 .main-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;background:#f0ece6;padding:4px;border-radius:14px;margin-bottom:18px}
 .nav-item{border:0;background:transparent;padding:9px 4px;border-radius:10px;font-size:11px;font-weight:700;color:#777;cursor:pointer}

@@ -10,7 +10,7 @@ import {
 test('production geometry enforces 2.5 mm printable margins and circular bounds @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const result = await page.evaluate(() => {
     const geometry = window.RibbonStudioGeometry;
     const ribbon = (widthMm) =>
@@ -202,6 +202,29 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
   expect(metrics.viewBox?.[3]).toBeLessThan(48);
 });
 
+test('plain entry opens an isolated sticker editor with working vertical scale @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/', {waitUntil: 'networkidle'});
+  await page.locator('[data-start-product="sticker"]').click();
+  await page.locator('#textInput').fill('Отдельный стикер');
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+  expect(await page.locator('[data-product-type="ribbon"]').evaluateAll((items) => items.every((item) => item.classList.contains('is-hidden')))).toBe(true);
+  expect(await page.locator('[data-product-type="sticker"]').evaluateAll((items) => items.some((item) => !item.classList.contains('is-hidden')))).toBe(true);
+  await page.locator('#layoutModeChoice button[data-value="manual"]').click();
+  await expect(page.locator('#textScaleY')).toBeVisible();
+  const before = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker.textScaleY);
+  await page.locator('#textScaleY').evaluate((input) => {
+    input.value = Math.min(input.max, Number(input.value) + 100);
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  const after = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker);
+  expect(after.textScaleY).toBeGreaterThan(before);
+  expect(after.textBox.y).toBeGreaterThanOrEqual(after.printable.y - 0.001);
+  expect(after.textBox.y + after.textBox.height).toBeLessThanOrEqual(after.printable.y + after.printable.height + 0.001);
+});
+
 test('roundrect vertical text scale is isolated and clamped @smoke', async ({
   page,
 }) => {
@@ -265,7 +288,7 @@ test('printable guides stay contextual and never enter the final preview', async
   page,
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const guide = page.locator(
     testInfo.project.name === 'mobile'
@@ -341,7 +364,7 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
   page,
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="settings"]').click();
   await ensureProductSettingsVisible(page, 'sticker');
@@ -413,7 +436,7 @@ test('25 mm sticker persists, updates previews, reports missing price, and exclu
 test('default logo and text fill and center the available print areas', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const metrics = await page.evaluate(() => {
     const { ribbon, sticker } = JSON.parse(document.body.dataset.studioLayout);
@@ -445,7 +468,7 @@ test('uploaded wide logo paints at the full ribbon safe height on mobile', async
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles({
     name: 'wide-logo.svg',
     mimeType: 'image/svg+xml',
@@ -490,7 +513,7 @@ test('ribbon overflow shows a clipped fragment and applies a proportional full p
   page,
 }) => {
   const fullText = 'Название бренда для упаковки';
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.locator('#repeatMm').evaluate((element) => {
     element.value = '40';
@@ -575,7 +598,7 @@ test('text stays logo-free until an uploaded logo is added', async ({
 }) => {
   const fullText = 'Название бренда для упаковки';
   const card = page.locator('.ribbon-overflow-card-mobile');
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.locator('#textInput').fill(fullText);
   await page.locator('#fontSize').evaluate((element) => {
@@ -646,7 +669,7 @@ test('text stays logo-free until an uploaded logo is added', async ({
 test('long production text is invalid and is not rendered outside printable areas', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
   await page
     .locator('#stickerSizeChoice button[data-value="25"]')
@@ -699,7 +722,7 @@ test('long production text is invalid and is not rendered outside printable area
 test('effective layout is shared with mobile and sticker boxes pass corner validation @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
   await page
@@ -751,7 +774,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
 test('automatic golden repeat follows composition and logo-only artwork', async ({
   page,
 }, testInfo) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const readRepeat = () =>
     page.evaluate(() => ({
@@ -906,7 +929,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
 test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   for (const repeatMm of [40, 100, 250]) {
     await page.locator('#repeatMm').evaluate((element, repeat) => {
       element.value = String(repeat);
