@@ -4023,7 +4023,7 @@ const bootStudio = () => {
       $('#printColorSelectLabel').textContent = `Цвет печати на ${productLabel}`;
     }
     if ($('#fontSizeLabel')) {
-      $('#fontSizeLabel').textContent = `Размер текста на ${productLabel}`;
+      $('#fontSizeLabel').textContent = 'Размер текста';
     }
     if ($('#layoutModeHelp')) {
       $('#layoutModeHelp').textContent =
