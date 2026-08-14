@@ -1051,6 +1051,12 @@ test('sticker create step keeps one active model and compact future shape picker
     )
     .click();
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
+  await expect(
+    picker.locator('[data-sticker-group="roundrect-80x20"] > summary'),
+  ).toHaveClass(/active/);
+  await expect(
+    picker.locator('[data-sticker-group="transparent-circle"] > summary'),
+  ).not.toHaveClass(/active/);
   await expect(page.locator('body')).toHaveAttribute(
     'data-sticker-variant-id',
     'roundrect-80x20',

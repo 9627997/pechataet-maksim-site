@@ -397,6 +397,65 @@ const bootStudio = () => {
     };
   }
 
+  function getSvgInkBounds(svgRoot) {
+    const drawableTags = new Set([
+      'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line', 'use', 'image', 'text', 'tspan',
+    ]);
+    let union = null;
+    const include = (candidate) => {
+      if (!candidate || !(candidate.width > 0 && candidate.height > 0)) return;
+      union = union
+        ? {
+            x: Math.min(union.x, candidate.x),
+            y: Math.min(union.y, candidate.y),
+            right: Math.max(union.right, candidate.x + candidate.width),
+            bottom: Math.max(union.bottom, candidate.y + candidate.height),
+          }
+        : {
+            x: candidate.x,
+            y: candidate.y,
+            right: candidate.x + candidate.width,
+            bottom: candidate.y + candidate.height,
+          };
+    };
+    const rootMatrix = svgRoot.getCTM?.();
+    const inverseRootMatrix = rootMatrix?.inverse?.();
+    svgRoot.querySelectorAll('*').forEach((node) => {
+      const tag = node.nodeName.toLowerCase();
+      if (!drawableTags.has(tag) || node.closest('defs,clipPath,mask,metadata,style,title,desc')) return;
+      let bbox;
+      try {
+        bbox = node.getBBox({stroke: true});
+      } catch {
+        try { bbox = node.getBBox(); } catch { bbox = null; }
+      }
+      if (!bbox || !(bbox.width > 0 && bbox.height > 0)) return;
+      const nodeMatrix = node.getCTM?.();
+      const matrix = inverseRootMatrix && nodeMatrix
+        ? inverseRootMatrix.multiply(nodeMatrix)
+        : nodeMatrix;
+      if (!matrix || typeof DOMPoint === 'undefined') {
+        include({x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height});
+        return;
+      }
+      const points = [
+        new DOMPoint(bbox.x, bbox.y),
+        new DOMPoint(bbox.x + bbox.width, bbox.y),
+        new DOMPoint(bbox.x, bbox.y + bbox.height),
+        new DOMPoint(bbox.x + bbox.width, bbox.y + bbox.height),
+      ].map((point) => point.matrixTransform(matrix));
+      include({
+        x: Math.min(...points.map((point) => point.x)),
+        y: Math.min(...points.map((point) => point.y)),
+        width: Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)),
+        height: Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)),
+      });
+    });
+    return union
+      ? {x: union.x, y: union.y, width: union.right - union.x, height: union.bottom - union.y}
+      : null;
+  }
+
   function retightenStoredLogoAsset(asset) {
     if (!asset?.logoSvgSource || !['svg', 'svg-auto'].includes(asset.logoType)) return asset;
     try {
@@ -421,13 +480,8 @@ const bootStudio = () => {
       clone.style.height = '1000px';
       host.appendChild(clone);
       document.body.appendChild(host);
-      let bbox;
-      try {
-        bbox = clone.getBBox({stroke: true});
-      } catch {
-        bbox = clone.getBBox();
-      }
-      if (!(bbox.width > 0 && bbox.height > 0)) return asset;
+      const bbox = getSvgInkBounds(clone);
+      if (!bbox) return asset;
       const padding = Math.max(bbox.width, bbox.height) * 0.002;
       svg.setAttribute('viewBox', [bbox.x - padding, bbox.y - padding, bbox.width + padding * 2, bbox.height + padding * 2].join(' '));
       svg.removeAttribute('width');
@@ -2772,6 +2826,15 @@ const bootStudio = () => {
     const visible = state.productFirstMode && state.primaryProduct === 'sticker' && activeUploadPanel;
     picker.hidden = !visible;
     const activeVariant = getStickerVariant(state.stickerVariantId);
+    $$('#stickerProductPicker [data-sticker-group]').forEach((group) => {
+      const groupId = group.dataset.stickerGroup;
+      const selected = groupId === 'transparent-circle'
+        ? activeVariant.id.startsWith('circle-') && activeVariant.id !== 'circle-24'
+        : groupId === activeVariant.id;
+      const summary = group.querySelector('summary');
+      summary?.classList.toggle('active', selected);
+      summary?.setAttribute('aria-pressed', String(selected));
+    });
     $$('#stickerProductPicker [data-sticker-option]').forEach((option) => {
       const selected = option.dataset.stickerOption === activeVariant.id &&
         (option.dataset.stickerBg || '#ffffff') === (state.stickerBg || '#ffffff');
@@ -2946,13 +3009,8 @@ const bootStudio = () => {
     document.body.appendChild(host);
     await new Promise((resolve) => requestAnimationFrame(resolve));
     try {
-      let bbox;
-      try {
-        bbox = clone.getBBox({stroke: true});
-      } catch {
-        bbox = clone.getBBox();
-      }
-      if (bbox.width > 0 && bbox.height > 0) {
+      const bbox = getSvgInkBounds(clone);
+      if (bbox) {
         const padding = Math.max(bbox.width, bbox.height) * 0.002;
         svg.setAttribute(
           'viewBox',
