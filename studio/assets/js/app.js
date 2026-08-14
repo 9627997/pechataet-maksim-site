@@ -206,23 +206,27 @@ const bootStudio = () => {
   ];
   const PRINT_OPTIONS = ['#171717', '#b69249', '#c6c8cd', '#ffffff'];
 
-  function normalizeProductStyle(value, fallback = state) {
+  function normalizeProductStyle(value, fallback = state, product = 'ribbon') {
     const font = FONT_OPTIONS.includes(value?.font)
       ? value.font
       : FONT_OPTIONS.includes(fallback.font) ? fallback.font : 'Manrope';
     const print = PRINT_OPTIONS.includes(value?.print)
       ? value.print
       : PRINT_OPTIONS.includes(fallback.print) ? fallback.print : '#171717';
+    const offsetLimit = product === 'sticker' ? 400 : 100;
     return {
       font,
       print,
-      fontSize: Math.min(64, Math.max(16, Number(value?.fontSize ?? fallback.fontSize) || 32)),
+      fontSize: Math.min(
+        product === 'sticker' ? 120 : 64,
+        Math.max(16, Number(value?.fontSize ?? fallback.fontSize) || 32),
+      ),
       layoutMode: value?.layoutMode === 'manual' ? 'manual' : 'auto',
-      textOffsetX: Math.min(100, Math.max(-100, Number(value?.textOffsetX) || 0)),
-      textOffsetY: Math.min(100, Math.max(-100, Number(value?.textOffsetY) || 0)),
+      textOffsetX: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.textOffsetX) || 0)),
+      textOffsetY: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.textOffsetY) || 0)),
       logoScale: Math.min(1, Math.max(0.1, Number(value?.logoScale ?? fallback.logoScale) || 1)),
-      logoOffsetX: Math.min(100, Math.max(-100, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0)),
-      logoOffsetY: Math.min(100, Math.max(-100, Number(value?.logoOffsetY) || 0))
+      logoOffsetX: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.logoOffsetX ?? fallback.logoOffsetX) || 0)),
+      logoOffsetY: Math.min(offsetLimit, Math.max(-offsetLimit, Number(value?.logoOffsetY) || 0))
     };
   }
 
@@ -850,8 +854,8 @@ const bootStudio = () => {
       state.activeSettingsProduct =
         restored.activeSettingsProduct === 'sticker' ? 'sticker' : 'ribbon';
       state.productStyles = {
-        ribbon: normalizeProductStyle(restored.productStyles?.ribbon, restored),
-        sticker: normalizeProductStyle(restored.productStyles?.sticker, restored)
+        ribbon: normalizeProductStyle(restored.productStyles?.ribbon, restored, 'ribbon'),
+        sticker: normalizeProductStyle(restored.productStyles?.sticker, restored, 'sticker')
       };
       syncLegacyStyleAliases();
       state.showPrintGuides = restored.showPrintGuides === true;
@@ -3854,8 +3858,25 @@ const bootStudio = () => {
     syncFontPicker();
     if ($('#printColorSelect')) $('#printColorSelect').value = style.print;
     if ($('#ribbonColorSelect')) $('#ribbonColorSelect').value = state.ribbon;
-    if ($('#fontSize')) $('#fontSize').value = style.fontSize;
+    if ($('#fontSize')) {
+      const roundrectSticker =
+        state.activeSettingsProduct === 'sticker' &&
+        activeStickerVariant.shape === 'roundrect';
+      $('#fontSize').min = '16';
+      $('#fontSize').max = roundrectSticker ? '120' : '64';
+      $('#fontSize').value = Math.min(+$('#fontSize').max, Math.max(+$('#fontSize').min, style.fontSize));
+    }
     const ribbonSettings = state.activeSettingsProduct === 'ribbon';
+    const offsetLimit =
+      state.activeSettingsProduct === 'sticker' && activeStickerVariant.shape === 'roundrect'
+        ? 400
+        : 100;
+    ['textOffsetX', 'textOffsetY', 'logoOffsetX', 'logoOffsetY'].forEach((id) => {
+      const input = $('#' + id);
+      if (!input) return;
+      input.min = String(-offsetLimit);
+      input.max = String(offsetLimit);
+    });
     if ($('#textOffsetX')) $('#textOffsetX').value = style.textOffsetX;
     if ($('#textOffsetY')) $('#textOffsetY').value = style.textOffsetY;
     if ($('#repeatMm')) {
@@ -4646,6 +4667,28 @@ const bootStudio = () => {
         centeredText.bbox,
         'y',
         'height',
+      );
+    } else if (
+      product === 'sticker' &&
+      layout?.printable?.bounds &&
+      layout?.textBox
+    ) {
+      const resolvedText = getResolvedText('sticker').trim();
+      const resolvedLogo = getResolvedLogo('sticker');
+      const hasLogo = Boolean(resolvedLogo?.logo);
+      const variant = getStickerVariant(state.stickerVariantId);
+      const preferred = {
+        25: {combined: 28, textOnly: 34},
+        30: {combined: 30, textOnly: 38},
+        40: {combined: 32, textOnly: 44},
+        50: {combined: 33, textOnly: 48},
+      }[state.stickerSize] || {combined: 32, textOnly: 44};
+      const preferredSize = hasLogo && resolvedText
+        ? preferred.combined
+        : preferred.textOnly;
+      style.fontSize = Math.min(
+        variant.shape === 'roundrect' ? 120 : 64,
+        Math.max(16, Math.round((layout.fontSize / Math.max(preferredSize, 1)) * 32)),
       );
     }
 

@@ -16,7 +16,6 @@
     const widthAtPreferred = metrics.widthPerSize * preferredSize;
     const heightAtPreferred = metrics.heightPerSize * preferredSize;
     const scale = Math.min(
-      1,
       scaleToFitWidth
         ? maxWidth / Math.max(widthAtPreferred, 1e-7)
         : 1,
@@ -100,12 +99,20 @@
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
 
     if (hasLogo && hasText) {
-      const gap = bounds.width * 0.04;
+      const gap = Math.max(1, bounds.width * 0.04);
+      const minimumTextWidth = Math.max(
+        1,
+        textMetrics.widthPerSize * minFontSize,
+      );
+      const maximumLogoWidth = Math.max(
+        1,
+        bounds.width - gap - minimumTextWidth,
+      );
       const logoWidth = Math.min(
-        bounds.width * 0.72,
+        maximumLogoWidth,
         logo.ratio * bounds.height,
       );
-      const textWidth = bounds.width - logoWidth - gap;
+      const textWidth = Math.max(1, bounds.width - logoWidth - gap);
       const logoBounds = {...bounds, width: logoWidth};
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
@@ -122,7 +129,7 @@
         text,
         metrics: textMetrics,
         preferredSize: preferredFontSize,
-        maxWidth: textWidth * 0.94,
+        maxWidth: textWidth,
         maxHeight: bounds.height,
         centerX: bounds.x + logoWidth + gap + textWidth / 2,
         centerY,
