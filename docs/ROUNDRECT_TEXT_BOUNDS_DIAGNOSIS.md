@@ -87,3 +87,9 @@ Manual mode должен управлять реальным содержимы�
 ## Live verification after PR #60
 
 Production correctly serves the new `app.js?v=871079993dbf`, but still serves `layout.js?v=d3d2d02fa443`, which is the previous cache version. The live serialized roundrect text-only layout is valid and has a textBox width equal to the printable width, but the visual preview is still not a trustworthy final verification of the new layout until the current layout.js hash is published. This is a cache-busting deployment gap, not a geometry conclusion. The next staged correction must update the layout.js hash, rerun CI, and deploy again before live UX verification.
+
+## Final live asset verification
+
+After PR #61, production serves both current hashes: `layout.js?v=191dd813439d` and `app.js?v=871079993dbf`. The serialized roundrect text-only layout is valid; its normalized textBox width is `0.9375`, exactly equal to normalized printable width `0.9375`, and its height is `0.1669` versus printable height `0.1875`. This confirms that the text-only auto layout now uses the full printable width while remaining inside the 2.5 mm bounds.
+
+The sandbox browser upload helper could not attach the local SVG to the hidden production file input, so the final production logo+text check is covered by the local Playwright regression (including maximum printable-height logo and independent opposite-direction manual placement) rather than a live uploaded asset. No order was submitted.
