@@ -2496,6 +2496,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
     document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
     document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
+    document
+      .querySelectorAll('[data-mobile-product-sample="sticker"] .mobile-products-sample-label')
+      .forEach((label) => {
+        label.textContent = `Стикер ${activeStickerVariant.displaySize.replace(/^Ø/, '')}`;
+      });
     document.dispatchEvent(
       new CustomEvent('studio:sticker-variant-updated', {
         detail: {
