@@ -633,6 +633,27 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
+  function copyProductContentOnce(sourceProduct, targetProduct) {
+    if (!['ribbon', 'sticker'].includes(sourceProduct) || !['ribbon', 'sticker'].includes(targetProduct)) return;
+    const resolvedText = getResolvedText(sourceProduct).trim();
+    const resolvedLogo = getResolvedLogo(sourceProduct);
+    if (resolvedText) {
+      state.content.text[targetProduct] = {mode: 'override', value: resolvedText};
+    }
+    if (resolvedLogo) {
+      state.content.logo[targetProduct] = {mode: 'override', value: resolvedLogo};
+    }
+    syncLegacyContentAliasesFromContent();
+  }
+
+  function copyProductStyleOnce(sourceProduct, targetProduct) {
+    if (!['ribbon', 'sticker'].includes(sourceProduct) || !['ribbon', 'sticker'].includes(targetProduct)) return;
+    state.productStyles[targetProduct] = {
+      ...state.productStyles[targetProduct],
+      ...getProductStyle(sourceProduct),
+    };
+  }
+
   function getPreviewLogo(product) {
     return isDemoLogoPreview(product)
       ? demoLogoAsset
@@ -1041,13 +1062,26 @@ document.addEventListener('DOMContentLoaded', () => {
       ? state.activeContentProduct
       : state.activeSettingsProduct;
     const focusSingleProduct = onSettings || onUpload;
-    const ribbonsOnly = focusSingleProduct
-      ? focusedProduct === 'ribbon'
-      : !onUpload && state.bundle === 'ribbon';
-    const stickersOnly = focusSingleProduct
-      ? focusedProduct === 'sticker'
-      : !onUpload && state.bundle === 'sticker';
-    const showAll = !onUpload && !onSettings && state.bundle === 'bundle';
+    const productFirstBothEnabled =
+      state.productFirstMode && state.meters > 0 && state.stickerQty > 0;
+    const productFirstWorkspace =
+      state.productFirstMode && !productFirstBothEnabled
+        ? state.primaryProduct || focusedProduct
+        : null;
+    const workspaceProduct = productFirstWorkspace || focusedProduct;
+    const ribbonsOnly = productFirstWorkspace
+      ? workspaceProduct === 'ribbon'
+      : focusSingleProduct
+        ? focusedProduct === 'ribbon'
+        : !onUpload && state.bundle === 'ribbon';
+    const stickersOnly = productFirstWorkspace
+      ? workspaceProduct === 'sticker'
+      : focusSingleProduct
+        ? focusedProduct === 'sticker'
+        : !onUpload && state.bundle === 'sticker';
+    const showAll = productFirstBothEnabled
+      ? true
+      : !onUpload && !onSettings && state.bundle === 'bundle';
 
     scene.classList.toggle('showcase-ribbons-only', ribbonsOnly);
     scene.classList.toggle('showcase-stickers-only', stickersOnly);
@@ -2596,7 +2630,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (choice) choice.hidden = !choosing;
     if (shell) shell.hidden = choosing;
     document.body.classList.toggle('product-first-mode', state.productFirstMode && !choosing);
+    const bothProductsEnabled = state.meters > 0 && state.stickerQty > 0;
+    const activeWorkspace = state.productFirstMode
+      ? bothProductsEnabled
+        ? state.activeSettingsProduct || state.activeContentProduct || state.primaryProduct || 'ribbon'
+        : state.primaryProduct || state.activeSettingsProduct || state.activeContentProduct || 'ribbon'
+      : '';
     document.body.dataset.primaryProduct = state.primaryProduct || '';
+    document.body.dataset.activeWorkspace = activeWorkspace;
     document.body.dataset.productFirstChoosing = String(choosing);
     syncProductFirstLabels();
   }
@@ -2627,15 +2668,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (summary && list) {
       summary.hidden = !state.productFirstMode || !(ribbonEnabled || stickerEnabled);
       list.innerHTML = '';
+      const appendProductCard = ({product, title, detail, quantity, meta}) => {
+        const card = document.createElement('article');
+        card.className = 'order-product-card';
+        card.dataset.orderProduct = product;
+        const copy = document.createElement('div');
+        copy.className = 'order-product-card-copy';
+        const label = document.createElement('span');
+        label.className = 'order-product-card-label';
+        label.textContent = title;
+        const details = document.createElement('strong');
+        details.textContent = detail;
+        const quantityLine = document.createElement('small');
+        quantityLine.textContent = `${quantity} · ${meta}`;
+        copy.append(label, details, quantityLine);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button ghost order-product-card-action';
+        button.dataset.configureProduct = product;
+        button.textContent = `Настроить ${product === 'ribbon' ? 'ленту' : 'стикер'}`;
+        card.append(copy, button);
+        list.appendChild(card);
+      };
       if (ribbonEnabled) {
-        const item = document.createElement('div');
-        item.textContent = `Лента ${state.width} мм · ${state.meters} м`;
-        list.appendChild(item);
+        appendProductCard({
+          product: 'ribbon',
+          title: 'Изделие 01',
+          detail: `Лента ${state.width} мм`,
+          quantity: `${state.meters} м`,
+          meta: 'настройки сохранены отдельно',
+        });
       }
       if (stickerEnabled) {
-        const item = document.createElement('div');
-        item.textContent = `${getStickerOrderLabel()} · ${state.stickerQty} шт.`;
-        list.appendChild(item);
+        appendProductCard({
+          product: 'sticker',
+          title: ribbonEnabled ? 'Изделие 02' : 'Изделие 01',
+          detail: getStickerOrderLabel(),
+          quantity: `${state.stickerQty} шт.`,
+          meta: 'настройки сохранены отдельно',
+        });
       }
     }
   }
@@ -5127,12 +5198,31 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#addSecondaryProduct')?.addEventListener('click', () => {
     if (!state.primaryProduct) return;
     const addSticker = state.primaryProduct === 'ribbon';
+    const sourceProduct = state.primaryProduct;
     setProductSelection({ribbon: true, sticker: true});
     state.lastMeters = state.meters || 100;
     state.lastStickerQty = state.stickerQty || 100;
-    if (addSticker) state.stickerQty = state.lastStickerQty;
-    else state.meters = state.lastMeters;
+    if (addSticker) {
+      state.stickerQty = state.lastStickerQty;
+      copyProductContentOnce(sourceProduct, 'sticker');
+      copyProductStyleOnce(sourceProduct, 'sticker');
+    } else {
+      state.meters = state.lastMeters;
+      copyProductContentOnce(sourceProduct, 'ribbon');
+      copyProductStyleOnce(sourceProduct, 'ribbon');
+    }
     state.bundle = 'bundle';
+    render();
+  });
+
+  $('#orderItemsSummaryList')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-configure-product]');
+    if (!button) return;
+    const product = button.dataset.configureProduct;
+    if (!['ribbon', 'sticker'].includes(product)) return;
+    setActiveContentProduct(product, {renderPreview: false});
+    setActiveSettingsProduct(product);
+    showPanel('settings');
     render();
   });
 

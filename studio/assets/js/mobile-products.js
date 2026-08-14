@@ -217,9 +217,25 @@
         );
 
         if (sample) {
-          sample.hidden = false;
-          sample.classList.toggle('is-product-disabled', !productSwitch.checked);
-          sample.setAttribute('aria-disabled', String(!productSwitch.checked));
+          const productFirstMode = document.body.classList.contains('product-first-mode');
+          const bothProductsEnabled =
+            document.body.dataset.hasRibbon === 'true' &&
+            document.body.dataset.hasSticker === 'true';
+          const activeWorkspace = document.body.dataset.activeWorkspace;
+          const hideOutsideWorkspace =
+            productFirstMode &&
+            !bothProductsEnabled &&
+            activeWorkspace &&
+            activeWorkspace !== productSwitch.dataset.mobileProduct;
+          sample.hidden = Boolean(hideOutsideWorkspace);
+          sample.classList.toggle(
+            'is-product-disabled',
+            !productSwitch.checked || hideOutsideWorkspace,
+          );
+          sample.setAttribute(
+            'aria-disabled',
+            String(!productSwitch.checked || hideOutsideWorkspace),
+          );
         }
       });
     };
