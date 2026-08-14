@@ -25,7 +25,7 @@ test('Studio opens without console errors or horizontal scrolling @smoke', async
     runtimeErrors.push(`pageerror: ${error.message}`);
   });
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   if (testInfo.project.name === 'mobile') {
     await expect(page.locator('main.studio')).toBeHidden();
@@ -101,8 +101,9 @@ test('homepage entry context selects the requested Studio product @smoke', async
     });
   }
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
-  await expect(page.locator('#studioEntryContext')).toBeHidden();
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await expect(page.locator('#studioEntryContext')).toBeVisible();
+  await expect(page.locator('#studioEntryContextText')).toContainText('Вы создаёте комплект ленты и стикеров.');
   await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
 
   if (testInfo.project.name === 'desktop') {
@@ -115,7 +116,7 @@ test('one preview component survives continuous viewport changes @smoke', async 
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#mobileProductsSlot').evaluate((slot) => {
     slot.dataset.identityCheck = 'same-node';
   });
@@ -141,7 +142,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   page,
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const textInput = page.locator('#textInput');
   await expect(textInput).toHaveValue('');
@@ -372,7 +373,7 @@ test('first content is shared and explicit edits stay with the selected product'
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const textInput = page.locator('#textInput');
   const ribbonChoice = page.locator(
@@ -478,7 +479,7 @@ test('legacy Studio content migrates to common content', async ({
     { source: svgSource, data: logoData },
   );
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   let snapshot = await readContentSnapshot(page);
   expect(snapshot.text).toEqual({
@@ -570,7 +571,7 @@ test('content overrides normalize, resolve, persist, and reset', async ({
     { source: svgSource, data: logoData },
   );
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   let snapshot = await readContentSnapshot(page);
   expect(snapshot.text.common).toBe('новый общий текст');
@@ -659,7 +660,7 @@ test('resolved logo assets render independently across product scenes', async ({
       }),
     );
   });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await openSettings(page);
 
   const macroRibbon = page.locator('#ribbonContent image').first();
@@ -827,7 +828,7 @@ test('logo upload target persists through SVG callbacks and sequential uploads',
     saved.content.logo.sticker = { mode: 'inherit' };
     localStorage.setItem('ribbon-studio-v042', JSON.stringify(saved));
   });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const ribbon = page.locator('#ribbonContent image').first();
   const sticker = page.locator('#stickerContent image').first();
@@ -864,7 +865,7 @@ test('raster upload target survives tracing and crop cancellation', async ({
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const ribbon = page.locator('#ribbonContent image').first();
   const sticker = page.locator('#stickerContent image').first();
   const initialRibbon = await ribbon.getAttribute('href');
@@ -939,7 +940,7 @@ test('resolved product text stays independent from common editing', async ({
     );
   });
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const textInput = page.locator('#textInput');
   const macroRibbonText = page.locator('.mobile-products-ribbon-text');
@@ -1018,7 +1019,7 @@ test('Studio navigation follows the three-step flow @smoke', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const navigation = page.locator('.main-nav');
   const items = navigation.locator('.nav-item');
@@ -1115,7 +1116,7 @@ test('Create step validates input and manages the common logo @smoke', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const textInput = page.locator('#textInput');
   const counter = page.locator('#textInputCounter');

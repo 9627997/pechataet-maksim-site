@@ -22,7 +22,7 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
   test.setTimeout(60_000);
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const zones = {
     ribbonLogo: page.locator('[data-mobile-products-safe-zone="ribbon-logo"]'),
@@ -276,7 +276,7 @@ test('mobile previews stay synchronized with Studio state', async ({
   });
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const ribbonSurface = page.locator('.mobile-products-ribbon-sample');
   const stickerLogo = page.locator('.mobile-products-sticker-logo');
@@ -503,7 +503,7 @@ test('SVG upload updates both mobile product logos', async ({
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const macroLogo = page.locator('#ribbonContent image').first();
   const initialSrc = null;
@@ -537,7 +537,7 @@ test('successful mobile SVG and PNG uploads return to the combined preview', asy
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const logoInput = page.locator('#logoInput');
   const dropZone = page.locator('#dropZone');
 
@@ -570,7 +570,7 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const cropModal = page.locator('#cropModal');
   const macroLogo = page.locator('#ribbonContent image').first();
@@ -620,7 +620,7 @@ test('traced wide artwork is trimmed to its ink and fills the ribbon safe height
   `);
   const png = await sharp(sourceSvg).png().toBuffer();
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles({
     name: 'wide-logo-with-air.png',
     mimeType: 'image/png',
@@ -687,7 +687,7 @@ test('white letters on a dark PNG plaque are traced as the printable sign', asyn
   `);
   const png = await sharp(sourceSvg).png().toBuffer();
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles({
     name: 'white-letters-on-dark-plaque.png',
     mimeType: 'image/png',
@@ -758,7 +758,7 @@ test('white letters on a dark PNG plaque are traced as the printable sign', asyn
 
 test('smart crop finds artwork and declines a flat image', async ({ page }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const result = await page.evaluate(async () => {
     const analyzeCanvas = async (draw) => {
@@ -807,7 +807,7 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const cropModal = page.locator('#cropModal');
   const macroLogo = page.locator('#ribbonContent image').first();
@@ -869,7 +869,7 @@ test('JPEG upload opens an accessible crop dialog and completes tracing', async 
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   await page.locator('#logoInput').setInputFiles(jpegUpload);
   const cropDialog = page.getByRole('dialog', {
@@ -892,7 +892,7 @@ test('PDF upload renders its first page and completes tracing', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   for (const asset of ['pdf.min.js', 'pdf.worker.min.js']) {
     const response = await page.request.get(
       `/studio/assets/vendor/pdfjs/${asset}`,
@@ -932,7 +932,7 @@ test('smart mobile preview dock stays visible across all three steps', async ({
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
 
   const panel = page.locator('.mobile-products-panel');
@@ -1129,7 +1129,7 @@ test('step one dock becomes a compact live strip while the keyboard is open', as
   test.skip(testInfo.project.name !== 'mobile');
 
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
@@ -1179,7 +1179,7 @@ test('unified preview occupies the desktop preview column', async ({
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const panel = page.locator('.mobile-products-panel');
   await expect(panel).toBeVisible();

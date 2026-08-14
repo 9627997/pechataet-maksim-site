@@ -11,7 +11,7 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('#continueUpload').click();
 
@@ -165,7 +165,7 @@ test('settings keep product focus and link back to its content editor', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('#continueUpload').click();
 
@@ -208,7 +208,7 @@ test('settings keep product focus and link back to its content editor', async ({
 test('settings show controls only for content present in the selected product @smoke', async ({
   page,
 }) => {
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#continueUpload').click();
 
@@ -244,7 +244,7 @@ test('selected product owns the visible settings and manual transforms', async (
   page,
 }, testInfo) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Мой бренд');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#continueUpload').click();
@@ -520,7 +520,7 @@ test('product switches control the unified preview', async ({ page }) => {
   });
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
 
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const panel = page.locator('.mobile-products-panel');
   const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
@@ -590,7 +590,7 @@ test('product switches control order quantities and price @smoke', async ({
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await openSettings(page);
 
@@ -687,7 +687,7 @@ test('order quantities control, protect, and persist product selection', async (
   page,
 }) => {
   const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('.nav-item[data-panel="order"]').click();
 
@@ -780,7 +780,7 @@ test('order dialog sends production files, retries safely and keeps a local copy
       }),
     });
   });
-  await page.goto('/studio/', { waitUntil: 'networkidle' });
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
   await page.locator('#continueUpload').click();
   await page.locator('#panel-settings .next-panel').click();
