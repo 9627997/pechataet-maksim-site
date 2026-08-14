@@ -2019,6 +2019,7 @@ const bootStudio = () => {
           manualLayout: style.layoutMode === 'manual',
           preferredFontSize,
           scaleTextToFitWidth: true,
+          minFontSize: 4,
         });
       }
       return getStickerContentLayout({
