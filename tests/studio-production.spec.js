@@ -81,6 +81,56 @@ test('production geometry enforces 2.5 mm printable margins and circular bounds 
   expect(result.tall.height).toBeGreaterThan(result.tall.width);
 });
 
+test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.locator('#textInput').fill('Мой бренд');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+
+  const result = await page.evaluate(() => {
+    const geometry = window.RibbonStudioGeometry;
+    const sticker = geometry.getStickerGeometry({
+      shape: 'roundrect',
+      widthMm: 80,
+      heightMm: 20,
+      cornerRadiusMm: 2,
+      x: 0,
+      y: 0,
+      width: 356,
+      height: 89,
+    });
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    const production = document.querySelector(
+      '#stickerContent [data-production-content]',
+    );
+    return {
+      outer: sticker.outer,
+      bounds: sticker.bounds,
+      layout,
+      images: production?.querySelectorAll('image').length || 0,
+      texts: production?.querySelectorAll('text').length || 0,
+    };
+  });
+
+  const scale = result.outer.width / 80;
+  expect(result.bounds.x / scale).toBeCloseTo(2.5, 5);
+  expect(result.bounds.y / scale).toBeCloseTo(2.5, 5);
+  expect((result.outer.width - result.bounds.x - result.bounds.width) / scale).toBeCloseTo(2.5, 5);
+  expect((result.outer.height - result.bounds.y - result.bounds.height) / scale).toBeCloseTo(2.5, 5);
+  expect(result.bounds.radius).toBe(0);
+  expect(result.layout.valid).toBe(true);
+  expect(result.layout.logoBox.x).toBeLessThan(result.layout.textBox.x);
+  expect(result.layout.logoBox.y + result.layout.logoBox.height / 2).toBeCloseTo(
+    result.layout.textBox.y + result.layout.textBox.height / 2,
+    2,
+  );
+  expect(result.images).toBe(1);
+  expect(result.texts).toBe(1);
+});
+
 test('printable guides stay contextual and never enter the final preview', async ({
   page,
 }, testInfo) => {
