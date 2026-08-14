@@ -123,12 +123,90 @@ test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', asyn
   expect(result.bounds.radius).toBe(0);
   expect(result.layout.valid).toBe(true);
   expect(result.layout.logoBox.x).toBeLessThan(result.layout.textBox.x);
+  expect(result.layout.logoBox.height / result.layout.printable.height).toBeGreaterThan(0.99);
   expect(result.layout.logoBox.y + result.layout.logoBox.height / 2).toBeCloseTo(
     result.layout.textBox.y + result.layout.textBox.height / 2,
     2,
   );
+  expect(result.layout.textBox.width).toBeGreaterThan(0);
+  expect(result.layout.textBox.x + result.layout.textBox.width).toBeLessThanOrEqual(
+    result.bounds.x + result.bounds.width + 0.001,
+  );
   expect(result.images).toBe(1);
   expect(result.texts).toBe(1);
+});
+
+test('roundrect text-only expands to the printable area and manual movement stays clamped @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.locator('#textInput').fill('OK');
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+
+  const auto = await page.evaluate(() =>
+    JSON.parse(document.body.dataset.studioLayout).sticker,
+  );
+  expect(auto.valid).toBe(true);
+  const widthFill = auto.textBox.width / auto.printable.width;
+  const heightFill = auto.textBox.height / auto.printable.height;
+  expect(Math.max(widthFill, heightFill)).toBeGreaterThan(0.9);
+  expect(heightFill).toBeGreaterThan(0.2);
+
+  await page.locator('#layoutModeChoice button[data-value="manual"]').click();
+  await page.locator('#fontSize').evaluate((input) => {
+    input.value = input.max;
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  await page.locator('#textOffsetX').evaluate((input) => {
+    input.value = input.max;
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+
+  const manual = await page.evaluate(() =>
+    JSON.parse(document.body.dataset.studioLayout).sticker,
+  );
+  expect(manual.valid).toBe(true);
+  expect(manual.textBox.x).toBeGreaterThanOrEqual(manual.printable.x - 0.001);
+  expect(manual.textBox.x + manual.textBox.width).toBeLessThanOrEqual(
+    manual.printable.x + manual.printable.width + 0.001,
+  );
+});
+
+test('roundrect manual mode allows independent logo and text placement @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
+  await page.locator('#textInput').fill('Свободная композиция');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-variant="roundrect-80x20"]').click();
+  await page.locator('#layoutModeChoice button[data-value="manual"]').click();
+  await page.locator('#logoOffsetX').evaluate((input) => {
+    input.value = input.max;
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  await page.locator('#textOffsetX').evaluate((input) => {
+    input.value = input.min;
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+
+  const layout = await page.evaluate(() =>
+    JSON.parse(document.body.dataset.studioLayout).sticker,
+  );
+  expect(layout.valid).toBe(true);
+  for (const box of [layout.logoBox, layout.textBox]) {
+    expect(box.x).toBeGreaterThanOrEqual(layout.printable.x - 0.001);
+    expect(box.y).toBeGreaterThanOrEqual(layout.printable.y - 0.001);
+    expect(box.x + box.width).toBeLessThanOrEqual(
+      layout.printable.x + layout.printable.width + 0.001,
+    );
+    expect(box.y + box.height).toBeLessThanOrEqual(
+      layout.printable.y + layout.printable.height + 0.001,
+    );
+  }
+  expect(layout.logoBox.x).toBeGreaterThan(0.5);
+  expect(layout.textBox.x).toBeLessThan(0.5);
 });
 
 test('printable guides stay contextual and never enter the final preview', async ({
