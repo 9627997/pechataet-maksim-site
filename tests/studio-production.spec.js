@@ -1,11 +1,21 @@
 import { expect, test } from '@playwright/test';
 import {
   completeFirstStepWithText,
-  ensureProductSettingsVisible,
   expectNoHorizontalOverflow,
   fixturePath,
   watchRuntimeErrors,
 } from './helpers/studio.js';
+
+const selectRoundrect = async (page) => {
+  await page
+    .locator('[data-sticker-group="roundrect-80x20"] > summary')
+    .click();
+  await page
+    .locator(
+      '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]',
+    )
+    .click();
+};
 
 test('production geometry enforces 2.5 mm printable margins and circular bounds @smoke', async ({
   page,
@@ -87,8 +97,8 @@ test('roundrect uses ribbon linear layout and exact 2.5 mm margins @smoke', asyn
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Линейный live тест');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
 
   const result = await page.evaluate(() => {
     const geometry = window.RibbonStudioGeometry;
@@ -146,8 +156,8 @@ test('roundrect text-only expands to the printable area and manual movement stay
 }) => {
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('OK');
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
 
   const auto = await page.evaluate(
     () => JSON.parse(document.body.dataset.studioLayout).sticker,
@@ -187,8 +197,8 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
     .locator('#logoInput')
     .setInputFiles(fixturePath('transparent-logo.png'));
   await expect(page.locator('#traceStatus')).toBeVisible();
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
 
   const metrics = await page.evaluate(() => {
     const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
@@ -220,8 +230,8 @@ test('plain entry opens an isolated sticker editor with proportional text size @
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await page.locator('[data-start-product="sticker"]').click();
   await page.locator('#textInput').fill('Отдельный стикер');
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
   expect(
     await page
       .locator('[data-product-type="ribbon"]')
@@ -260,8 +270,8 @@ test('roundrect uses proportional text size and ink-bound text box @smoke', asyn
 }) => {
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Вертикальный текст');
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
   await expect(page.locator('#textScaleY')).toHaveCount(0);
   await page.locator('#fontSize').evaluate((input) => {
@@ -292,8 +302,42 @@ test('roundrect uses proportional text size and ink-bound text box @smoke', asyn
     roundrect.layout.printable.y + roundrect.layout.printable.height + 0.001,
   );
 
-  await page.locator('[data-variant="circle-40"]').click();
   await expect(page.locator('#textScaleY')).toHaveCount(0);
+});
+
+test('roundrect logo fills printable height and shape stays in create step @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await selectRoundrect(page);
+  await page.locator('#continueUpload').click();
+
+  await expect(page.locator('#stickerVariantChoice')).toHaveCount(0);
+  await expect(page.locator('#stickerSizeChoice')).toHaveCount(0);
+
+  const full = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    return {
+      logoFill: layout.logoBox.height / layout.printable.height,
+      logoWidth: layout.logoBox.width,
+    };
+  });
+  expect(full.logoFill).toBeGreaterThan(0.98);
+  expect(full.logoWidth).toBeGreaterThan(0);
+
+  await page.locator('#layoutModeChoice button[data-value="manual"]').click();
+  await page.locator('#logoScale').evaluate((input) => {
+    input.value = '50';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const half = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    return layout.logoBox.height / layout.printable.height;
+  });
+  expect(half).toBeGreaterThan(0.45);
+  expect(half).toBeLessThan(0.55);
 });
 
 test('roundrect manual mode allows independent logo and text placement @smoke', async ({
@@ -302,8 +346,8 @@ test('roundrect manual mode allows independent logo and text placement @smoke', 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Свободная композиция');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
   await page.locator('#logoOffsetX').evaluate((input) => {
     input.value = input.max;
@@ -404,79 +448,6 @@ test('printable guides stay contextual and never enter the final preview', async
   );
   await expect(guide).toHaveCSS('opacity', '0');
   await expectShowcaseGuideOpacity('0');
-  await expectNoHorizontalOverflow(page);
-  expect(runtimeErrors).toEqual([]);
-});
-
-test('25 mm sticker persists, updates previews, reports missing price, and excludes guides from production', async ({
-  page,
-}, testInfo) => {
-  const runtimeErrors = watchRuntimeErrors(page);
-  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
-  await completeFirstStepWithText(page);
-  await page.locator('.nav-item[data-panel="settings"]').click();
-  await ensureProductSettingsVisible(page, 'sticker');
-
-  const option = page.locator('#stickerSizeChoice button[data-value="25"]');
-  await expect(option).toBeVisible();
-  await expect(async () => {
-    await option.click();
-    await expect(option).toHaveClass(/active/, { timeout: 1000 });
-    await expect(page.locator('body')).toHaveAttribute(
-      'data-sticker-size',
-      '25',
-      { timeout: 1000 },
-    );
-  }).toPass();
-  await expect(page.locator('#stickerSizeLabel')).toHaveText('Ø25 мм');
-  await expect(page.locator('#totalPrice')).toHaveText('Требуется расчёт');
-  await expect(page.locator('#totalPrice')).toHaveAttribute(
-    'data-price-unavailable',
-    'true',
-  );
-
-  if (testInfo.project.name === 'mobile') {
-    await expect(
-      page.locator(
-        '[data-mobile-product-sample="sticker"] .mobile-products-sample-label',
-      ),
-    ).toHaveText('Стикер 25 мм');
-    await expect(
-      page.locator('.mobile-products-printable-guide.sticker-guide'),
-    ).toBeAttached();
-  } else {
-    await page.locator('.nav-item[data-panel="order"]').click();
-    await expect(page.locator('.studio')).toBeHidden();
-    await expect(page.locator('#panel-order')).toBeVisible();
-    await expect(page.locator('#sceneTabs')).toHaveCount(0);
-  }
-
-  for (const guide of await page.locator('[data-preview-overlay]').all()) {
-    await expect(guide).toHaveCSS('pointer-events', 'none');
-  }
-
-  const serialized = await page.evaluate(() => ({
-    ribbon: window.RibbonStudioProduction.serialize('ribbon'),
-    sticker: window.RibbonStudioProduction.serialize('sticker'),
-  }));
-  expect(serialized.ribbon).not.toContain('data-preview-overlay');
-  expect(serialized.ribbon).not.toContain('ribbonPrintableGuide');
-  expect(serialized.sticker).not.toContain('data-preview-overlay');
-  expect(serialized.sticker).not.toContain('stickerPrintableGuide');
-
-  await page.locator('.nav-item[data-panel="order"]').click();
-  await page.locator('#openOrder').click();
-  await expect(page.locator('#orderSummary')).toContainText('Стикер Ø25 мм');
-  await expect(page.locator('#orderSummary')).toContainText(
-    'требует индивидуального расчёта',
-  );
-  await page.locator('#closeOrder').click();
-
-  await page.reload({ waitUntil: 'networkidle' });
-  await expect(
-    page.locator('#stickerSizeChoice button[data-value="25"]'),
-  ).toHaveClass(/active/);
-  await expect(page.locator('body')).toHaveAttribute('data-sticker-size', '25');
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
 });
@@ -719,9 +690,6 @@ test('long production text is invalid and is not rendered outside printable area
 }) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('ОЧЕНЬ ДЛИННЫЙ ТЕКСТ '.repeat(80));
-  await page
-    .locator('#stickerSizeChoice button[data-value="25"]')
-    .evaluate((button) => button.click());
 
   const layouts = await page
     .locator('body')
@@ -773,9 +741,6 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
-  await page
-    .locator('#stickerSizeChoice button[data-value="25"]')
-    .evaluate((button) => button.click());
 
   const result = await page.evaluate(() => {
     const layouts = JSON.parse(document.body.dataset.studioLayout);
@@ -1084,8 +1049,8 @@ test('restored traced logo is retightened before roundrect layout @smoke', async
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
 
   await page.evaluate(() => {
     const key = 'ribbon-studio-v042';
@@ -1101,8 +1066,9 @@ test('restored traced logo is retightened before roundrect layout @smoke', async
   });
 
   await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('[data-panel="upload"]').click();
+  await selectRoundrect(page);
   await page.locator('#continueUpload').click();
-  await page.locator('[data-variant="roundrect-80x20"]').click();
   const result = await page.evaluate(() => {
     const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
     const image = document.querySelector('#stickerContent image');
