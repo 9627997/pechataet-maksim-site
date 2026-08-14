@@ -1017,8 +1017,16 @@
       effectiveLayouts = event.detail || {};
       syncStudioState();
     });
-    document.addEventListener('studio:sticker-variant-updated', () => {
+    document.addEventListener('studio:sticker-variant-updated', (event) => {
       syncStudioState();
+      const displaySize = event.detail?.displaySize;
+      if (displaySize) {
+        panel
+          .querySelectorAll('[data-mobile-product-sample="sticker"] .mobile-products-sample-label')
+          .forEach((label) => {
+            label.textContent = `Стикер ${displaySize.replace(/^Ø/, '')}`;
+          });
+      }
     });
 
     document.addEventListener('input', scheduleStudioSync);
