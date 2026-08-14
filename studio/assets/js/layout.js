@@ -10,6 +10,7 @@
     centerX,
     centerY,
     scaleToFitWidth = true,
+    scaleUpToFill = true,
     minFontSize = MIN_PRINT_FONT_SIZE,
   }) {
     if (!text) return {fits: true, fontSize: preferredSize, bbox: null};
@@ -18,8 +19,11 @@
     const scale = Math.min(
       scaleToFitWidth
         ? maxWidth / Math.max(widthAtPreferred, 1e-7)
-        : 1,
+        : scaleUpToFill
+          ? 1
+          : Infinity,
       maxHeight / Math.max(heightAtPreferred, 1e-7),
+      scaleUpToFill ? Infinity : 1,
     );
     const fontSize = Math.max(minFontSize, preferredSize * scale);
     const width = metrics.widthPerSize * fontSize;
@@ -91,7 +95,6 @@
     preferredFontSize,
     scaleTextToFitWidth = false,
     minFontSize = MIN_PRINT_FONT_SIZE,
-    textScaleY = 1,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -135,6 +138,7 @@
         centerX: bounds.x + logoWidth + gap + textWidth / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
+        scaleUpToFill: !manualLayout,
         minFontSize,
       });
     } else if (hasLogo) {
@@ -159,29 +163,9 @@
         centerX: bounds.x + bounds.width / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
+        scaleUpToFill: !manualLayout,
         minFontSize,
       });
-    }
-
-    if (textResult.bbox) {
-      const requestedTextScaleY = manualLayout
-        ? Math.min(3, Math.max(0.5, textScaleY || 1))
-        : scaleTextToFitWidth
-          ? Math.min(3, Math.max(1, bounds.height / Math.max(textResult.bbox.height, 1e-7)))
-          : 1;
-      const baseTextHeight = textResult.bbox.height;
-      const verticalScaleY = Math.min(
-        requestedTextScaleY,
-        bounds.height / Math.max(baseTextHeight, 1e-7),
-      );
-      const scaledHeight = baseTextHeight * verticalScaleY;
-      textResult.bbox = {
-        ...textResult.bbox,
-        y: centerY - scaledHeight / 2,
-        height: scaledHeight,
-      };
-      textResult.textScaleY = verticalScaleY;
-      textResult.fits = textResult.fits && scaledHeight <= bounds.height + 1e-7;
     }
 
     if (manualLayout && textResult.bbox) {
@@ -205,7 +189,7 @@
       logoBox,
       textBox: textResult.bbox,
       fontSize: textResult.fontSize,
-      textScaleY: textResult.textScaleY || 1,
+      textScaleY: 1,
     };
   }
 
@@ -249,7 +233,7 @@
       ? {x: 0, y: 0, width: logo.ratio, height: 1}
       : {x: 0, y: 0, width: 1, height: 1 / (logo?.ratio || 1)};
     const fitText = () => isCircle
-      ? fitTextToCircle({text, metrics: textMetrics, circle: area.circle, requestedScale: textScale})
+      ? fitTextToCircle({text, metrics: textMetrics, circle: area.circle, requestedScale: Math.max(0.1, textScale || 1)})
       : fitTextToArea({
           text,
           metrics: textMetrics,
@@ -260,10 +244,7 @@
           centerY,
         });
 
-    if (hasLogo && hasText && manualLayout) {
-      logoBox = geometry.fitRectToSticker(source, area, logoScale);
-      textResult = fitText();
-    } else if (hasLogo && hasText) {
+    if (hasLogo && hasText) {
       const maxContentWidth = isCircle
         ? area.circle.radius * 1.72
         : contentBounds.width * 0.88;
@@ -288,6 +269,7 @@
           maxHeight: contentBounds.height * 0.68,
           centerX: textCenterX,
           centerY,
+          scaleUpToFill: !manualLayout,
         });
       } else {
         const maxLogoHeight = isCircle
@@ -315,6 +297,7 @@
           maxHeight: maxTextHeight,
           centerX,
           centerY,
+          scaleUpToFill: !manualLayout,
         });
         const textHeight = textResult.height || 0;
         const stackHeight = logoBox.height + gap + textHeight;
@@ -355,6 +338,7 @@
       logoBox: logoFits ? logoBox : null,
       textBox: textResult.fits && textFits ? textResult.bbox : null,
       fontSize: textResult.fontSize,
+      textScaleY: 1,
     };
   }
 

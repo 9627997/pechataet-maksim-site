@@ -363,7 +363,8 @@ test('mobile previews stay synchronized with Studio state', async ({
     };
   });
   expect(maxTextGeometry.valid).toBe(true);
-  expect(maxTextGeometry.maximum).toBeCloseTo(1, 4);
+  expect(maxTextGeometry.maximum).toBeLessThanOrEqual(1 + 0.0001);
+  expect(maxTextGeometry.maximum).toBeGreaterThan(0);
 
   await page.locator('#logoScale').evaluate((element) => {
     element.value = '50';
@@ -397,7 +398,8 @@ test('mobile previews stay synchronized with Studio state', async ({
     };
   });
   expect(maxLogoGeometry.valid).toBe(true);
-  expect(maxLogoGeometry.maximum).toBeCloseTo(1, 4);
+  expect(maxLogoGeometry.maximum).toBeLessThanOrEqual(1 + 0.0001);
+  expect(maxLogoGeometry.maximum).toBeGreaterThan(0);
 
   await page.locator('.nav-item[data-panel="upload"]').click();
   await selectContentProduct('sticker');

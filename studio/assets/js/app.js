@@ -1366,7 +1366,7 @@ const bootStudio = () => {
     product,
     anchor = 'middle',
     font = getProductStyle(product).font,
-    scaleY = 1,
+    inkMetrics = null,
   ) {
     if (!value) return;
     const style = getProductStyle(product);
@@ -1382,13 +1382,14 @@ const bootStudio = () => {
       fill: style.print
     });
 
+    const metrics = inkMetrics || getTextMetrics(value, product, font);
+    const inkCenterX =
+      (metrics.inkXPerSize + metrics.widthPerSize / 2) * size;
+    const inkCenterY =
+      (metrics.inkYPerSize + metrics.heightPerSize / 2) * size;
+    text.setAttribute('x', x - inkCenterX);
+    text.setAttribute('y', y - inkCenterY);
     text.textContent = value;
-    if (scaleY !== 1) {
-      text.setAttribute(
-        'transform',
-        `translate(${x} ${y}) scale(1 ${scaleY}) translate(${-x} ${-y})`,
-      );
-    }
     parent.appendChild(text);
     return text;
   }
@@ -1428,7 +1429,9 @@ const bootStudio = () => {
     }
     const sample = svgEl('text', {
       x: 0,
-      y: 100,
+      y: 0,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
       'font-family': font,
       'font-size': 100,
       'font-weight': '700',
@@ -1437,11 +1440,22 @@ const bootStudio = () => {
     textMeasurementSvg.replaceChildren(sample);
     const bbox = sample.getBBox();
     const measured = bbox.width && bbox.height
-      ? {width: bbox.width, height: bbox.height}
-      : measureTextBox(text, 100, product, font);
+      ? {
+          width: bbox.width,
+          height: bbox.height,
+          inkX: bbox.x,
+          inkY: bbox.y,
+        }
+      : {
+          ...measureTextBox(text, 100, product, font),
+          inkX: -measureTextBox(text, 100, product, font).width / 2,
+          inkY: -measureTextBox(text, 100, product, font).height / 2,
+        };
     return {
       widthPerSize: measured.width / 100,
       heightPerSize: measured.height / 100,
+      inkXPerSize: measured.inkX / 100,
+      inkYPerSize: measured.inkY / 100,
     };
   }
 
@@ -1925,6 +1939,7 @@ const bootStudio = () => {
           ribbonLayout.fontSize,
           resolvedText,
           'ribbon',
+          getTextMetrics(resolvedText, 'ribbon'),
         );
         text.dataset.effectiveFontSize = String(ribbonLayout.fontSize);
       }
@@ -1962,6 +1977,7 @@ const bootStudio = () => {
             'ribbon',
             'middle',
             previewFont,
+            getTextMetrics(previewText, 'ribbon', previewFont),
           );
         }
         cell.appendChild(previewContent);
@@ -2033,7 +2049,6 @@ const bootStudio = () => {
           preferredFontSize,
           scaleTextToFitWidth: true,
           minFontSize: 4,
-          textScaleY: style.textScaleY,
         });
       }
       return getStickerContentLayout({
@@ -2048,8 +2063,8 @@ const bootStudio = () => {
         textOffsetX: style.textOffsetX,
         textOffsetY: style.textOffsetY,
         manualLayout: style.layoutMode === 'manual',
-        textScale: style.fontSize / 64,
         preferredFontSize,
+        textScale: style.fontSize / 64,
       });
     };
     const stickerLayout = getLayout(resolvedLogo);
@@ -2088,7 +2103,7 @@ const bootStudio = () => {
         'sticker',
         'middle',
         style.font,
-        stickerLayout.textScaleY,
+        getTextMetrics(resolvedText, 'sticker', style.font),
       );
       text.dataset.effectiveFontSize = String(stickerLayout.fontSize);
     }
@@ -2110,7 +2125,7 @@ const bootStudio = () => {
           'sticker',
           'middle',
           getPreviewFont('sticker'),
-          previewLayout.textScaleY,
+          getTextMetrics(previewTextValue, 'sticker', getPreviewFont('sticker')),
         );
       }
       layer.appendChild(previewContent);
@@ -2239,7 +2254,7 @@ const bootStudio = () => {
         text.style.top = `${(textBox.y + textBox.height / 2) * 100}%`;
         text.style.width = `${textBox.width * 100}%`;
         text.style.height = `${textBox.height * 100}%`;
-        text.style.transform = `translate(-50%, -50%) scale(1, ${layout.textScaleY || 1})`;
+        text.style.transform = 'translate(-50%, -50%)';
         text.style.setProperty(
           'font-size',
           `${fontSizeRatio * root.getBoundingClientRect().height}px`,
@@ -2676,7 +2691,7 @@ const bootStudio = () => {
     }
     const fontLabel = $('#fontSizeLabel');
     const layoutHelp = $('#layoutModeHelp');
-    if (fontLabel && state.productFirstMode) fontLabel.textContent = `Размер текста на ${productPrepositional}`;
+    if (fontLabel && state.productFirstMode) fontLabel.textContent = 'Размер текста';
     if (layoutHelp && state.productFirstMode) layoutHelp.textContent = `Studio автоматически компонует ${productName}`;
   }
 
@@ -3906,7 +3921,6 @@ const bootStudio = () => {
         control.hidden = !roundrectSticker;
       });
     }
-    if ($('#textScaleY')) $('#textScaleY').value = Math.round((style.textScaleY || 1) * 100);
     const ribbonSettings = state.activeSettingsProduct === 'ribbon';
     const offsetLimit =
       state.activeSettingsProduct === 'sticker' && activeStickerVariant.shape === 'roundrect'
@@ -4633,90 +4647,8 @@ const bootStudio = () => {
 
   const enterManualLayout = (product = state.activeSettingsProduct) => {
     const style = getProductStyle(product);
-    if (style.layoutMode === 'manual') return;
-
     const layout = currentLayouts[product];
-    if (
-      product === 'sticker' &&
-      layout?.logoBox &&
-      layout?.textBox &&
-      layout?.circle
-    ) {
-      const resolvedLogo = getResolvedLogo('sticker');
-      const logoRatio = Number(resolvedLogo?.logo?.ratio) || 1;
-      const logoSource = logoRatio >= 1
-        ? {x: 0, y: 0, width: logoRatio, height: 1}
-        : {x: 0, y: 0, width: 1, height: 1 / logoRatio};
-      const maximumLogo = fitRectToCircle(
-        logoSource,
-        layout.circle,
-        1,
-        0,
-      );
-      style.logoScale = Math.min(
-        1,
-        Math.max(0.1, layout.logoBox.width / maximumLogo.width),
-      );
-
-      const resolvedText = getResolvedText('sticker').trim();
-      const maximumText = fitTextToCircle({
-        text: resolvedText,
-        metrics: getTextMetrics(resolvedText, 'sticker'),
-        circle: layout.circle,
-        requestedScale: 1,
-      });
-      style.fontSize = Math.min(
-        64,
-        Math.max(16, Math.round((layout.fontSize / maximumText.fontSize) * 64)),
-      );
-
-      const centeredLogo = fitRectToCircle(
-        logoSource,
-        layout.circle,
-        style.logoScale,
-        0,
-      );
-      const centeredText = fitTextToCircle({
-        text: resolvedText,
-        metrics: getTextMetrics(resolvedText, 'sticker'),
-        circle: layout.circle,
-        requestedScale: style.fontSize / 64,
-      });
-      const offsetFromCenter = (current, centered, axis, size) =>
-        current[axis] + current[size] / 2 -
-        (centered[axis] + centered[size] / 2);
-      style.logoOffsetX = offsetFromCenter(
-        layout.logoBox,
-        centeredLogo,
-        'x',
-        'width',
-      );
-      style.logoOffsetY = offsetFromCenter(
-        layout.logoBox,
-        centeredLogo,
-        'y',
-        'height',
-      );
-      style.textOffsetX = offsetFromCenter(
-        layout.textBox,
-        centeredText.bbox,
-        'x',
-        'width',
-      );
-      style.textOffsetY = offsetFromCenter(
-        layout.textBox,
-        centeredText.bbox,
-        'y',
-        'height',
-      );
-    } else if (
-      product === 'sticker' &&
-      layout?.printable?.bounds &&
-      layout?.textBox
-    ) {
-      const resolvedText = getResolvedText('sticker').trim();
-      const resolvedLogo = getResolvedLogo('sticker');
-      const hasLogo = Boolean(resolvedLogo?.logo);
+    if (product === 'sticker' && layout?.fontSize) {
       const variant = getStickerVariant(state.stickerVariantId);
       const preferred = {
         25: {combined: 28, textOnly: 34},
@@ -4724,7 +4656,9 @@ const bootStudio = () => {
         40: {combined: 32, textOnly: 44},
         50: {combined: 33, textOnly: 48},
       }[state.stickerSize] || {combined: 32, textOnly: 44};
-      const preferredSize = hasLogo && resolvedText
+      const hasLogo = Boolean(getResolvedLogo('sticker')?.logo);
+      const hasText = Boolean(getResolvedText('sticker').trim());
+      const preferredSize = hasLogo && hasText
         ? preferred.combined
         : preferred.textOnly;
       style.fontSize = Math.min(
@@ -4732,7 +4666,9 @@ const bootStudio = () => {
         Math.max(16, Math.round((layout.fontSize / Math.max(preferredSize, 1)) * 32)),
       );
     }
-
+    // Keep the current automatic composition exactly as rendered. Manual mode
+    // adds independent offsets on top of the same ink-bound boxes instead of
+    // recalculating through a different fitting algorithm.
     style.layoutMode = 'manual';
   };
 
@@ -4779,12 +4715,6 @@ const bootStudio = () => {
     render();
   });
 
-  $('#textScaleY').addEventListener('input', (event) => {
-    useManualLayout();
-    getProductStyle(state.activeSettingsProduct).textScaleY =
-      Math.min(3, Math.max(0.5, +event.target.value / 100));
-    render();
-  });
 
   $('#repeatMm').addEventListener('input', (event) => {
     state.repeatMode = 'manual';

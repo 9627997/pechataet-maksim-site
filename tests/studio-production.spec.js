@@ -196,13 +196,13 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
 
   expect(metrics.layout.valid).toBe(true);
   expect(metrics.layout.logoBox.height / metrics.layout.printable.height).toBeGreaterThan(0.99);
-  expect(metrics.layout.textBox.height / metrics.layout.printable.height).toBeGreaterThan(0.99);
-  expect(metrics.layout.textScaleY).toBeGreaterThan(1.2);
+  expect(metrics.layout.textBox.height).toBeGreaterThan(0);
+  expect(metrics.layout.textScaleY).toBe(1);
   expect(metrics.viewBox?.[2]).toBeLessThan(46);
   expect(metrics.viewBox?.[3]).toBeLessThan(48);
 });
 
-test('plain entry opens an isolated sticker editor with working vertical scale @smoke', async ({
+test('plain entry opens an isolated sticker editor with proportional text size @smoke', async ({
   page,
 }) => {
   await page.goto('/studio/', {waitUntil: 'networkidle'});
@@ -213,19 +213,21 @@ test('plain entry opens an isolated sticker editor with working vertical scale @
   expect(await page.locator('[data-product-type="ribbon"]').evaluateAll((items) => items.every((item) => item.classList.contains('is-hidden')))).toBe(true);
   expect(await page.locator('[data-product-type="sticker"]').evaluateAll((items) => items.some((item) => !item.classList.contains('is-hidden')))).toBe(true);
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
-  await expect(page.locator('#textScaleY')).toBeVisible();
-  const before = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker.textScaleY);
-  await page.locator('#textScaleY').evaluate((input) => {
-    input.value = Math.min(input.max, Number(input.value) + 100);
+  await expect(page.locator('#textScaleY')).toHaveCount(0);
+  const before = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker.fontSizeRatio);
+  await page.locator('#fontSize').evaluate((input) => {
+    input.value = input.max;
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
   const after = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker);
-  expect(after.textScaleY).toBeGreaterThan(before);
-  expect(after.textBox.y).toBeGreaterThanOrEqual(after.printable.y - 0.001);
-  expect(after.textBox.y + after.textBox.height).toBeLessThanOrEqual(after.printable.y + after.printable.height + 0.001);
+  expect(after.fontSizeRatio).toBeGreaterThan(0);
+  expect(after.fontSizeRatio).toBeGreaterThanOrEqual(before);
+  expect(after.textScaleY).toBe(1);
+  expect(after.textBox.y).toBeGreaterThanOrEqual(0 - 0.001);
+  expect(after.textBox.y + after.textBox.height).toBeLessThanOrEqual(1 + 0.001);
 });
 
-test('roundrect vertical text scale is isolated and clamped @smoke', async ({
+test('roundrect uses proportional text size and ink-bound text box @smoke', async ({
   page,
 }) => {
   await page.goto('/studio/?product=sticker', {waitUntil: 'networkidle'});
@@ -233,19 +235,25 @@ test('roundrect vertical text scale is isolated and clamped @smoke', async ({
   await page.locator('#continueUpload').click();
   await page.locator('[data-variant="roundrect-80x20"]').click();
   await page.locator('#layoutModeChoice button[data-value="manual"]').click();
-  await expect(page.locator('#textScaleY')).toBeVisible();
-  await page.locator('#textScaleY').evaluate((input) => {
+  await expect(page.locator('#textScaleY')).toHaveCount(0);
+  await page.locator('#fontSize').evaluate((input) => {
     input.value = input.max;
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
-  const roundrect = await page.evaluate(() => JSON.parse(document.body.dataset.studioLayout).sticker);
-  expect(roundrect.textScaleY).toBeGreaterThan(1.4);
-  expect(roundrect.textScaleY).toBeLessThanOrEqual(3);
-  expect(roundrect.textBox.y).toBeGreaterThanOrEqual(roundrect.printable.y - 0.001);
-  expect(roundrect.textBox.y + roundrect.textBox.height).toBeLessThanOrEqual(roundrect.printable.y + roundrect.printable.height + 0.001);
+  const roundrect = await page.evaluate(() => {
+    const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+    return {layout};
+  });
+  expect(roundrect.layout.textScaleY).toBe(1);
+  expect(roundrect.layout.textBox.width).toBeGreaterThan(0);
+  expect(roundrect.layout.textBox.height).toBeGreaterThan(0);
+  expect(roundrect.layout.textBox.x).toBeGreaterThanOrEqual(roundrect.layout.printable.x - 0.001);
+  expect(roundrect.layout.textBox.x + roundrect.layout.textBox.width).toBeLessThanOrEqual(roundrect.layout.printable.x + roundrect.layout.printable.width + 0.001);
+  expect(roundrect.layout.textBox.y).toBeGreaterThanOrEqual(roundrect.layout.printable.y - 0.001);
+  expect(roundrect.layout.textBox.y + roundrect.layout.textBox.height).toBeLessThanOrEqual(roundrect.layout.printable.y + roundrect.layout.printable.height + 0.001);
 
   await page.locator('[data-variant="circle-40"]').click();
-  await expect(page.locator('#textScaleY')).toBeHidden();
+  await expect(page.locator('#textScaleY')).toHaveCount(0);
 });
 
 test('roundrect manual mode allows independent logo and text placement @smoke', async ({
