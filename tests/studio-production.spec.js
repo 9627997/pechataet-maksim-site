@@ -6,6 +6,22 @@ import {
   watchRuntimeErrors,
 } from './helpers/studio.js';
 
+const STUDIO_FONTS = [
+  'Manrope',
+  'Unbounded',
+  'Comfortaa',
+  'Play',
+  'Yeseva One',
+  'Commissioner',
+  'Dela Gothic One',
+  'Forum',
+  'IBM Plex Sans',
+  'PT Sans',
+  'PT Serif',
+  'Pacifico',
+  'Playfair Display',
+];
+
 const selectRoundrect = async (page) => {
   await page
     .locator('[data-sticker-group="roundrect-80x20"] > summary')
@@ -338,6 +354,49 @@ test('roundrect logo fills printable height and shape stays in create step @smok
   });
   expect(half).toBeGreaterThan(0.45);
   expect(half).toBeLessThan(0.55);
+});
+
+test('all sticker fonts keep ink-aware text inside printable bounds @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Печатает Максим');
+  await selectRoundrect(page);
+  await page.locator('#continueUpload').click();
+
+  for (const font of STUDIO_FONTS) {
+    await page.locator('#fontSelect').selectOption(font);
+    await page.evaluate(
+      ({ family, sample }) =>
+        document.fonts?.load(`700 32px "${family}"`, sample),
+      { family: font, sample: 'Печатает Максим' },
+    );
+    await page.waitForTimeout(50);
+    const result = await page.evaluate(() => {
+      const layout = JSON.parse(document.body.dataset.studioLayout).sticker;
+      const box = layout.textBox;
+      const printable = layout.printable;
+      return {
+        box,
+        printable,
+        fontLoaded: document.fonts.check(
+          `700 32px "${document.querySelector('#fontSelect').value}"`,
+          'Печатает Максим',
+        ),
+      };
+    });
+    expect(result.fontLoaded).toBe(true);
+    expect(result.box.width).toBeGreaterThan(0);
+    expect(result.box.height).toBeGreaterThan(0);
+    expect(result.box.x).toBeGreaterThanOrEqual(result.printable.x - 0.001);
+    expect(result.box.y).toBeGreaterThanOrEqual(result.printable.y - 0.001);
+    expect(result.box.x + result.box.width).toBeLessThanOrEqual(
+      result.printable.x + result.printable.width + 0.001,
+    );
+    expect(result.box.y + result.box.height).toBeLessThanOrEqual(
+      result.printable.y + result.printable.height + 0.001,
+    );
+  }
 });
 
 test('roundrect manual mode allows independent logo and text placement @smoke', async ({
