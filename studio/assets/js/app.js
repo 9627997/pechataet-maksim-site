@@ -4128,6 +4128,18 @@ const bootStudio = () => {
     return getResolvedText(state.activeSettingsProduct).trim() || 'Ваша надпись';
   }
 
+  function renderAfterFontReady(font) {
+    const repaint = () => {
+      render();
+      updateShowcaseContent();
+    };
+    repaint();
+    if (!document.fonts?.load) return;
+    document.fonts
+      .load(`700 32px "${font}"`, getFontPickerSampleText())
+      .then(repaint, repaint);
+  }
+
   function syncFontPicker() {
     const style = getProductStyle(state.activeSettingsProduct);
     const sampleText = getFontPickerSampleText();
@@ -4758,8 +4770,7 @@ const bootStudio = () => {
       : 'Manrope';
     getProductStyle(state.activeSettingsProduct).font = font;
     syncLegacyStyleAliases();
-    render();
-    updateShowcaseContent();
+    renderAfterFontReady(font);
     syncFontPicker();
   });
 
