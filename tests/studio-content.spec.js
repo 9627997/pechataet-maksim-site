@@ -103,7 +103,9 @@ test('homepage entry context selects the requested Studio product @smoke', async
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await expect(page.locator('#studioEntryContext')).toBeVisible();
-  await expect(page.locator('#studioEntryContextText')).toContainText('Вы создаёте комплект ленты и стикеров.');
+  await expect(page.locator('#studioEntryContextText')).toContainText(
+    'Вы создаёте комплект ленты и стикеров.',
+  );
   await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
 
   if (testInfo.project.name === 'desktop') {
@@ -161,7 +163,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     await expect(page.locator('#previewContextCopy')).toBeHidden();
   } else {
     await expect(page.locator('#previewContextCopy')).toHaveText(
-      'Введите название или загрузите логотип — результат появится здесь.',
+      'Напишите название или загрузите логотип — я покажу, как выглядит макет.',
     );
   }
   await expect(page.locator('#continueUpload')).toBeDisabled();
