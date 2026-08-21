@@ -181,7 +181,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await expect(page.locator('.format-list')).toHaveCount(0);
   await expect(page.locator('.help-note')).toHaveCount(0);
   await expect(page.locator('#contentProductEditorLabel')).toHaveText(
-    'Редактировать изделие',
+    'Что сейчас настраиваем',
   );
   await expect(page.locator('#contentProductEditorHint')).toHaveText(
     'Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.',
