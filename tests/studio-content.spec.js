@@ -168,7 +168,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   }
   await expect(page.locator('#continueUpload')).toBeDisabled();
   await expect(page.locator('#continueUploadHelp')).toHaveText(
-    'Добавьте название или логотип, чтобы продолжить',
+    'Добавьте название или логотип — и продолжим.',
   );
   await expect(page.locator('#continueUploadHelp')).toBeVisible();
   await expect(page.locator('#panel-upload #fontSelect')).toHaveCount(0);
