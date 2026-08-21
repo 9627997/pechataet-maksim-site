@@ -187,7 +187,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.',
   );
   await expect(page.locator('.mobile-products-choice-label')).toHaveText(
-    'В комплекте',
+    'В вашем комплекте',
   );
   await expect(
     page.locator('#contentProductEditor').locator('xpath=..'),
