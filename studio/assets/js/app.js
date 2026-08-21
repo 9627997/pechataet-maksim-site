@@ -5285,7 +5285,7 @@ const bootStudio = () => {
     $('#orderFormStatus').textContent = '';
     $('#orderFormStatus').classList.remove('is-error', 'is-success');
     $('#orderFormStatus').removeAttribute('aria-busy');
-    $('#submitOrder').textContent = 'Отправить заявку';
+    $('#submitOrder').textContent = 'Отправить Максиму на проверку';
     $('#submitOrder').disabled = !artworkValid;
     $('#orderModal').classList.add('open');
     $('#orderModal').setAttribute('aria-hidden', 'false');

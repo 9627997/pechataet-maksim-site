@@ -103,7 +103,9 @@ test('homepage entry context selects the requested Studio product @smoke', async
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await expect(page.locator('#studioEntryContext')).toBeVisible();
-  await expect(page.locator('#studioEntryContextText')).toContainText('Вы создаёте комплект ленты и стикеров.');
+  await expect(page.locator('#studioEntryContextText')).toContainText(
+    'Вы создаёте комплект ленты и стикеров.',
+  );
   await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
 
   if (testInfo.project.name === 'desktop') {
@@ -161,12 +163,12 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     await expect(page.locator('#previewContextCopy')).toBeHidden();
   } else {
     await expect(page.locator('#previewContextCopy')).toHaveText(
-      'Введите название или загрузите логотип — результат появится здесь.',
+      'Напишите название или загрузите логотип — я покажу, как выглядит макет.',
     );
   }
   await expect(page.locator('#continueUpload')).toBeDisabled();
   await expect(page.locator('#continueUploadHelp')).toHaveText(
-    'Добавьте название или логотип, чтобы продолжить',
+    'Добавьте название или логотип — и продолжим.',
   );
   await expect(page.locator('#continueUploadHelp')).toBeVisible();
   await expect(page.locator('#panel-upload #fontSelect')).toHaveCount(0);
@@ -179,13 +181,13 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await expect(page.locator('.format-list')).toHaveCount(0);
   await expect(page.locator('.help-note')).toHaveCount(0);
   await expect(page.locator('#contentProductEditorLabel')).toHaveText(
-    'Редактировать изделие',
+    'Что сейчас настраиваем',
   );
   await expect(page.locator('#contentProductEditorHint')).toHaveText(
     'Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.',
   );
   await expect(page.locator('.mobile-products-choice-label')).toHaveText(
-    'В комплекте',
+    'В вашем комплекте',
   );
   await expect(
     page.locator('#contentProductEditor').locator('xpath=..'),

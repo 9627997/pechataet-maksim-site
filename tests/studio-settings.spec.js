@@ -715,9 +715,7 @@ test('order quantities control, protect, and persist product selection', async (
   ).toBeHidden();
   await expect(stickerSurface).toHaveCSS('outline-style', 'none');
   await expect(stickerSurface).toHaveCSS('cursor', 'default');
-  await expect(notice).toHaveText(
-    'В заказе должен остаться хотя бы один продукт.',
-  );
+  await expect(notice).toHaveText('Оставьте в заказе хотя бы одно изделие.');
   await expect(notice).toBeHidden();
 
   await meters.selectOption('25');
@@ -790,14 +788,18 @@ test('order dialog sends production files, retries safely and keeps a local copy
   await page.locator('#panel-settings .next-panel').click();
 
   const openOrder = page.locator('#openOrder');
-  await expect(openOrder).toHaveText('Перейти к отправке');
+  await expect(openOrder).toHaveText('Отправить Максиму на проверку');
   await openOrder.click();
 
-  const dialog = page.getByRole('dialog', { name: 'Отправить заявку' });
+  const dialog = page.getByRole('dialog', {
+    name: 'Отправить Максиму на проверку',
+  });
   const customerName = page.getByLabel('Имя');
   const phonePreference = page.getByLabel('Позвонить');
   const customerPhone = page.getByLabel('Ваш телефон');
-  const submitOrder = page.getByRole('button', { name: 'Отправить заявку' });
+  const submitOrder = dialog.getByRole('button', {
+    name: 'Отправить Максиму на проверку',
+  });
   await expect(dialog).toBeVisible();
   await expect(customerName).toBeFocused();
 
