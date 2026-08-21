@@ -92,21 +92,21 @@
 <section class="product-first-choice" id="productFirstChoice" aria-labelledby="productFirstChoiceTitle" hidden>
   <div class="product-first-choice-head">
     <p>Новый макет</p>
-    <h1 id="productFirstChoiceTitle">Что создаём?</h1>
-    <span>Сначала настроим одно изделие. Второй продукт можно добавить к заказу позже.</span>
+    <h1 id="productFirstChoiceTitle">Что будем делать?</h1>
+    <span>Выберите один вариант. Дальше я проведу вас по шагам и помогу подготовить макет к печати.</span>
   </div>
   <div class="product-first-choice-grid">
     <button class="product-first-choice-card" type="button" data-start-product="ribbon">
       <span class="product-first-choice-art product-first-choice-art-ribbon" aria-hidden="true"><span>печатает максим</span></span>
       <strong>Ленту</strong>
-      <small>Текст, логотип и печать на ленте</small>
-      <em>Создать ленту →</em>
+      <small>Напишем название или добавим логотип — я помогу подготовить ленту к печати.</small>
+      <em>Сделать ленту →</em>
     </button>
     <button class="product-first-choice-card" type="button" data-start-product="sticker">
       <span class="product-first-choice-art product-first-choice-art-sticker" aria-hidden="true"><span>печатает<br>максим</span></span>
       <strong>Стикер</strong>
-      <small>Круглый или прямоугольный стикер</small>
-      <em>Создать стикер →</em>
+      <small>Подберём форму стикера под вашу упаковку.</small>
+      <em>Сделать стикеры →</em>
     </button>
   </div>
 </section>
@@ -123,19 +123,19 @@
     <section class="mobile-products-panel" aria-label="Выбор и предпросмотр изделий">
       <div class="mobile-products-preview-context" aria-live="polite">
         <strong id="previewContextTitle">Пример оформления</strong>
-        <span id="previewContextCopy">Введите название или загрузите логотип — результат появится здесь.</span>
+        <span id="previewContextCopy">Напишите название или загрузите логотип — я покажу, как выглядит макет.</span>
       </div>
       <div class="content-product-editor-host content-product-editor-host-mobile" data-content-product-host="mobile">
         <div class="content-product-editor" id="contentProductEditor" aria-labelledby="contentProductEditorLabel">
-          <span id="contentProductEditorLabel">Редактировать изделие</span>
+          <span id="contentProductEditorLabel">Что сейчас настраиваем</span>
           <div class="segmented" id="contentProductChoice">
             <button class="active" data-content-product="ribbon" type="button">Лента</button>
             <button data-content-product="sticker" type="button">Стикер</button>
           </div>
-          <small id="contentProductEditorHint">Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.</small>
+          <small id="contentProductEditorHint">Если вы собираете комплект, я сначала поставлю надпись и логотип на оба изделия. Потом при желании сделаем их разными.</small>
         </div>
       </div>
-      <p class="mobile-products-choice-label">В комплекте</p>
+      <p class="mobile-products-choice-label">В вашем комплекте</p>
       <div class="mobile-products-switches">
         <label class="mobile-products-switch">
           <span>Лента</span>
@@ -154,7 +154,7 @@
       </div>
 
       <div class="mobile-products-preview" id="mobileProductsPreview">
-        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Редактировать ленту">
+        <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
           <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
@@ -170,7 +170,7 @@
             <button class="ribbon-overflow-apply" data-apply-ribbon-repeat type="button"></button>
           </section>
         </div>
-        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Редактировать стикер">
+        <div class="mobile-products-sample mobile-products-sticker" data-mobile-product-sample="sticker" role="button" tabindex="0" aria-pressed="false" aria-label="Настроить стикер">
           <span class="mobile-products-sample-label">Стикер 40 мм</span>
           <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
         </div>
@@ -180,16 +180,16 @@
 
     <section class="panel active" id="panel-upload">
       <div class="panel-head"><p>Шаг 1</p><h2>Создать</h2></div>
-      <p class="panel-copy">Добавьте название, логотип или оба элемента.</p>
+      <p class="panel-copy">Напишите название или загрузите логотип — можно использовать что-то одно или оба варианта.</p>
       <div class="mobile-products-host" data-products-host="upload"></div>
 
       <section class="sticker-product-picker" id="stickerProductPicker" aria-labelledby="stickerProductPickerTitle" hidden>
         <div class="sticker-product-picker-head">
           <div>
             <span class="create-option-number">03</span>
-            <strong id="stickerProductPickerTitle">Выберите стикер</strong>
+            <strong id="stickerProductPickerTitle">Выберите форму стикера</strong>
           </div>
-          <small>Один вариант остаётся активным и открытым для редактирования</small>
+          <small>Выберите один вариант — его макет останется перед вами для настройки.</small>
         </div>
         <div class="sticker-product-picker-options" role="list" aria-label="Группы вариантов стикеров">
           <details class="sticker-product-group" role="listitem" data-sticker-group="circle-24">
@@ -237,13 +237,13 @@
 
       <div class="upload-text-card create-option">
         <div class="upload-text-head">
-          <div><span class="create-option-number">01</span><strong>Введите название</strong></div>
-          <span>Надпись можно использовать отдельно или вместе с логотипом</span>
+          <div><span class="create-option-number">01</span><strong>Напишите название</strong></div>
+          <span>Можно оставить только название или добавить к нему логотип.</span>
         </div>
 
         <div class="content-scope-head">
           <label for="textInput" id="textInputLabel">Надпись на ленте</label>
-          <span class="content-scope-status" id="textScopeStatus">Общая для обоих</span>
+          <span class="content-scope-status" id="textScopeStatus">Оставить для обоих изделий</span>
         </div>
         <input class="input" id="textInput" type="text" autocomplete="organization" placeholder="Например: ленты по любви" aria-describedby="textInputMeta">
         <div class="text-input-meta" id="textInputMeta">
@@ -254,8 +254,8 @@
           Надпись длиннее рекомендации. На ленте покажем сокращённый вариант и полный макет ниже.
         </p>
         <div class="content-scope-actions">
-          <button id="makeProductText" type="button">Сделать отдельной для ленты</button>
-          <button id="restoreProductText" type="button" hidden>Вернуть общую надпись</button>
+          <button id="makeProductText" type="button">Сделать надпись только для ленты</button>
+          <button id="restoreProductText" type="button" hidden>Оставить ту же надпись для обоих</button>
           <button id="removeProductText" type="button" hidden>Убрать с ленты</button>
         </div>
       </div>
@@ -263,19 +263,19 @@
       <label class="upload upload-large create-option" id="dropZone" role="button" tabindex="0" aria-controls="logoInput" aria-describedby="uploadFormats" data-upload-state="idle">
         <input type="file" id="logoInput" accept=".svg,image/svg+xml,image/png,.png,image/jpeg,.jpg,.jpeg,application/pdf,.pdf" hidden>
         <span class="upload-icon">↑</span>
-        <strong><span class="create-option-number">02</span> Загрузить логотип</strong>
+        <strong><span class="create-option-number">02</span> Добавьте логотип</strong>
         <span id="uploadFormats">SVG, PNG, JPEG или PDF · до 20 МБ</span>
-        <small>Перетащите файл сюда или нажмите · для PDF используем первую страницу</small>
+        <small>Перетащите файл сюда или нажмите. Если это PDF, я возьму первую страницу.</small>
       </label>
 
       <div class="content-logo-scope" aria-live="polite">
         <div class="content-scope-head">
-          <strong id="logoInputLabel">Логотип на ленте</strong>
+          <strong id="logoInputLabel">Логотип для изделия</strong>
           <span class="content-scope-status" id="logoScopeStatus">Общий для обоих</span>
         </div>
         <div class="content-scope-actions">
-          <button id="makeProductLogo" type="button">Заменить только на ленте</button>
-          <button id="restoreProductLogo" type="button" hidden>Вернуть общий логотип</button>
+          <button id="makeProductLogo" type="button">Поставить другой логотип на ленту</button>
+          <button id="restoreProductLogo" type="button" hidden>Оставить тот же логотип для обоих</button>
           <button id="removeProductLogo" type="button" hidden>Убрать с ленты</button>
         </div>
       </div>
@@ -298,16 +298,16 @@
       <div class="trace-status" id="traceStatus" hidden>
         <div class="trace-status-icon">✓</div>
         <div class="trace-status-copy">
-          <strong>Макет автоматически подготовлен</strong>
-          <p>Изображение переведено в одноцветный макет. Перед производством мы проверим контуры и качество печати.</p>
+          <strong>Я подготовил макет</strong>
+          <p>Изображение подготовлено для одноцветной печати. Перед производством я ещё проверю контуры и качество.</p>
           <small id="traceDetails"></small>
           <div class="trace-polarity" id="tracePolarityControl" hidden>
-            <span>Что печатать</span>
+            <span>Что оставить в печати</span>
             <div class="trace-polarity-actions" role="group" aria-label="Выбор печатной области">
-              <button class="active" type="button" data-trace-polarity="sign" aria-pressed="true">Печатать знак</button>
-              <button type="button" data-trace-polarity="background" aria-pressed="false">Печатать фон</button>
+              <button class="active" type="button" data-trace-polarity="sign" aria-pressed="true">Оставить знак</button>
+              <button type="button" data-trace-polarity="background" aria-pressed="false">Оставить фон</button>
             </div>
-            <small id="tracePolarityHint">По умолчанию фон удалён: на ленту переносятся буквы и элементы логотипа.</small>
+            <small id="tracePolarityHint">По умолчанию фон убран — останутся буквы и элементы логотипа.</small>
           </div>
         </div>
       </div>
@@ -316,43 +316,43 @@
         <div data-create-status="text"><span aria-hidden="true">○</span><strong>Название</strong><small>не добавлено</small></div>
         <div data-create-status="logo"><span aria-hidden="true">○</span><strong>Логотип</strong><small>не добавлен</small></div>
       </div>
-      <p class="first-step-requirement" id="continueUploadHelp">Добавьте название или логотип, чтобы продолжить</p>
+      <p class="first-step-requirement" id="continueUploadHelp">Добавьте название или логотип — и продолжим.</p>
       <button class="button primary wide next-panel" id="continueUpload" data-next="settings" aria-describedby="continueUploadHelp" disabled>Далее: настроить макет</button>
     </section>
 
     <section class="panel" id="panel-bundle">
-      <div class="panel-head"><p>Шаг 2</p><h2>Выберите комплект</h2></div>
-      <p class="panel-copy">Можно заказать только ленту, только стикеры или готовый комплект.</p>
+      <div class="panel-head"><p>Шаг 2</p><h2>Что будет в заказе?</h2></div>
+      <p class="panel-copy">Выберите, что будем делать: только ленту, только стикеры или оба изделия в одном стиле.</p>
       <div class="bundle-cards" id="bundleChoice">
-        <button data-value="ribbon"><strong>Лента</strong><span>Брендированная сатиновая лента</span></button>
-        <button data-value="sticker"><strong>Стикеры</strong><span>Круглые наклейки для упаковки</span></button>
-        <button class="active" data-value="bundle"><strong>Лента + стикеры</strong><span>Единое оформление бренда</span></button>
+        <button data-value="ribbon"><strong>Лента</strong><span>Лента с вашим логотипом</span></button>
+        <button data-value="sticker"><strong>Стикеры</strong><span>Стикеры для вашей упаковки</span></button>
+        <button class="active" data-value="bundle"><strong>Лента + стикеры</strong><span>Лента и стикеры в одном стиле</span></button>
       </div>
-      <button class="button primary wide next-panel" data-next="settings">Далее: настройка</button>
+      <button class="button primary wide next-panel" data-next="settings">Далее: настроить</button>
     </section>
 
     <section class="panel" id="panel-settings">
       <div class="panel-head"><p>Шаг 2</p><h2>Настроить</h2></div>
-      <p class="panel-copy">Выберите образец, чтобы открыть его индивидуальные настройки.</p>
+      <p class="panel-copy">Выберите изделие, которое будем настраивать. Ленту и стикеры можно сделать похожими или придать каждому свой характер.</p>
       <div class="mobile-products-host" data-products-host="settings"></div>
 
       <div class="settings-context-head" aria-live="polite">
-        <span>Индивидуальные настройки</span>
+        <span>Сейчас настраиваем</span>
         <strong id="activeSettingsTitle">Лента</strong>
       </div>
 
       <div class="settings-content-summary">
         <div>
-          <span>Содержимое выбранного изделия</span>
-          <strong id="settingsContentStatus">Общие надпись и логотип</strong>
+          <span>Что сейчас на изделии</span>
+          <strong id="settingsContentStatus">Та же надпись и логотип для обоих</strong>
         </div>
         <div>
           <button id="editSettingsText" type="button">Изменить надпись</button>
-          <button id="editSettingsLogo" type="button">Заменить логотип</button>
+          <button id="editSettingsLogo" type="button">Поставить другой логотип</button>
         </div>
       </div>
 
-      <span class="settings-field-label" id="fontSelectLabel" data-setting-requires="text">Шрифт надписи на ленте</span>
+      <span class="settings-field-label" id="fontSelectLabel" data-setting-requires="text">Шрифт надписи</span>
       <div class="font-picker" id="fontPicker" data-setting-requires="text">
         <button class="font-picker-trigger" id="fontPickerTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="fontPickerList" aria-labelledby="fontSelectLabel fontPickerPreview">
           <span class="font-picker-preview" id="fontPickerPreview">Ваша надпись</span>
@@ -390,7 +390,7 @@
         </select>
       </div>
 
-      <label for="printColorSelect" id="printColorSelectLabel">Цвет печати на ленте</label>
+      <label for="printColorSelect" id="printColorSelectLabel">Цвет печати</label>
       <select class="input settings-select" id="printColorSelect">
         <option value="#171717">Чёрный</option>
         <option value="#b69249">Золото</option>
@@ -423,16 +423,16 @@
 
         <div class="repeat-control-head">
           <label for="repeatMm">Интервал между повторами</label>
-          <span id="repeatMode">Автоматически · 100 мм</span>
+          <span id="repeatMode">Подберу сам · 100 мм</span>
         </div>
         <input class="settings-range" id="repeatMm" type="range" min="40" max="250" step="5" value="100" aria-describedby="repeatHint">
-        <small class="repeat-hint" id="repeatHint">Свободный интервал рассчитывается по золотой пропорции.</small>
+        <small class="repeat-hint" id="repeatHint">Я подберу удобный интервал между повторами.</small>
       </div>
 
       <div class="layout-mode-card">
         <div>
-          <strong>Расположение элементов</strong>
-          <small id="layoutModeHelp">Studio автоматически компонует ленту</small>
+          <strong>Как расположить надпись и логотип</strong>
+          <small id="layoutModeHelp">Я аккуратно расположу элементы на ленте</small>
         </div>
         <div class="segmented" id="layoutModeChoice" aria-label="Режим расположения элементов">
           <button class="active" data-value="auto" type="button">Авто</button>
@@ -447,8 +447,8 @@
 
       <label class="print-guide-toggle" for="printGuidesToggle">
         <span>
-          <strong>Поля печати</strong>
-          <small>Показывать безопасную область</small>
+          <strong>Поле печати</strong>
+          <small>Показать границу поля печати</small>
         </span>
         <input id="printGuidesToggle" type="checkbox" role="switch" aria-label="Показать поля печати">
       </label>
@@ -457,7 +457,7 @@
       <div class="transform-card" data-transform-kind="text" data-setting-requires="text">
         <div class="transform-head">
           <strong>Положение текста</strong>
-          <button class="mini-button" id="resetTextTransform" type="button">Центрировать</button>
+          <button class="mini-button" id="resetTextTransform" type="button">Поставить по центру</button>
         </div>
         <div class="transform-axis" data-transform-axis="horizontal">
           <label for="textOffsetX" id="textOffsetXLabel">По горизонтали</label>
@@ -470,7 +470,7 @@
       <div class="transform-card" data-transform-kind="logo" data-setting-requires="logo">
         <div class="transform-head">
           <strong>Положение логотипа</strong>
-          <button class="mini-button" id="resetTransform" type="button">Центрировать</button>
+          <button class="mini-button" id="resetTransform" type="button">Поставить по центру</button>
         </div>
         <label for="logoScale">Размер логотипа</label>
         <input id="logoScale" type="range" min="10" max="100" value="100">
@@ -482,13 +482,13 @@
         <input id="logoOffsetY" type="range" min="-100" max="100" value="0">
       </div>
 
-      <button class="button ghost wide reset-layout" id="resetProductLayout" type="button">Вернуть автоматическую композицию</button>
+      <button class="button ghost wide reset-layout" id="resetProductLayout" type="button">Вернуть аккуратное расположение</button>
 
       <div class="recommend-card" id="recommendCard" hidden>
         <div class="recommend-card-head">
           <div>
-            <span>Автоматический подбор</span>
-            <strong>Рекомендовано для вашего бренда</strong>
+            <span>Моя рекомендация</span>
+            <strong>Так макет обычно выглядит аккуратнее</strong>
           </div>
           <button class="recommend-apply" id="makeBeautiful" type="button">Применить</button>
         </div>
@@ -497,19 +497,19 @@
           <div><span>Стикер</span><strong id="recSticker">Ø40 мм</strong></div>
           <div><span>Шаг</span><strong id="recRepeat">80 мм</strong></div>
         </div>
-        <p id="recommendReason">Подходит для большинства логотипов и надписей.</p>
+        <p id="recommendReason">Я выбрал спокойный вариант, который подходит большинству логотипов и надписей.</p>
       </div>
 
-      <button class="button primary wide next-panel" data-next="order">Далее: получить</button>
+      <button class="button primary wide next-panel" data-next="order">Далее: проверить заказ</button>
     </section>
 
 <section class="panel" id="panel-order">
       <div class="panel-head"><p>Шаг 3</p><h2>Получить</h2></div>
       <div class="mobile-products-host" data-products-host="order"></div>
 
-      <label for="meters">Метраж ленты</label>
+      <label for="meters">Сколько нужно ленты</label>
       <select class="input" id="meters">
-        <option value="0">Не заказывать ленту</option>
+        <option value="0">Ленту пока не заказывать</option>
         <option value="10">10 м</option>
         <option value="25">25 м</option>
         <option value="50">50 м</option>
@@ -517,25 +517,25 @@
         <option value="200">200 м</option>
       </select>
 
-      <label for="stickerQty">Количество стикеров</label>
+      <label for="stickerQty">Сколько нужно стикеров</label>
       <select class="input" id="stickerQty">
-        <option value="0">Не заказывать стикеры</option>
+        <option value="0">Стикеры пока не заказывать</option>
         <option value="50">50 шт.</option>
         <option value="100" selected>100 шт.</option>
         <option value="250">250 шт.</option>
         <option value="500">500 шт.</option>
       </select>
-      <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>В заказе должен остаться хотя бы один продукт.</p>
+      <p class="order-product-notice" id="orderProductNotice" aria-live="polite" hidden>Оставьте в заказе хотя бы одно изделие.</p>
 
       <section class="secondary-product-offer" id="secondaryProductOffer" aria-live="polite" hidden>
-        <span class="secondary-product-offer-kicker">Можно добавить к заказу</span>
-        <strong id="secondaryProductOfferTitle">Стикеры в том же стиле?</strong>
-        <p id="secondaryProductOfferCopy">Используем текущую надпись и логотип. Настройки можно изменить отдельно.</p>
-        <button class="button ghost wide" id="addSecondaryProduct" type="button">Добавить стикеры</button>
+        <span class="secondary-product-offer-kicker">Если захотите добавить второе изделие</span>
+        <strong id="secondaryProductOfferTitle">Добавим стикеры к этой ленте?</strong>
+        <p id="secondaryProductOfferCopy">Текст и логотип уже готовы. Если захотите, для стикеров я помогу сделать отдельный вариант.</p>
+        <button class="button ghost wide" id="addSecondaryProduct" type="button">Добавить стикеры в заказ</button>
       </section>
 
       <section class="order-items-summary" id="orderItemsSummary" aria-live="polite" hidden>
-        <strong>В заказе</strong>
+        <strong>Что будет в заказе</strong>
         <div id="orderItemsSummaryList"></div>
       </section>
 
@@ -544,7 +544,7 @@
         <strong id="totalPrice">1 790 ₽</strong>
       </div>
 
-      <button class="button primary wide" id="openOrder">Перейти к отправке</button>
+      <button class="button primary wide" id="openOrder">Отправить Максиму на проверку</button>
     </section>
   </aside>
 
@@ -675,9 +675,9 @@
   <div class="crop-dialog">
     <div class="crop-head">
       <div>
-        <p class="eyebrow">Подготовка изображения</p>
-        <h2 id="cropModalTitle">Выделите логотип</h2>
-        <p>Оставьте внутри рамки только нужный логотип или надпись.</p>
+        <p class="eyebrow">Подготовим изображение к печати</p>
+        <h2 id="cropModalTitle">Оставьте только нужную часть</h2>
+        <p>Оставьте в рамке только логотип или надпись, которую хотите напечатать.</p>
       </div>
       <button class="close" id="cropCancel" type="button" aria-label="Закрыть подготовку изображения">×</button>
     </div>
@@ -699,8 +699,8 @@
     <input id="cropZoom" type="hidden" value="100">
 
     <div class="crop-actions">
-      <button class="button primary" id="cropApply" type="button">Использовать выделенную область</button>
-      <button class="button ghost" id="cropUseAll" type="button">Использовать всё изображение</button>
+      <button class="button primary" id="cropApply" type="button">Оставить эту область</button>
+      <button class="button ghost" id="cropUseAll" type="button">Оставить всё изображение</button>
       <button class="button ghost" id="cropRotate" type="button">Повернуть 90°</button>
     </div>
   </div>
@@ -709,22 +709,22 @@
 <div class="modal" id="orderModal" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle" aria-hidden="true">
   <form class="modal-card" id="orderForm">
     <div class="modal-head">
-      <div><p class="eyebrow">Шаг 3</p><h2 id="orderModalTitle">Отправить заявку</h2></div>
+      <div><p class="eyebrow">Шаг 3</p><h2 id="orderModalTitle">Отправить Максиму на проверку</h2></div>
       <button class="close" id="closeOrder" type="button" aria-label="Закрыть заявку">×</button>
     </div>
     <div class="summary" id="orderSummary"></div>
     <label for="customerName">Имя <span aria-hidden="true">*</span></label><input class="input" id="customerName" name="customerName" autocomplete="name" maxlength="120" placeholder="Как к вам обращаться" required>
     <fieldset class="contact-preference">
-      <legend>Куда удобнее отправить ответ? <span aria-hidden="true">*</span></legend>
+      <legend>Куда вам удобнее получить мой ответ? <span aria-hidden="true">*</span></legend>
       <label class="contact-preference-option"><input type="radio" name="preferredContact" value="phone"> Позвонить</label>
       <label class="contact-preference-option"><input type="radio" name="preferredContact" value="telegram"> Написать в Telegram</label>
     </fieldset>
     <div class="contact-field" id="customerPhoneField" hidden><label for="customerPhone">Ваш телефон</label><input class="input" id="customerPhone" name="customerPhone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="+7"></div>
     <div class="contact-field" id="customerTelegramField" hidden><label for="customerTelegram">Ваш Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" maxlength="80" placeholder="@username"></div>
-    <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" maxlength="2000" placeholder="Срок, доставка, пожелания"></textarea>
-    <p class="order-form-help">Укажите имя и один контакт. После отправки вы получите номер заявки, а Максим свяжется с вами выбранным способом.</p>
+    <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" maxlength="2000" placeholder="Сроки, доставка или пожелания"></textarea>
+    <p class="order-form-help">Оставьте имя и один удобный контакт. Я посмотрю макет и свяжусь с вами выбранным способом.</p>
     <p class="order-form-status" id="orderFormStatus" role="status" aria-live="polite"></p>
-    <button class="button primary wide" id="submitOrder" type="submit">Отправить заявку</button>
+    <button class="button primary wide" id="submitOrder" type="submit">Отправить Максиму на проверку</button>
     <button class="button ghost wide order-copy" id="downloadOrderCopy" type="button">Скачать копию</button>
   </form>
 </div>
@@ -738,9 +738,9 @@
     </div>
 
     <div class="mobile-text-editor-choices" id="mobileTextEditorChoices">
-      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonText" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonText" type="button">Изменить на обоих изделиях</button>
       <button class="mobile-text-editor-action" id="editProductText" type="button">Только для ленты</button>
-      <button class="mobile-text-editor-action" id="clearProductTextOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action" id="clearProductTextOverride" type="button" hidden>Оставить ту же надпись для обоих</button>
       <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileTextEditor" type="button">Отмена</button>
     </div>
 
@@ -764,9 +764,9 @@
     </div>
 
     <div class="mobile-text-editor-choices">
-      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonLogo" type="button">Изменить везде</button>
+      <button class="mobile-text-editor-action mobile-text-editor-action-primary" id="editCommonLogo" type="button">Изменить на обоих изделиях</button>
       <button class="mobile-text-editor-action" id="editProductLogo" type="button">Только для ленты</button>
-      <button class="mobile-text-editor-action" id="clearProductLogoOverride" type="button" hidden>Вернуться к общему</button>
+      <button class="mobile-text-editor-action" id="clearProductLogoOverride" type="button" hidden>Оставить ту же надпись для обоих</button>
       <button class="mobile-text-editor-action mobile-text-editor-action-cancel" id="cancelMobileLogoEditor" type="button">Отмена</button>
     </div>
   </section>
@@ -777,7 +777,7 @@
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=539c92e977ca"></script>
+<script src="assets/js/app.js?v=bd582df96cd1"></script>
 <script src="assets/js/mobile-products.js?v=de7867e3088f"></script>
 </body>
 </html>

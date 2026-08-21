@@ -162,7 +162,7 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   const studioLinks = page.locator('a[href^="/studio/"]');
   await expect(studioLinks).toHaveCount(5);
   await expect(
-    page.getByRole('link', { name: 'Создать макет онлайн' }),
+    page.getByRole('link', { name: 'Создать макет вместе с Максимом' }),
   ).toHaveAttribute('href', '/studio/?product=choose');
   await expect(page.locator('#contact')).toContainText(
     'Заявка и макеты сохраняются в защищённом архиве.',
@@ -177,13 +177,19 @@ test('Plain Studio entry starts with the product chooser @smoke', async ({
 }) => {
   await page.goto('/studio/', { waitUntil: 'networkidle' });
   await expect(page.locator('#productFirstChoice')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Создать ленту →' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Создать стикер →' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Сделать ленту →' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Сделать стикеры →' }),
+  ).toBeVisible();
   await expect(page.locator('.app-shell')).toBeHidden();
 
-  await page.getByRole('button', { name: 'Создать ленту →' }).click();
+  await page.getByRole('button', { name: 'Сделать ленту →' }).click();
   await expect(page.locator('#productFirstChoice')).toBeHidden();
-  await expect(page.getByRole('textbox', { name: 'Надпись на ленте' })).toBeVisible();
+  await expect(
+    page.getByRole('textbox', { name: 'Надпись на ленте' }),
+  ).toBeVisible();
   await expect(page.locator('[data-mobile-product="sticker"]')).toBeHidden();
 });
 
