@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const print = PRINT_OPTIONS.includes(value?.print)
       ? value.print
       : PRINT_OPTIONS.includes(fallback.print) ? fallback.print : '#171717';
-    const legacyLogoOffsetMm = Number(value?.logoOffsetX) / 6.2 || 0;
+    const legacyLogoOffsetMm = Number(fallback?.logoOffsetX) / 6.2 || 0;
     const normalizeOffset = (key, fallbackValue = 0) =>
       Math.min(
         125,
@@ -3266,17 +3266,15 @@ document.addEventListener('DOMContentLoaded', () => {
     state.activeTransformTarget = target;
     const style = getProductStyle(product);
     const keys = getTransformOffsetKeys(target);
-    const physicalWidth = product === 'ribbon' ? state.repeatMm : state.stickerSize;
-    const physicalHeight = product === 'ribbon' ? state.width : state.stickerSize;
     const limits = getTransformLimits(product);
     style.layoutMode = 'manual';
     style[keys.x] = clamp(
-      style[keys.x] + (Number(event.detail?.dxRatio) || 0) * physicalWidth,
+      style[keys.x] + (Number(event.detail?.dxRatio) || 0) * (limits.x * 2),
       -limits.x,
       limits.x,
     );
     style[keys.y] = clamp(
-      style[keys.y] + (Number(event.detail?.dyRatio) || 0) * physicalHeight,
+      style[keys.y] + (Number(event.detail?.dyRatio) || 0) * (limits.y * 2),
       -limits.y,
       limits.y,
     );
