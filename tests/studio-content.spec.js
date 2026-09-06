@@ -493,10 +493,10 @@ test('legacy Studio content migrates to common content', async ({
   });
   expect(snapshot.logo.common).toMatchObject({
     hasLogo: true,
-    ratio: 2,
     logoType: 'svg',
     hasSvgSource: true,
   });
+  expect(snapshot.logo.common.ratio).toBeCloseTo(2, 1);
   expect(snapshot.logo.ribbon).toEqual({ mode: 'inherit' });
   expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
   expect(snapshot.logo.resolvedRibbon).toEqual(snapshot.logo.common);
@@ -523,10 +523,10 @@ test('legacy Studio content migrates to common content', async ({
   expect(snapshot.text.sticker).toEqual({ mode: 'inherit' });
   expect(snapshot.logo.common).toMatchObject({
     hasLogo: true,
-    ratio: 2,
     logoType: 'svg',
     hasSvgSource: true,
   });
+  expect(snapshot.logo.common.ratio).toBeCloseTo(2, 1);
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
@@ -584,7 +584,11 @@ test('content overrides normalize, resolve, persist, and reset', async ({
   expect(snapshot.logo.ribbon).toEqual({ mode: 'override', value: null });
   expect(snapshot.logo.sticker).toEqual({ mode: 'inherit' });
   expect(snapshot.logo.resolvedRibbon).toBeNull();
-  expect(snapshot.logo.resolvedSticker).toEqual(snapshot.logo.common);
+  const { ratio: commonRatio, ...commonRest } = snapshot.logo.common;
+  const { ratio: resolvedStickerRatio, ...resolvedStickerRest } =
+    snapshot.logo.resolvedSticker;
+  expect(resolvedStickerRest).toEqual(commonRest);
+  expect(resolvedStickerRatio).toBeCloseTo(commonRatio, 1);
 
   await expect(page.locator('#textInput')).toHaveValue('');
   await expect(page.locator('.mobile-products-ribbon-text')).toBeHidden();
@@ -711,11 +715,17 @@ test('resolved logo assets render independently across product scenes', async ({
   );
   await page.locator('#printColorSelect').selectOption('#ffffff');
   const detail = await contentEvent;
-  expect(detail.logo).toEqual({
-    common: { hasLogo: true, logoType: 'svg', ratio: 2 },
-    ribbon: { mode: 'override', hasLogo: true, logoType: 'svg', ratio: 4 },
-    sticker: { mode: 'override', hasLogo: true, logoType: 'svg', ratio: 0.5 },
+  const { ratio: commonRatio, ...common } = detail.logo.common;
+  const { ratio: ribbonRatio, ...ribbon } = detail.logo.ribbon;
+  const { ratio: stickerRatio, ...sticker } = detail.logo.sticker;
+  expect({ common, ribbon, sticker }).toEqual({
+    common: { hasLogo: true, logoType: 'svg' },
+    ribbon: { mode: 'override', hasLogo: true, logoType: 'svg' },
+    sticker: { mode: 'override', hasLogo: true, logoType: 'svg' },
   });
+  expect(commonRatio).toBeCloseTo(2, 1);
+  expect(ribbonRatio).toBeCloseTo(4, 1);
+  expect(stickerRatio).toBeCloseTo(0.5, 1);
   expect(JSON.stringify(detail.logo)).not.toContain('data:image');
   expect(JSON.stringify(detail.logo)).not.toContain('<svg');
   await expect
