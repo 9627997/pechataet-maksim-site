@@ -150,6 +150,42 @@ textarea:focus-visible {
   color: var(--color-accent);
 }
 
+.nav-toggle {
+  display: none;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.nav-toggle-bar {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.site-header.is-menu-open .nav-toggle-bar:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.site-header.is-menu-open .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.site-header.is-menu-open .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -576,6 +612,59 @@ h3 {
 }
 
 @media (max-width: 860px) {
+  .header-inner {
+    flex-wrap: wrap;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .site-nav,
+  .header-actions {
+    display: none;
+    width: 100%;
+  }
+
+  .site-header.is-menu-open .site-nav,
+  .site-header.is-menu-open .header-actions {
+    display: flex;
+  }
+
+  .site-nav {
+    order: 3;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .site-nav ul {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .site-nav a {
+    display: block;
+    padding: 0.75rem 0.1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .header-actions {
+    order: 4;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 1rem 0 0.25rem;
+  }
+
+  .header-phone {
+    text-align: center;
+  }
+
+  .header-cta {
+    width: 100%;
+    text-align: center;
+  }
+
   .hero-grid,
   .intro-grid,
   .contact-grid {
@@ -613,15 +702,6 @@ h3 {
 }
 
 @media (max-width: 680px) {
-  .header-inner {
-    flex-wrap: wrap;
-  }
-
-  .header-actions {
-    flex: 1;
-    justify-content: flex-end;
-  }
-
   .header-phone {
     font-size: 0.88rem;
   }
@@ -690,16 +770,6 @@ h3 {
     height: 18px;
     right: 10px;
     bottom: 12px;
-  }
-
-  .site-nav {
-    order: 3;
-    width: 100%;
-  }
-
-  .site-nav ul {
-    justify-content: space-between;
-    gap: 0.75rem;
   }
 
   .hero-actions {
