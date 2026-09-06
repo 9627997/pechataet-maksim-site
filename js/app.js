@@ -6,6 +6,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const siteHeader = document.querySelector('.site-header');
+  const navToggle = document.querySelector('.nav-toggle');
+
+  if (siteHeader && navToggle) {
+    const closeMenu = () => {
+      siteHeader.classList.remove('is-menu-open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    };
+
+    navToggle.addEventListener('click', () => {
+      const isOpen = siteHeader.classList.toggle('is-menu-open');
+      navToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    siteHeader.querySelectorAll('.site-nav a').forEach((link) => {
+      link.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    });
+  }
+
   document.querySelectorAll('[data-contact-channel]').forEach((link) => {
     link.addEventListener('click', () => {
       const detail = {
