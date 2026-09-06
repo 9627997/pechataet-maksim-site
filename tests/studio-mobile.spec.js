@@ -699,10 +699,10 @@ test('white letters on a dark PNG plaque are traced as the printable sign', asyn
   const traceStatus = page.locator('#traceStatus');
   const polarityControl = page.locator('#tracePolarityControl');
   const signButton = polarityControl.getByRole('button', {
-    name: 'Печатать знак',
+    name: 'Оставить знак',
   });
   const backgroundButton = polarityControl.getByRole('button', {
-    name: 'Печатать фон',
+    name: 'Оставить фон',
   });
   await expect(traceStatus).toBeVisible();
   await expect(page.locator('#traceDetails')).toContainText('Фон удалён');
@@ -843,8 +843,8 @@ test('opaque PNG crop triggers tracing and updates both mobile product logos', a
   await expect(cropModal.locator('input[type="range"]')).toHaveCount(0);
   await expect(cropModal.getByText('Масштаб', { exact: true })).toHaveCount(0);
   await expect(page.locator('.crop-actions .button')).toHaveText([
-    'Использовать выделенную область',
-    'Использовать всё изображение',
+    'Оставить эту область',
+    'Оставить всё изображение',
     'Повернуть 90°',
   ]);
   await expect(page.locator('#cropApply')).toHaveClass(/primary/);
@@ -875,7 +875,7 @@ test('JPEG upload opens an accessible crop dialog and completes tracing', async 
 
   await page.locator('#logoInput').setInputFiles(jpegUpload);
   const cropDialog = page.getByRole('dialog', {
-    name: 'Выделите логотип',
+    name: 'Оставьте только нужную часть',
   });
   await expect(cropDialog).toBeVisible();
   await expect(page.locator('#cropCancel')).toBeFocused();
@@ -905,7 +905,7 @@ test('PDF upload renders its first page and completes tracing', async ({
 
   await page.locator('#logoInput').setInputFiles(createPdfUpload());
   const cropDialog = page.getByRole('dialog', {
-    name: 'Выделите логотип',
+    name: 'Оставьте только нужную часть',
   });
   await expect(cropDialog).toBeVisible();
   await expect(page.locator('#fileCard')).toBeHidden();
