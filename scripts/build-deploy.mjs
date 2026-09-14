@@ -39,8 +39,8 @@ const requiredOutput = [
   'version.json',
   'api/orders/.htaccess',
   'api/orders/index.php',
-  'css/style.css',
-  'js/app.js',
+  'css/alternative-homepage.css',
+  'js/alternative-homepage.js',
   'studio/index.html',
   'studio/assets/css/app.css',
   'studio/assets/js/app.js',
@@ -87,11 +87,7 @@ function getCommitSha() {
 }
 
 async function copyPublicEntry(entry) {
-  const sourceEntry =
-    entry === 'index.html' && process.env.USE_ALTERNATIVE_HOMEPAGE === '1'
-      ? 'index-alternative-production.html'
-      : entry;
-  const source = resolve(repositoryRoot, sourceEntry);
+  const source = resolve(repositoryRoot, entry);
   const target = resolve(outputRoot, entry);
 
   await mkdir(resolve(target, '..'), { recursive: true });
@@ -166,8 +162,6 @@ await Promise.all(legacyRedirects.map(createLegacyRedirect));
 
 const version = {
   commit: getCommitSha(),
-  homepage:
-    process.env.USE_ALTERNATIVE_HOMEPAGE === '1' ? 'alternative' : 'current',
   builtAt: new Date().toISOString(),
 };
 
