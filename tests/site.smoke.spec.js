@@ -159,10 +159,13 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   await expectNoHorizontalOverflow(page);
 
   const studioLinks = page.locator('a[href^="/studio/"]');
-  await expect(studioLinks).toHaveCount(9);
+  await expect(studioLinks).toHaveCount(11);
+  await expect(page.locator('.hero-cta-heading')).toHaveText(
+    'Создать макет онлайн',
+  );
   await expect(
-    page.getByRole('link', { name: 'Создать макет онлайн' }),
-  ).toHaveAttribute('href', '/studio/?product=choose');
+    page.locator('.hero-proof-links').getByRole('link', { name: 'Лента' }),
+  ).toHaveAttribute('href', '/studio/?product=ribbon');
   await expect(page.locator('.final-cta')).toContainText(
     'Выберите ленту, стикер или комплект',
   );

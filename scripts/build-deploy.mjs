@@ -91,6 +91,17 @@ async function copyPublicEntry(entry) {
   const target = resolve(outputRoot, entry);
 
   await mkdir(resolve(target, '..'), { recursive: true });
+
+  if (entry === 'index.html') {
+    const html = await readFile(source, 'utf8');
+    const stamped = html.replaceAll(
+      'v=production-candidate',
+      `v=${getCommitSha().slice(0, 12)}`,
+    );
+    await writeFile(target, stamped, 'utf8');
+    return;
+  }
+
   await cp(source, target, { recursive: true });
 }
 
@@ -136,6 +147,12 @@ async function assertArtifact() {
     readFile(resolve(outputRoot, 'robots.txt'), 'utf8'),
     readFile(resolve(outputRoot, 'sitemap.xml'), 'utf8'),
   ]);
+
+  if (indexHtml.includes('v=production-candidate')) {
+    throw new Error(
+      'index.html в deployment artifact всё ещё содержит плейсхолдер v=production-candidate — стили/скрипт не будут обновляться в кэше браузера после деплоя.',
+    );
+  }
 
   const canonicalHost = 'https://xn--80aaarctnodv3agc9d.xn--p1ai';
   const seoRequirements = [
