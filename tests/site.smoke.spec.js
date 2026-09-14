@@ -155,17 +155,16 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   await page.goto('/', { waitUntil: 'networkidle' });
 
   await expect(page.locator('h1')).toHaveCount(1);
-  await expect(page.locator('#region')).toContainText('Нижневартовск');
-  await expect(page.locator('#region')).toContainText('ХМАО');
+  await expect(page.locator('.site-footer')).toContainText('Нижневартовск');
   await expectNoHorizontalOverflow(page);
 
   const studioLinks = page.locator('a[href^="/studio/"]');
-  await expect(studioLinks).toHaveCount(5);
+  await expect(studioLinks).toHaveCount(9);
   await expect(
-    page.getByRole('link', { name: 'Создать макет вместе с Максимом' }),
+    page.getByRole('link', { name: 'Создать макет онлайн' }),
   ).toHaveAttribute('href', '/studio/?product=choose');
-  await expect(page.locator('#contact')).toContainText(
-    'Заявка и макеты сохраняются в защищённом архиве.',
+  await expect(page.locator('.final-cta')).toContainText(
+    'Выберите ленту, стикер или комплект',
   );
   await expect(page.locator('#contact-form')).toHaveCount(0);
   await expectNoHorizontalOverflow(page);

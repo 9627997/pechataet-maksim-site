@@ -40,8 +40,6 @@ jobs:
         run: npm ci
 
       - name: Build public deployment artifact
-        env:
-          USE_ALTERNATIVE_HOMEPAGE: '1'
         run: npm run build:deploy
 
       - name: Save deployment artifact
@@ -140,15 +138,6 @@ jobs:
 
           if [ "${deployed_sha}" != "${GITHUB_SHA}" ]; then
             echo "Expected ${GITHUB_SHA}, received ${deployed_sha}" >&2
-            exit 1
-          fi
-
-          deployed_homepage="$(
-            VERSION_JSON="${version_json}" node -e \
-              "process.stdout.write(JSON.parse(process.env.VERSION_JSON).homepage || '')"
-          )"
-          if [ "${deployed_homepage}" != "alternative" ]; then
-            echo "Expected alternative homepage, received ${deployed_homepage}" >&2
             exit 1
           fi
 
