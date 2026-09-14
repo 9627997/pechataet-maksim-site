@@ -127,7 +127,14 @@
             Брендированные ленты и стикеры для упаковки, которую хочется вручать, фотографировать и запоминать.
           </p>
           <div class="hero-cta">
-            <a class="button button-primary button-large" data-studio-link="set" href="/studio/?product=choose">Создать макет</a>
+            <div class="hero-cta-menu">
+              <a class="button button-primary button-large hero-cta-trigger" aria-haspopup="true" aria-expanded="false" href="/studio/?product=choose">Создать макет</a>
+              <div class="hero-cta-dropdown" hidden>
+                <a data-studio-link="ribbon" href="/studio/?product=ribbon">Лента</a>
+                <a data-studio-link="sticker" href="/studio/?product=sticker">Стикер</a>
+                <a data-studio-link="set" href="/studio/?product=choose">Комплект</a>
+              </div>
+            </div>
             <p class="hero-cta-caption">Без оплаты · Стоимость подтвердим до печати</p>
           </div>
           <a class="text-link hero-secondary-link" href="#materials">Посмотреть материалы →</a>

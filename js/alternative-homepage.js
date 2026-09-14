@@ -35,6 +35,33 @@ document.querySelectorAll('[data-studio-link]').forEach((link) => {
   });
 });
 
+const heroCtaTrigger = document.querySelector('.hero-cta-trigger');
+const heroCtaMenu = document.querySelector('.hero-cta-menu');
+const heroCtaDropdown = document.querySelector('.hero-cta-dropdown');
+
+const closeHeroCtaDropdown = () => {
+  if (!heroCtaDropdown || heroCtaDropdown.hidden) return;
+  heroCtaDropdown.hidden = true;
+  heroCtaTrigger?.setAttribute('aria-expanded', 'false');
+};
+
+if (heroCtaTrigger && heroCtaMenu && heroCtaDropdown) {
+  heroCtaTrigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    const isOpen = heroCtaTrigger.getAttribute('aria-expanded') === 'true';
+    heroCtaDropdown.hidden = isOpen;
+    heroCtaTrigger.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!heroCtaMenu.contains(event.target)) closeHeroCtaDropdown();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeHeroCtaDropdown();
+  });
+}
+
 const params = new URLSearchParams(window.location.search);
 if (params.get('focus') === 'products') document.querySelector('#products')?.scrollIntoView();
 

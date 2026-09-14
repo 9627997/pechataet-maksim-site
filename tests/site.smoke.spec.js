@@ -159,10 +159,30 @@ test('landing page is responsive and leads to Studio @smoke', async ({
   await expectNoHorizontalOverflow(page);
 
   const studioLinks = page.locator('a[href^="/studio/"]');
-  await expect(studioLinks).toHaveCount(9);
+  await expect(studioLinks).toHaveCount(12);
+  const heroCtaTrigger = page
+    .locator('.hero')
+    .getByRole('link', { name: 'Создать макет' });
+  await expect(heroCtaTrigger).toHaveAttribute(
+    'href',
+    '/studio/?product=choose',
+  );
+  await expect(page.locator('.hero-cta-dropdown')).toBeHidden();
+  await heroCtaTrigger.click();
+  await expect(page.locator('.hero-cta-dropdown')).toBeVisible();
   await expect(
-    page.locator('.hero').getByRole('link', { name: 'Создать макет' }),
+    page.locator('.hero-cta-dropdown').getByRole('link', { name: 'Лента' }),
+  ).toHaveAttribute('href', '/studio/?product=ribbon');
+  await expect(
+    page.locator('.hero-cta-dropdown').getByRole('link', { name: 'Стикер' }),
+  ).toHaveAttribute('href', '/studio/?product=sticker');
+  await expect(
+    page
+      .locator('.hero-cta-dropdown')
+      .getByRole('link', { name: 'Комплект' }),
   ).toHaveAttribute('href', '/studio/?product=choose');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.hero-cta-dropdown')).toBeHidden();
   await expect(
     page.locator('.product-grid').getByRole('link', { name: 'Создать макет →' }).first(),
   ).toHaveAttribute('href', '/studio/?product=ribbon');
