@@ -1,6 +1,6 @@
 :root {
   --hero-v03-cream: #f8f3ec;
-  --hero-v03-gold: #b58a4c;
+  --hero-v03-gold: #a67c3d;
   --hero-v03-ink: #17110f;
 }
 
@@ -65,6 +65,20 @@
   color: var(--hero-v03-gold);
 }
 
+.hero-v02 .button-hero-secondary.button-secondary {
+  border-color: rgba(166, 124, 61, 0.45);
+}
+
+.hero-v02 .button-hero-secondary.button-secondary:hover,
+.hero-v02 .button-hero-secondary.button-secondary:focus-visible {
+  border-color: var(--hero-v03-gold);
+  background: rgba(166, 124, 61, 0.08);
+}
+
+.hero-proof li::marker {
+  color: var(--hero-v03-gold);
+}
+
 .hero-copy-v02 .hero-text {
   max-width: 54ch;
   font-size: clamp(1.05rem, 1.35vw, 1.22rem);
@@ -87,7 +101,8 @@
   background: #eadfce;
   box-shadow:
     0 42px 80px rgba(64, 43, 31, 0.18),
-    0 10px 26px rgba(64, 43, 31, 0.09);
+    0 10px 26px rgba(64, 43, 31, 0.09),
+    0 0 0 1px rgba(166, 124, 61, 0.35);
   transform: rotate(1.2deg);
 }
 

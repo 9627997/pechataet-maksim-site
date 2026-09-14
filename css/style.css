@@ -4,8 +4,9 @@
   --color-surface-strong: #fffaf4;
   --color-text: #18110f;
   --color-text-soft: #645751;
-  --color-accent: #b11f2d;
-  --color-accent-dark: #8f1824;
+  --color-accent: #7d1c26;
+  --color-accent-dark: #4a1017;
+  --color-gold: #a67c3d;
   --color-border: #eadfce;
   --color-shadow: rgba(24, 17, 15, 0.08);
   --radius-sm: 14px;
@@ -111,7 +112,7 @@ textarea:focus-visible {
   color: var(--color-text);
   font-weight: 650;
   text-decoration: underline;
-  text-decoration-color: rgba(176, 39, 48, 0.35);
+  text-decoration-color: rgba(125, 28, 38, 0.35);
   text-underline-offset: 0.2em;
 }
 
@@ -201,13 +202,16 @@ textarea:focus-visible {
 }
 
 .button-primary {
-  background: var(--color-accent);
+  background: linear-gradient(155deg, #9c2c37 0%, var(--color-accent) 55%, var(--color-accent-dark) 100%);
   color: #fff;
+  box-shadow:
+    0 10px 24px rgba(74, 16, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .button-primary:hover,
 .button-primary:focus-visible {
-  background: var(--color-accent-dark);
+  background: linear-gradient(155deg, #a83540 0%, var(--color-accent) 55%, #380d12 100%);
 }
 
 .button-secondary {
@@ -233,7 +237,7 @@ textarea:focus-visible {
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: var(--color-accent);
+  color: var(--color-gold);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -448,7 +452,7 @@ h3 {
   content: "•";
   position: absolute;
   left: 0;
-  color: var(--color-accent);
+  color: var(--color-gold);
 }
 
 .section-heading {
@@ -482,8 +486,8 @@ h3 {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(177, 31, 45, 0.12);
-  color: var(--color-accent);
+  background: rgba(166, 124, 61, 0.14);
+  color: var(--color-gold);
   font-weight: 700;
   margin-bottom: 0.8rem;
 }

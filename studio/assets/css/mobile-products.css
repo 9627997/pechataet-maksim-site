@@ -277,7 +277,7 @@
 
   .mobile-products-ribbon.is-settings-active .mobile-products-ribbon-sample,
   .mobile-products-sticker.is-settings-active .mobile-products-sticker-sample {
-    outline: 3px solid #d8323d;
+    outline: 3px solid var(--accent, #7d1c26);
     outline-offset: 3px;
   }
 
@@ -304,7 +304,7 @@
   }
 
   body[data-preview-demo='true'] .mobile-products-sample-label::after {
-    color: #d8323d;
+    color: var(--gold, #a67c3d);
     content: ' · пример';
   }
 
