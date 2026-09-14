@@ -1,11 +1,12 @@
 const menuButton = document.querySelector('.menu-button');
+const menuButtonLabel = menuButton?.querySelector('.menu-button-label');
 const mobileNav = document.querySelector('#mobile-nav');
 
 menuButton?.addEventListener('click', () => {
   const isOpen = menuButton.getAttribute('aria-expanded') === 'true';
   menuButton.setAttribute('aria-expanded', String(!isOpen));
   mobileNav.hidden = isOpen;
-  menuButton.textContent = isOpen ? 'Меню' : 'Закрыть';
+  if (menuButtonLabel) menuButtonLabel.textContent = isOpen ? 'Меню' : 'Закрыть';
 });
 
 document.querySelectorAll('.mobile-nav a').forEach((link) => {
@@ -13,7 +14,7 @@ document.querySelectorAll('.mobile-nav a').forEach((link) => {
     if (!mobileNav || !menuButton) return;
     mobileNav.hidden = true;
     menuButton.setAttribute('aria-expanded', 'false');
-    menuButton.textContent = 'Меню';
+    if (menuButtonLabel) menuButtonLabel.textContent = 'Меню';
   });
 });
 
