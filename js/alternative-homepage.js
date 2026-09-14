@@ -37,3 +37,15 @@ document.querySelectorAll('[data-studio-link]').forEach((link) => {
 
 const params = new URLSearchParams(window.location.search);
 if (params.get('focus') === 'products') document.querySelector('#products')?.scrollIntoView();
+
+const stickyCta = document.querySelector('.mobile-sticky-cta');
+const hero = document.querySelector('.hero');
+if (stickyCta && hero && 'IntersectionObserver' in window) {
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      stickyCta.classList.toggle('is-visible', !entry.isIntersecting);
+    },
+    { rootMargin: '0px 0px -20% 0px' },
+  );
+  observer.observe(hero);
+}
