@@ -1031,6 +1031,18 @@ test('sticker create step keeps one active model and compact future shape picker
 
   const picker = page.locator('#stickerProductPicker');
   await expect(picker).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-variant-id',
+    'circle-24',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-bg',
+    '#171717',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-print',
+    'silver',
+  );
   await expect(picker.locator('[data-sticker-option]')).toHaveCount(9);
   await expect(
     picker.locator(
@@ -1051,6 +1063,21 @@ test('sticker create step keeps one active model and compact future shape picker
   await picker
     .locator('[data-sticker-group="transparent-circle"] > summary')
     .click();
+  const transparentSummary = picker.locator(
+    '[data-sticker-group="transparent-circle"] > summary',
+  );
+  const transparentMenu = picker.locator(
+    '[data-sticker-group="transparent-circle"] .sticker-product-group-menu',
+  );
+  await expect
+    .poll(async () => {
+      const summaryBox = await transparentSummary.boundingBox();
+      const menuBox = await transparentMenu.boundingBox();
+      return summaryBox && menuBox
+        ? menuBox.y >= summaryBox.y + summaryBox.height
+        : false;
+    })
+    .toBe(true);
   await expect(
     picker.locator(
       '[data-sticker-group="transparent-circle"] [data-sticker-option="circle-40"]',
@@ -1077,6 +1104,10 @@ test('sticker create step keeps one active model and compact future shape picker
       '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]',
     )
     .click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-print',
+    'white',
+  );
   await expect(page.locator('.mobile-products-sticker-sample')).toHaveCSS(
     'background-color',
     'rgb(23, 23, 23)',
@@ -1099,6 +1130,10 @@ test('sticker create step keeps one active model and compact future shape picker
     .locator('[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]')
     .click();
   await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-print',
+    'black',
+  );
+  await expect(page.locator('body')).toHaveAttribute(
     'data-sticker-variant-id',
     'circle-24',
   );
@@ -1112,10 +1147,18 @@ test('sticker create step keeps one active model and compact future shape picker
     'rgb(182, 146, 73)',
   );
 
-  await picker.locator('[data-sticker-group="roundrect-80x20"] > summary').click();
   await picker
-    .locator('[data-sticker-option="roundrect-80x20"][data-sticker-bg="#b7202d"]')
+    .locator('[data-sticker-group="roundrect-80x20"] > summary')
     .click();
+  await picker
+    .locator(
+      '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#b7202d"]',
+    )
+    .click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-sticker-print',
+    'gold',
+  );
   await expect(page.locator('.mobile-products-sticker-sample')).toHaveCSS(
     'background-color',
     'rgb(183, 32, 45)',
