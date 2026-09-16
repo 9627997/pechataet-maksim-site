@@ -1107,6 +1107,10 @@ test('sticker create step keeps one active model and compact future shape picker
       '[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]',
     ),
   ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.mobile-products-sticker-sample')).toHaveCSS(
+    'background-color',
+    'rgb(182, 146, 73)',
+  );
 
   await picker.locator('[data-sticker-group="roundrect-80x20"] > summary').click();
   await picker
