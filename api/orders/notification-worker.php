@@ -75,32 +75,42 @@ function pmq_process(string $directory, array $config): void
     if (!is_array($queue) || ($queue['status'] ?? '') === 'sent') return;
     $order = json_decode((string) file_get_contents($directory . '/order.json'), true);
     if (!is_array($order)) throw new RuntimeException('Invalid order.json');
+    $previous = is_file($directory . '/notifications.json')
+        ? json_decode((string) file_get_contents($directory . '/notifications.json'), true)
+        : [];
+    $previous = is_array($previous) ? $previous : [];
     foreach ([['ribbonSvg', 'ribbon.svg'], ['stickerSvg', 'sticker.svg'], ['ribbonPreviewSvg', 'ribbon-preview.svg'], ['ribbonPrintSvg', 'ribbon-print-black.svg'], ['stickerPreviewSvg', 'sticker-preview.svg'], ['stickerPrintSvg', 'sticker-print-black.svg']] as [$key, $file]) {
         if (is_file($directory . '/' . $file)) $order['artifacts'][$key] = file_get_contents($directory . '/' . $file);
     }
-    $max = max(1, min(5, (int) ($config['notifications']['max_attempts'] ?? 3)));
+    $maxAttempts = max(1, min(5, (int) ($config['notifications']['max_attempts'] ?? 3)));
     $delay = max(0, min(10, (int) ($config['notifications']['retry_delay_seconds'] ?? 1)));
     $token = (string) ($config['telegram']['bot_token'] ?? '');
     $chat = (string) ($config['telegram']['chat_id'] ?? '');
     $text = pmq_text($order);
-    $telegram = (!$token || !$chat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($token, $chat, $text, $directory, $order): array {
+    $telegram = ($previous['telegram']['status'] ?? '') === 'sent'
+        ? $previous['telegram']
+        : ((!$token || !$chat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($token, $chat, $text, $directory, $order): array {
         $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendMessage', ['chat_id' => $chat, 'text' => $text]);
         if (!$result['ok']) return ['status' => 'failed'] + $result;
         $zip = $directory . '/order-package.zip';
         if (is_file($zip)) $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
         return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
-    }, $max, $delay);
+    }, $maxAttempts, $delay));
     $googleUrl = (string) ($config['google']['webhook_url'] ?? '');
-    $google = $googleUrl === '' ? ['status' => 'disabled'] : pmq_attempt(function () use ($config, $order, $googleUrl): array {
+    $google = ($previous['google']['status'] ?? '') === 'sent'
+        ? $previous['google']
+        : ($googleUrl === '' ? ['status' => 'disabled'] : pmq_attempt(function () use ($config, $order, $googleUrl): array {
         $result = pmq_request($googleUrl, ['secret' => $config['google']['shared_secret'], 'order' => $order]);
         return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
-    }, $max, $delay);
+    }, $maxAttempts, $delay));
     $maxToken = (string) ($config['max']['access_token'] ?? '');
     $maxChat = (string) ($config['max']['chat_id'] ?? '');
-    $max = (!$maxToken || !$maxChat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($maxToken, $maxChat, $text): array {
+    $max = ($previous['max']['status'] ?? '') === 'sent'
+        ? $previous['max']
+        : ((!$maxToken || !$maxChat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($maxToken, $maxChat, $text): array {
         $result = pmq_request('https://platform-api.max.ru/messages?chat_id=' . rawurlencode($maxChat), ['text' => $text], null, ['Authorization: ' . $maxToken]);
         return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
-    }, $max, $delay);
+    }, $maxAttempts, $delay));
     $failed = array_filter([$telegram, $google, $max], static fn(array $result): bool => ($result['status'] ?? '') === 'failed');
     $status = $failed ? 'partial_failure' : 'completed';
     file_put_contents($directory . '/notifications.json', json_encode(['status' => $status, 'attemptedAt' => gmdate('c'), 'telegram' => $telegram, 'google' => $google, 'max' => $max], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n", LOCK_EX);
