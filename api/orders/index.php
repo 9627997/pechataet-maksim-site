@@ -121,6 +121,10 @@ function pm_load_config(): array
             'webhook_url' => getenv('PM_GOOGLE_WEBHOOK_URL') ?: '',
             'shared_secret' => getenv('PM_GOOGLE_SHARED_SECRET') ?: '',
         ],
+        'notifications' => [
+            'max_attempts' => 3,
+            'retry_delay_seconds' => 1,
+        ],
     ];
 
     $configPath = getenv('PM_ORDER_CONFIG') ?: dirname($documentRoot) . '/private/pechataet-maksim-orders.php';
@@ -480,6 +484,8 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_POSTREDIR => 3,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 6,
         ]);
@@ -587,24 +593,58 @@ function pm_notify_google(array $settings, array $order): array
     return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'], 'error' => $result['error']];
 }
 
+function pm_notification_attempts(array $config, callable $notification): array
+{
+    $settings = $config['notifications'] ?? [];
+    $maxAttempts = max(1, min(5, (int) ($settings['max_attempts'] ?? 3)));
+    $delay = max(0, min(10, (int) ($settings['retry_delay_seconds'] ?? 1)));
+    $last = ['status' => 'failed', 'error' => 'unknown'];
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        try {
+            $last = $notification();
+        } catch (Throwable $error) {
+            $last = ['status' => 'failed', 'error' => $error->getMessage()];
+        }
+        $last['attempts'] = $attempt;
+        if (($last['status'] ?? '') === 'sent' || ($last['status'] ?? '') === 'disabled') {
+            return $last;
+        }
+        if ($attempt < $maxAttempts && $delay > 0) {
+            usleep($delay * 1000000 * $attempt);
+        }
+    }
+    return $last;
+}
+
 function pm_run_notifications(array $config, array $order): void
 {
     if ($order['duplicate']) {
         return;
     }
-    $attempt = static function (callable $notification): array {
-        try {
-            return $notification();
-        } catch (Throwable $error) {
-            return ['status' => 'failed', 'error' => $error->getMessage()];
-        }
-    };
     $results = [
+        'status' => 'completed',
         'attemptedAt' => gmdate('c'),
-        'telegram' => $attempt(static fn (): array => pm_notify_telegram($config['telegram'] ?? [], $order)),
-        'max' => $attempt(static fn (): array => pm_notify_max($config['max'] ?? [], $order)),
-        'google' => $attempt(static fn (): array => pm_notify_google($config['google'] ?? [], $order)),
+        'telegram' => pm_notification_attempts(
+            $config,
+            static fn (): array => pm_notify_telegram($config['telegram'] ?? [], $order),
+        ),
+        'google' => pm_notification_attempts(
+            $config,
+            static fn (): array => pm_notify_google($config['google'] ?? [], $order),
+        ),
+        'max' => pm_notification_attempts(
+            $config,
+            static fn (): array => pm_notify_max($config['max'] ?? [], $order),
+        ),
     ];
+    $failed = array_filter(
+        ['telegram', 'google', 'max'],
+        static fn (string $channel): bool => ($results[$channel]['status'] ?? '') === 'failed',
+    );
+    if ($failed) {
+        $results['status'] = 'partial_failure';
+        $results['failedChannels'] = array_values($failed);
+    }
     pm_write_private_file(
         $order['directory'] . '/notifications.json',
         json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"
