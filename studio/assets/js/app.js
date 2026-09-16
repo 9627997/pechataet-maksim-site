@@ -2836,6 +2836,12 @@ const bootStudio = () => {
     const activeUploadPanel = state.panel === 'upload' || document.body.dataset.activePanel === 'upload';
     const visible = state.productFirstMode && state.primaryProduct === 'sticker' && activeUploadPanel;
     picker.hidden = !visible;
+    const mobilePreview = document.querySelector('.mobile-products-panel');
+    if (mobilePreview) {
+      mobilePreview.classList.toggle('is-blocked-by-sticker-picker', visible);
+      mobilePreview.inert = visible;
+      mobilePreview.setAttribute('aria-hidden', String(visible));
+    }
     const activeVariant = getStickerVariant(state.stickerVariantId);
     $$('#stickerProductPicker [data-sticker-group]').forEach((group) => {
       const groupId = group.dataset.stickerGroup;
