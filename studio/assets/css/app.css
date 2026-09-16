@@ -2269,6 +2269,7 @@ body.product-first-mode .mobile-products-switches,body.product-first-mode .conte
 
 /* Product-first sticker picker: one large active editor, compact alternatives. */
 .sticker-product-picker{margin:0 0 18px;padding:16px;border:1px solid rgba(23,23,23,.10);border-radius:18px;background:rgba(255,255,255,.72)}
+.mobile-products-panel.is-blocked-by-sticker-picker{pointer-events:none}
 .sticker-product-picker-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .sticker-product-picker-head>div{display:flex;gap:8px;align-items:center}.sticker-product-picker-head strong{font-size:14px}.sticker-product-picker-head small{max-width:180px;color:#777;font-size:11px;line-height:1.35;text-align:right}
 .sticker-product-picker-options{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 5px;scrollbar-width:thin}
