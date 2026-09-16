@@ -277,6 +277,58 @@
   function serializeProductionSvg(svg) {
     const clone = svg.cloneNode(true);
     clone.querySelectorAll('[data-preview-overlay]').forEach((node) => node.remove());
+    clone
+      .querySelectorAll('image[href^="data:image/svg+xml;base64,"]')
+      .forEach((image) => {
+        try {
+          const source = atob(image.getAttribute('href').split(',')[1]);
+          const parsed = new DOMParser().parseFromString(
+            source,
+            'image/svg+xml',
+          ).documentElement;
+          const viewBox = (parsed.getAttribute('viewBox') || '')
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+          const x = Number(image.getAttribute('x') || 0);
+          const y = Number(image.getAttribute('y') || 0);
+          const width = Number(image.getAttribute('width') || 0);
+          const height = Number(image.getAttribute('height') || 0);
+          if (
+            viewBox.length !== 4 ||
+            !viewBox.every(Number.isFinite) ||
+            !width ||
+            !height
+          ) {
+            return;
+          }
+          const [viewX, viewY, viewWidth, viewHeight] = viewBox;
+          const scale = Math.min(
+            width / Math.max(viewWidth, 0.001),
+            height / Math.max(viewHeight, 0.001),
+          );
+          const group = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'g',
+          );
+          group.setAttribute(
+            'transform',
+            [
+              `translate(${x + (width - viewWidth * scale) / 2} ${
+                y + (height - viewHeight * scale) / 2
+              })`,
+              `scale(${scale})`,
+              `translate(${-viewX} ${-viewY})`,
+            ].join(' '),
+          );
+          [...parsed.childNodes].forEach((node) =>
+            group.appendChild(document.importNode(node, true)),
+          );
+          image.replaceWith(group);
+        } catch {
+          // Keep the embedded image if the uploaded SVG cannot be parsed safely.
+        }
+      });
     return new XMLSerializer().serializeToString(clone);
   }
 

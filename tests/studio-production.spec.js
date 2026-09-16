@@ -33,6 +33,33 @@ const selectRoundrect = async (page) => {
     .click();
 };
 
+test('production SVG flattens vector logos without linked nested files @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Печатает Максим');
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await page.locator('#continueUpload').click();
+
+  const result = await page.evaluate(() => {
+    const previewImage = document.querySelector('#stickerContent image');
+    const svg = window.RibbonStudioProduction.serialize('sticker');
+    return {
+      previewImage: Boolean(previewImage),
+      hasNestedSvgData: svg.includes('data:image/svg+xml'),
+      hasProductionGroup: /<g[^>]*transform=/.test(svg),
+      hasExternalLink: /(?:href|xlink:href)="(?:blob:|file:|https?:)/.test(svg),
+      hasLogoPath: svg.includes('<path'),
+    };
+  });
+
+  expect(result.previewImage).toBe(true);
+  expect(result.hasNestedSvgData).toBe(false);
+  expect(result.hasProductionGroup).toBe(true);
+  expect(result.hasExternalLink).toBe(false);
+  expect(result.hasLogoPath).toBe(true);
+});
+
 test('production geometry enforces 2.5 mm printable margins and circular bounds @smoke', async ({
   page,
 }) => {
@@ -740,7 +767,8 @@ test('text stays logo-free until an uploaded logo is added', async ({
     hasLogo: true,
     logoType: 'svg',
   });
-  expect(result.serialized).toContain('<image');
+  expect(result.serialized).toContain('<g transform=');
+  expect(result.serialized).toContain('<path');
   await expectNoHorizontalOverflow(page);
 });
 
