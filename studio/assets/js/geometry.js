@@ -332,6 +332,41 @@
     return new XMLSerializer().serializeToString(clone);
   }
 
+  function serializePrintSvg(svg, {widthMm, heightMm} = {}) {
+    const parsed = new DOMParser().parseFromString(
+      serializeProductionSvg(svg),
+      'image/svg+xml',
+    );
+    const clone = parsed.documentElement;
+    clone.querySelectorAll('[data-preview-overlay]').forEach((node) => node.remove());
+    clone.querySelectorAll('#ribbonBase, #ribbonShine, #stickerBg').forEach((node) => node.remove());
+    clone.querySelectorAll('#ribbonPrintableGuide, #stickerPrintableGuide').forEach((node) => node.remove());
+    clone.querySelectorAll('[data-print-content] [stroke]').forEach((node) => {
+      if (node.getAttribute('stroke') !== 'none') node.setAttribute('stroke', '#000000');
+    });
+    clone.querySelectorAll('[data-print-content] [fill]').forEach((node) => {
+      if (node.getAttribute('fill') !== 'none') node.setAttribute('fill', '#000000');
+    });
+    clone.querySelectorAll('[data-print-content]').forEach((node) => {
+      node.removeAttribute('filter');
+      node.style.removeProperty('filter');
+    });
+    clone.querySelectorAll('[data-print-content] style').forEach((node) => node.remove());
+    clone.querySelectorAll('[data-print-content] *').forEach((node) => {
+      const style = node.getAttribute('style');
+      if (style) {
+        node.setAttribute('style', style.replace(/(fill|stroke)\s*:\s*(?!none)[^;]+/gi, '$1:#000000'));
+      }
+      if (node.getAttribute('fill') === 'currentColor') node.setAttribute('fill', '#000000');
+      if (node.getAttribute('stroke') === 'currentColor') node.setAttribute('stroke', '#000000');
+    });
+    if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) clone.setAttribute('width', `${Number(widthMm)}mm`);
+    if (Number.isFinite(Number(heightMm)) && Number(heightMm) > 0) clone.setAttribute('height', `${Number(heightMm)}mm`);
+    clone.setAttribute('data-file-purpose', 'print-black');
+    clone.setAttribute('data-target-dpi', '300');
+    return new XMLSerializer().serializeToString(clone);
+  }
+
   window.RibbonStudioGeometry = Object.freeze({
     PRINT_MARGIN_MM,
     getRibbonPrintableGeometry,
@@ -346,5 +381,6 @@
     clampRectOffsetToSticker,
     areRectCornersInsideSticker,
     serializeProductionSvg,
+    serializePrintSvg,
   });
 })();

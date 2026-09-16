@@ -5327,6 +5327,30 @@ const bootStudio = () => {
         stickerSvg: stickerEnabled
           ? window.RibbonStudioProduction.serialize('sticker')
           : '',
+        ribbonPreviewSvg: ribbonEnabled
+          ? window.RibbonStudioProduction.serialize('ribbon')
+          : '',
+        ribbonPrintSvg: ribbonEnabled
+          ? window.RibbonStudioGeometry.serializePrintSvg($('#ribbonSvg'), {
+              widthMm: state.repeatMm,
+              heightMm: state.width,
+            })
+          : '',
+        stickerPreviewSvg: stickerEnabled
+          ? window.RibbonStudioProduction.serialize('sticker')
+          : '',
+        stickerPrintSvg: stickerEnabled
+          ? window.RibbonStudioGeometry.serializePrintSvg($('#stickerSvg'), {
+              widthMm: stickerVariant.widthMm,
+              heightMm: stickerVariant.heightMm,
+            })
+          : '',
+        printSpecification: {
+          colorMode: 'black-only',
+          targetDpi: 300,
+          units: 'mm',
+          includesTechnicalGuides: false,
+        },
       },
     };
   }

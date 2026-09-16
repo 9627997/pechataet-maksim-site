@@ -1275,3 +1275,32 @@ test('restored traced logo is retightened before roundrect layout @smoke', async
   expect(result.viewBox?.[2]).toBeLessThan(200);
   expect(result.viewBox?.[3]).toBeLessThan(200);
 });
+
+test('print SVG artifacts are black, guide-free, and sized in millimeters', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Печатает Максим');
+  const result = await page.evaluate(() => ({
+    ribbon: window.RibbonStudioGeometry.serializePrintSvg(
+      document.querySelector('#ribbonSvg'),
+      { widthMm: 80, heightMm: 15 },
+    ),
+    sticker: window.RibbonStudioGeometry.serializePrintSvg(
+      document.querySelector('#stickerSvg'),
+      { widthMm: 24, heightMm: 24 },
+    ),
+  }));
+  expect(result.ribbon).toContain('width="80mm"');
+  expect(result.ribbon).toContain('height="15mm"');
+  expect(result.sticker).toContain('width="24mm"');
+  expect(result.sticker).toContain('height="24mm"');
+  for (const svg of [result.ribbon, result.sticker]) {
+    expect(svg).toContain('data-file-purpose="print-black"');
+    expect(svg).toContain('data-target-dpi="300"');
+    expect(svg).not.toContain('data-preview-overlay');
+    expect(svg).not.toContain('id="ribbonBase"');
+    expect(svg).not.toContain('id="stickerBg"');
+  }
+  expect(result.ribbon).toContain('#000000');
+});
