@@ -673,6 +673,18 @@ function pm_enqueue_notifications(array $order): void
     );
 }
 
+function pm_update_notification_queue(array $order, string $status, int $attempts): void
+{
+    pm_write_private_file(
+        $order['directory'] . '/notification-queue.json',
+        json_encode([
+            'status' => $status,
+            'processedAt' => gmdate('c'),
+            'attempts' => $attempts,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"
+    );
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Allow: POST');
     pm_fail(405, 'method_not_allowed', 'Используйте POST для отправки заявки.');
@@ -764,6 +776,27 @@ try
             'requestId' => $order['payload']['requestId'],
             'orderId' => $order['orderId'],
         ]);
+        if (!$order['duplicate']) {
+            pm_run_notifications($config, $order);
+            $notificationPath = $order['directory'] . '/notifications.json';
+            $notificationResult = is_file($notificationPath)
+                ? json_decode((string) file_get_contents($notificationPath), true)
+                : null;
+            if (is_array($notificationResult)) {
+                $status = ($notificationResult['status'] ?? '') === 'partial_failure'
+                    ? 'partial_failure'
+                    : 'sent';
+                pm_update_notification_queue(
+                    $order,
+                    $status,
+                    max(
+                        (int) ($notificationResult['telegram']['attempts'] ?? 0),
+                        (int) ($notificationResult['google']['attempts'] ?? 0),
+                        (int) ($notificationResult['max']['attempts'] ?? 0),
+                    ),
+                );
+            }
+        }
     } catch (Throwable $queueError) {
         pm_write_technical_log($technicalStorage, 'notification_queue_failed', [
             'requestId' => $order['payload']['requestId'],
