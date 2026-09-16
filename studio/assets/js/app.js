@@ -4046,6 +4046,7 @@ const bootStudio = () => {
     document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
     document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
     document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
+    document.body.dataset.stickerBg = state.stickerBg || '#ffffff';
     $$('#widthChoice button').forEach((button) =>
       button.classList.toggle('active', +button.dataset.value === state.width)
     );
