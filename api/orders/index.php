@@ -212,9 +212,27 @@ function pm_normalize_payload(array $input): array
         'materialColor' => pm_clean_color($ribbonInput['materialColor'] ?? '', '#f3eadc'),
         'printColor' => pm_clean_color($ribbonInput['printColor'] ?? '', '#171717'),
     ];
+    $stickerShape = pm_clean_string($stickerInput['shape'] ?? 'circle', 20) ?: 'circle';
+    if (!in_array($stickerShape, ['circle', 'roundrect'], true)) {
+        throw new InvalidArgumentException('Недопустимая форма стикера.');
+    }
+    $stickerWidthMm = $stickerEnabled
+        ? pm_allowed_number($stickerInput['widthMm'] ?? null, [24, 25, 30, 40, 50, 80], 'ширина стикера')
+        : 0;
+    $stickerHeightMm = $stickerEnabled
+        ? pm_allowed_number($stickerInput['heightMm'] ?? null, [20, 24, 25, 30, 40, 50], 'высота стикера')
+        : 0;
+    $stickerDiameterMm = $stickerShape === 'circle'
+        ? ($stickerEnabled ? pm_allowed_number($stickerInput['diameterMm'] ?? $stickerWidthMm, [24, 25, 30, 40, 50], 'диаметр стикера') : 0)
+        : 0;
     $sticker = [
         'enabled' => $stickerEnabled,
-        'diameterMm' => $stickerEnabled ? pm_allowed_number($stickerInput['diameterMm'] ?? null, [25, 40, 50], 'диаметр стикера') : 0,
+        'variantId' => pm_clean_string($stickerInput['variantId'] ?? '', 40),
+        'shape' => $stickerShape,
+        'diameterMm' => $stickerDiameterMm,
+        'widthMm' => $stickerWidthMm,
+        'heightMm' => $stickerHeightMm,
+        'cornerRadiusMm' => $stickerEnabled ? pm_allowed_number($stickerInput['cornerRadiusMm'] ?? 0, [0, 2], 'радиус углов стикера') : 0,
         'quantity' => $stickerEnabled ? pm_allowed_number($stickerInput['quantity'] ?? null, [50, 100, 250, 500], 'количество стикеров') : 0,
         'backgroundColor' => pm_clean_color($stickerInput['backgroundColor'] ?? '', '#ffffff'),
         'printColor' => pm_clean_color($stickerInput['printColor'] ?? '', '#171717'),
@@ -282,7 +300,9 @@ function pm_request_text(array $order): string
         ? "- Лента {$ribbon['widthMm']} мм: {$ribbon['meters']} м, шаг {$ribbon['repeatMm']} мм"
         : '- Лента: не выбрана';
     $stickerLine = $sticker['enabled']
-        ? "- Стикеры Ø{$sticker['diameterMm']} мм: {$sticker['quantity']} шт."
+        ? ($sticker['shape'] === 'roundrect'
+            ? "- Стикеры {$sticker['widthMm']}×{$sticker['heightMm']} мм: {$sticker['quantity']} шт."
+            : "- Стикеры Ø{$sticker['diameterMm']} мм: {$sticker['quantity']} шт.")
         : '- Стикеры: не выбраны';
 
     return implode("\n", [
