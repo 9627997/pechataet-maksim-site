@@ -99,6 +99,20 @@ const bootStudio = () => {
   const DEFAULT_STICKER_VARIANT_ID = 'circle-40';
   const getStickerVariant = (variantId = DEFAULT_STICKER_VARIANT_ID) =>
     STICKER_VARIANTS[variantId] || STICKER_VARIANTS[DEFAULT_STICKER_VARIANT_ID];
+  const getContrastingStickerPrint = (backgroundColor, shape) => {
+    if (shape === 'roundrect') {
+      return backgroundColor === '#171717' ? '#ffffff' : '#b69249';
+    }
+    if (backgroundColor === '#171717') return '#c6c8cd';
+    if (backgroundColor === 'transparent') return '#b69249';
+    return '#171717';
+  };
+  const applyStickerCreateDefaults = () => {
+    state.stickerVariantId = 'circle-24';
+    state.stickerSize = 24;
+    state.stickerBg = '#171717';
+    state.productStyles.sticker.print = '#c6c8cd';
+  };
   const getStickerVariantIdFromLegacyState = (value) => {
     const diameter = Number(value);
     return [24, 25, 30, 40, 50].includes(diameter)
@@ -171,7 +185,7 @@ const bootStudio = () => {
       },
       sticker: {
         font: 'Manrope',
-        print: '#171717',
+        print: '#c6c8cd',
         fontSize: 32,
         layoutMode: 'auto',
         textOffsetX: 0,
@@ -189,9 +203,9 @@ const bootStudio = () => {
     repeatMm: 100,
     repeatMode: 'auto',
     bundle: 'bundle',
-    stickerVariantId: DEFAULT_STICKER_VARIANT_ID,
-    stickerSize: 40,
-    stickerBg: '#ffffff',
+    stickerVariantId: 'circle-24',
+    stickerSize: 24,
+    stickerBg: '#171717',
     showPrintGuides: false,
     commonTextAuthored: false,
     commonLogoUploaded: false,
@@ -2739,6 +2753,7 @@ const bootStudio = () => {
     document.body.dataset.stickerWidthMm = String(activeStickerVariant.widthMm);
     document.body.dataset.stickerHeightMm = String(activeStickerVariant.heightMm);
     document.body.dataset.stickerDisplaySize = activeStickerVariant.displaySize;
+    document.body.dataset.stickerBg = state.stickerBg || '#ffffff';
     document
       .querySelectorAll('[data-mobile-product-sample="sticker"] .mobile-products-sample-label')
       .forEach((label) => {
@@ -2867,6 +2882,10 @@ const bootStudio = () => {
     state.stickerVariantId = variant.id;
     state.stickerSize = variant.diameterMm || 40;
     state.stickerBg = option.dataset.stickerBg || '#ffffff';
+    state.productStyles.sticker.print = getContrastingStickerPrint(
+      state.stickerBg,
+      variant.shape,
+    );
     option.closest('details')?.removeAttribute('open');
     syncControls();
     syncProductFirstShell();
@@ -5442,6 +5461,7 @@ const bootStudio = () => {
       state.primaryProduct = product;
       state.productFirstMode = true;
       state.bundle = product;
+      if (product === 'sticker') applyStickerCreateDefaults();
       state.meters = product === 'ribbon' ? (state.meters || state.lastMeters) : 0;
       state.stickerQty = product === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
       setActiveContentProduct(product, {renderPreview: false});
@@ -5502,6 +5522,7 @@ const bootStudio = () => {
     state.productFirstMode = true;
     state.primaryProduct = requestedProduct;
     state.bundle = requestedProduct;
+    if (requestedProduct === 'sticker') applyStickerCreateDefaults();
     state.meters = requestedProduct === 'ribbon' ? (state.meters || state.lastMeters) : 0;
     state.stickerQty = requestedProduct === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
   } else if (requestedProduct === 'choose') {
