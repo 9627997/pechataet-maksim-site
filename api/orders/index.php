@@ -262,6 +262,11 @@ function pm_normalize_payload(array $input): array
     $artifacts = [
         'ribbonSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonSvg'] ?? '', 'лента') : '',
         'stickerSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerSvg'] ?? '', 'стикер') : '',
+        'ribbonPreviewSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonPreviewSvg'] ?? $artifactsInput['ribbonSvg'] ?? '', 'лента preview') : '',
+        'ribbonPrintSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonPrintSvg'] ?? '', 'лента print') : '',
+        'stickerPreviewSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerPreviewSvg'] ?? $artifactsInput['stickerSvg'] ?? '', 'стикер preview') : '',
+        'stickerPrintSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerPrintSvg'] ?? '', 'стикер print') : '',
+        'printSpecification' => is_array($artifactsInput['printSpecification'] ?? null) ? $artifactsInput['printSpecification'] : [],
     ];
 
     return [
@@ -361,7 +366,7 @@ function pm_create_zip(string $directory): ?string
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         return null;
     }
-    foreach (['request.txt', 'order.json', 'ribbon.svg', 'sticker.svg'] as $filename) {
+    foreach (['request.txt', 'order.json', 'ribbon.svg', 'sticker.svg', 'ribbon-preview.svg', 'ribbon-print-black.svg', 'sticker-preview.svg', 'sticker-print-black.svg'] as $filename) {
         $path = $directory . '/' . $filename;
         if (is_file($path)) {
             $zip->addFile($path, $filename);
@@ -439,9 +444,13 @@ function pm_store_order(string $storage, array $payload, array $config): array
         pm_write_private_file($temporary . '/request.txt', pm_request_text($order));
         if ($payload['products']['ribbon']['enabled']) {
             pm_write_private_file($temporary . '/ribbon.svg', $payload['artifacts']['ribbonSvg']);
+            pm_write_private_file($temporary . '/ribbon-preview.svg', $payload['artifacts']['ribbonPreviewSvg']);
+            pm_write_private_file($temporary . '/ribbon-print-black.svg', $payload['artifacts']['ribbonPrintSvg']);
         }
         if ($payload['products']['sticker']['enabled']) {
             pm_write_private_file($temporary . '/sticker.svg', $payload['artifacts']['stickerSvg']);
+            pm_write_private_file($temporary . '/sticker-preview.svg', $payload['artifacts']['stickerPreviewSvg']);
+            pm_write_private_file($temporary . '/sticker-print-black.svg', $payload['artifacts']['stickerPrintSvg']);
         }
         pm_write_private_file(
             $temporary . '/notifications.json',
