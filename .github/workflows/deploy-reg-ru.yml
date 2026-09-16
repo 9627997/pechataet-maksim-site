@@ -63,9 +63,19 @@ jobs:
         env:
           PM_TELEGRAM_BOT_TOKEN: ${{ secrets.PM_TELEGRAM_BOT_TOKEN }}
           PM_TELEGRAM_CHAT_ID: ${{ secrets.PM_TELEGRAM_CHAT_ID }}
+          PM_GOOGLE_WEBHOOK_URL: ${{ secrets.PM_GOOGLE_WEBHOOK_URL }}
+          PM_GOOGLE_SHARED_SECRET: ${{ secrets.PM_GOOGLE_SHARED_SECRET }}
         run: |
           if [ -z "${PM_TELEGRAM_BOT_TOKEN}" ] || [ -z "${PM_TELEGRAM_CHAT_ID}" ]; then
             echo "Telegram production secrets are not configured." >&2
+            exit 1
+          fi
+          if [ -n "${PM_GOOGLE_WEBHOOK_URL}" ] && [ -z "${PM_GOOGLE_SHARED_SECRET}" ]; then
+            echo "PM_GOOGLE_SHARED_SECRET is required when PM_GOOGLE_WEBHOOK_URL is configured." >&2
+            exit 1
+          fi
+          if [ -z "${PM_GOOGLE_WEBHOOK_URL}" ] && [ -n "${PM_GOOGLE_SHARED_SECRET}" ]; then
+            echo "PM_GOOGLE_WEBHOOK_URL is required when PM_GOOGLE_SHARED_SECRET is configured." >&2
             exit 1
           fi
 
@@ -87,6 +97,8 @@ jobs:
             `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
           const token = process.env.PM_TELEGRAM_BOT_TOKEN;
           const chatId = process.env.PM_TELEGRAM_CHAT_ID;
+          const googleWebhookUrl = process.env.PM_GOOGLE_WEBHOOK_URL || '';
+          const googleSharedSecret = process.env.PM_GOOGLE_SHARED_SECRET || '';
 
           writeFileSync(
             process.env.CONFIG_FILE,
@@ -96,6 +108,10 @@ jobs:
               'telegram' => [
                   'bot_token' => ${quotePhp(token)},
                   'chat_id' => ${quotePhp(chatId)},
+              ],
+              'google' => [
+                  'webhook_url' => ${quotePhp(googleWebhookUrl)},
+                  'shared_secret' => ${quotePhp(googleSharedSecret)},
               ],
           ];
           `,
