@@ -660,6 +660,19 @@ function pm_run_notifications(array $config, array $order): void
     );
 }
 
+function pm_enqueue_notifications(array $order): void
+{
+    pm_write_private_file(
+        $order['directory'] . '/notification-queue.json',
+        json_encode([
+            'status' => 'pending',
+            'queuedAt' => gmdate('c'),
+            'attempts' => 0,
+            'nextAttemptAt' => gmdate('c'),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"
+    );
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Allow: POST');
     pm_fail(405, 'method_not_allowed', 'Используйте POST для отправки заявки.');
@@ -745,16 +758,18 @@ try
             ]);
         }
     }
-    try
-    {
-        pm_run_notifications($config, $order);
-    } catch (Throwable $notificationError) {
-        pm_write_technical_log($technicalStorage, 'notification_failed', [
+    try {
+        pm_enqueue_notifications($order);
+        pm_write_technical_log($technicalStorage, 'notifications_queued', [
             'requestId' => $order['payload']['requestId'],
             'orderId' => $order['orderId'],
-            'error' => $notificationError->getMessage(),
         ]);
-        error_log('Pechataet Maksim order notification: ' . $notificationError->getMessage());
+    } catch (Throwable $queueError) {
+        pm_write_technical_log($technicalStorage, 'notification_queue_failed', [
+            'requestId' => $order['payload']['requestId'],
+            'orderId' => $order['orderId'],
+            'error' => $queueError->getMessage(),
+        ]);
     }
 } catch (JsonException $error) {
     pm_fail(400, 'invalid_json', 'Некорректный формат заявки.');

@@ -5228,6 +5228,15 @@ const bootStudio = () => {
     const ribbonEnabled = state.meters > 0;
     const stickerEnabled = state.stickerQty > 0;
     const stickerVariant = getStickerVariant(state.stickerVariantId);
+    // Serialize each preview exactly once. The preview and legacy production
+    // fields contain the same artwork; repeating serialization here was a
+    // noticeable part of the final submit latency on mobile devices.
+    const ribbonSvg = ribbonEnabled
+      ? window.RibbonStudioProduction.serialize('ribbon')
+      : '';
+    const stickerSvg = stickerEnabled
+      ? window.RibbonStudioProduction.serialize('sticker')
+      : '';
     const stickerProduct = {
       enabled: stickerEnabled,
       variantId: stickerVariant.id,
@@ -5321,24 +5330,16 @@ const bootStudio = () => {
         requiresIndividualCalculation: price.unavailable,
       },
       artifacts: {
-        ribbonSvg: ribbonEnabled
-          ? window.RibbonStudioProduction.serialize('ribbon')
-          : '',
-        stickerSvg: stickerEnabled
-          ? window.RibbonStudioProduction.serialize('sticker')
-          : '',
-        ribbonPreviewSvg: ribbonEnabled
-          ? window.RibbonStudioProduction.serialize('ribbon')
-          : '',
+        ribbonSvg,
+        stickerSvg,
+        ribbonPreviewSvg: ribbonSvg,
         ribbonPrintSvg: ribbonEnabled
           ? window.RibbonStudioGeometry.serializePrintSvg($('#ribbonSvg'), {
               widthMm: state.repeatMm,
               heightMm: state.width,
             })
           : '',
-        stickerPreviewSvg: stickerEnabled
-          ? window.RibbonStudioProduction.serialize('sticker')
-          : '',
+        stickerPreviewSvg: stickerSvg,
         stickerPrintSvg: stickerEnabled
           ? window.RibbonStudioGeometry.serializePrintSvg($('#stickerSvg'), {
               widthMm: stickerVariant.widthMm,
