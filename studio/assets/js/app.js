@@ -1268,7 +1268,7 @@ const bootStudio = () => {
 
   function readStudioEntryContext() {
     const params = new URLSearchParams(window.location.search);
-    const product = ['ribbon', 'sticker', 'set'].includes(params.get('product'))
+    const product = ['ribbon', 'sticker', 'set', 'bundle'].includes(params.get('product'))
       ? params.get('product')
       : null;
     const material = ['satin', 'silicone'].includes(params.get('material'))
@@ -1290,12 +1290,17 @@ const bootStudio = () => {
         ribbon: entry.product !== 'sticker',
         sticker: entry.product !== 'ribbon',
       });
+      if (entry.product === 'bundle' || entry.product === 'set') {
+        state.bundle = 'bundle';
+        state.primaryProduct = activeProduct;
+      }
     }
 
     const productLabel = {
       ribbon: 'Вы создаёте макет ленты.',
       sticker: 'Вы создаёте макет стикера.',
       set: 'Вы создаёте комплект ленты и стикеров.',
+      bundle: 'Вы создаёте комплект ленты и стикеров.',
     }[entry.product];
     const materialLabel = entry.material === 'satin'
       ? ' Материал: сатин.'
@@ -2620,6 +2625,9 @@ const bootStudio = () => {
     state.meters = ribbon ? (state.meters || state.lastMeters) : 0;
     state.stickerQty = sticker ? (state.stickerQty || state.lastStickerQty) : 0;
     state.bundle = ribbon && sticker ? 'bundle' : ribbon ? 'ribbon' : 'sticker';
+    if (!(ribbon && sticker)) {
+      state.primaryProduct = ribbon ? 'ribbon' : 'sticker';
+    }
     if (
       (state.activeContentProduct === 'ribbon' && !ribbon) ||
       (state.activeContentProduct === 'sticker' && !sticker)
@@ -2629,8 +2637,38 @@ const bootStudio = () => {
       });
     }
     syncControls();
+    syncProductFirstShell();
     render();
     return true;
+  }
+
+  function setOrderMode(mode) {
+    const nextMode = ['ribbon', 'sticker', 'bundle'].includes(mode)
+      ? mode
+      : 'ribbon';
+    const previousMode = state.bundle;
+    const activeProduct = state.activeContentProduct === 'sticker'
+      ? 'sticker'
+      : 'ribbon';
+    if (nextMode === 'bundle' && previousMode !== 'bundle') {
+      const targetProduct = activeProduct === 'ribbon' ? 'sticker' : 'ribbon';
+      copyProductContentOnce(activeProduct, targetProduct);
+      copyProductStyleOnce(activeProduct, targetProduct);
+    }
+    if (state.meters > 0) state.lastMeters = state.meters;
+    if (state.stickerQty > 0) state.lastStickerQty = state.stickerQty;
+    state.bundle = nextMode;
+    state.primaryProduct = nextMode === 'ribbon'
+      ? 'ribbon'
+      : nextMode === 'sticker'
+        ? 'sticker'
+        : activeProduct;
+    state.meters = nextMode === 'sticker' ? 0 : state.lastMeters || 100;
+    state.stickerQty = nextMode === 'ribbon' ? 0 : state.lastStickerQty || 100;
+    state.productFirstMode = true;
+    syncControls();
+    syncProductFirstShell();
+    render();
   }
 
   function clamp(value, min, max) {
@@ -2849,7 +2887,11 @@ const bootStudio = () => {
     const picker = $('#stickerProductPicker');
     if (!picker) return;
     const activeUploadPanel = state.panel === 'upload' || document.body.dataset.activePanel === 'upload';
-    const visible = state.productFirstMode && state.primaryProduct === 'sticker' && activeUploadPanel;
+    const visible = state.productFirstMode &&
+      state.primaryProduct === 'sticker' &&
+      state.bundle === 'sticker' &&
+      document.body.dataset.studioEntryProduct !== 'set' &&
+      activeUploadPanel;
     picker.hidden = !visible;
     const mobilePreview = document.querySelector('.mobile-products-panel');
     if (mobilePreview) {
@@ -2895,9 +2937,18 @@ const bootStudio = () => {
   function syncProductFirstShell() {
     const choice = $('#productFirstChoice');
     const shell = document.querySelector('.app-shell');
+    const modeSwitcher = $('#orderModeSwitcher');
     const choosing = state.productFirstMode && !state.primaryProduct;
     if (choice) choice.hidden = !choosing;
     if (shell) shell.hidden = choosing;
+    if (modeSwitcher) {
+      modeSwitcher.hidden = choosing;
+      $$('#orderModeSwitcher [data-order-mode]').forEach((button) => {
+        const active = button.dataset.orderMode === state.bundle;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+    }
     document.body.classList.toggle('product-first-mode', state.productFirstMode && !choosing);
     const bothProductsEnabled = state.meters > 0 && state.stickerQty > 0;
     const activeWorkspace = state.productFirstMode
@@ -2906,6 +2957,7 @@ const bootStudio = () => {
         : state.primaryProduct || state.activeSettingsProduct || state.activeContentProduct || 'ribbon'
       : '';
     document.body.dataset.primaryProduct = state.primaryProduct || '';
+    document.body.dataset.orderMode = state.bundle || '';
     document.body.dataset.activeWorkspace = activeWorkspace;
     document.body.dataset.productFirstChoosing = String(choosing);
     syncProductFirstLabels();
@@ -5457,20 +5509,25 @@ const bootStudio = () => {
 
   $$('[data-start-product]').forEach((button) => {
     button.addEventListener('click', () => {
-      const product = button.dataset.startProduct === 'sticker' ? 'sticker' : 'ribbon';
-      state.primaryProduct = product;
+      const product = ['ribbon', 'sticker', 'bundle'].includes(button.dataset.startProduct)
+        ? button.dataset.startProduct
+        : 'ribbon';
+      const activeProduct = product === 'sticker' ? 'sticker' : 'ribbon';
+      state.primaryProduct = activeProduct;
       state.productFirstMode = true;
-      state.bundle = product;
+      setActiveContentProduct(activeProduct, {renderPreview: false});
+      setActiveSettingsProduct(activeProduct);
       if (product === 'sticker') applyStickerCreateDefaults();
-      state.meters = product === 'ribbon' ? (state.meters || state.lastMeters) : 0;
-      state.stickerQty = product === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
-      setActiveContentProduct(product, {renderPreview: false});
-      setActiveSettingsProduct(product);
+      setOrderMode(product);
       syncControls();
       syncProductFirstShell();
       render();
       document.querySelector('[data-panel="upload"]')?.focus({preventScroll: true});
     });
+  });
+
+  $$('#orderModeSwitcher [data-order-mode]').forEach((button) => {
+    button.addEventListener('click', () => setOrderMode(button.dataset.orderMode));
   });
 
   $('#addSecondaryProduct')?.addEventListener('click', () => {
@@ -5518,6 +5575,7 @@ const bootStudio = () => {
   initCropInteractions();
   restoreState();
   const requestedProduct = new URLSearchParams(location.search).get('product');
+  document.body.dataset.studioEntryProduct = requestedProduct || '';
   if (['ribbon', 'sticker'].includes(requestedProduct)) {
     state.productFirstMode = true;
     state.primaryProduct = requestedProduct;
@@ -5525,6 +5583,14 @@ const bootStudio = () => {
     if (requestedProduct === 'sticker') applyStickerCreateDefaults();
     state.meters = requestedProduct === 'ribbon' ? (state.meters || state.lastMeters) : 0;
     state.stickerQty = requestedProduct === 'sticker' ? (state.stickerQty || state.lastStickerQty) : 0;
+  } else if (['bundle', 'set'].includes(requestedProduct)) {
+    if (!hasUserContent()) {
+      state.productFirstMode = true;
+      state.primaryProduct = 'ribbon';
+      state.bundle = 'bundle';
+      state.meters = state.meters || state.lastMeters || 100;
+      state.stickerQty = state.stickerQty || state.lastStickerQty || 100;
+    }
   } else if (requestedProduct === 'choose') {
     state.productFirstMode = true;
     state.primaryProduct = null;

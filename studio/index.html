@@ -66,7 +66,7 @@
     ]
   }
   </script>
-  <link rel="stylesheet" href="assets/css/app.css?v=bf7c9b5a8231">
+  <link rel="stylesheet" href="assets/css/app.css?v=296d73232217">
   <link rel="stylesheet" href="assets/css/mobile-products.css?v=adb56e55713d">
 </head>
 <body data-active-panel="upload">
@@ -78,6 +78,12 @@
       <span class="studio-brand-caption">Студия лент и стикеров</span>
     </a>
   <div class="top-actions">
+    <div class="order-mode-switcher" id="orderModeSwitcher" role="group" aria-label="Состав заказа">
+      <span class="order-mode-label">Состав заказа</span>
+      <button type="button" class="order-mode-button" data-order-mode="ribbon">Лента</button>
+      <button type="button" class="order-mode-button" data-order-mode="sticker">Стикер</button>
+      <button type="button" class="order-mode-button" data-order-mode="bundle">Комплект</button>
+    </div>
     <button class="button ghost" id="resetProject">Новый проект</button>
     
   </div>
@@ -107,6 +113,12 @@
       <strong>Стикер</strong>
       <small>Подберём форму стикера под вашу упаковку.</small>
       <em>Сделать стикеры →</em>
+    </button>
+    <button class="product-first-choice-card product-first-choice-card-bundle" type="button" data-start-product="bundle">
+      <span class="product-first-choice-art product-first-choice-art-bundle" aria-hidden="true"><span>лента<br>+ стикер</span></span>
+      <strong>Комплект</strong>
+      <small>Один текст и логотип для ленты и стикеров. Настроим каждое изделие отдельно.</small>
+      <em>Собрать комплект →</em>
     </button>
   </div>
 </section>
@@ -777,7 +789,7 @@
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/app.js?v=02c88e60acc7"></script>
-<script src="assets/js/mobile-products.js?v=42bd91e79ed2"></script>
+<script src="assets/js/app.js?v=d79928b3e956"></script>
+<script src="assets/js/mobile-products.js?v=06b929b6d9f8"></script>
 </body>
 </html>

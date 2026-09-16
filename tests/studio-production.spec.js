@@ -1165,6 +1165,42 @@ test('sticker create step keeps one active model and compact future shape picker
   );
 });
 
+test('bundle mode keeps one project while switching order composition @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=choose', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Собрать комплект →' }).click();
+
+  await expect(page.locator('#orderModeSwitcher')).toBeVisible();
+  await expect(
+    page.locator('#orderModeSwitcher [data-order-mode="bundle"]'),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+
+  await page.locator('#textInput').fill('Общий текст комплекта');
+  await page.locator('#orderModeSwitcher [data-order-mode="ribbon"]').click();
+  await expect(
+    page.locator('#orderModeSwitcher [data-order-mode="ribbon"]'),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'false',
+  );
+
+  await page.locator('#orderModeSwitcher [data-order-mode="bundle"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-has-ribbon', 'true');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-has-sticker',
+    'true',
+  );
+  await expect(page.locator('#textInput')).toHaveValue('Общий текст комплекта');
+});
+
 test('restored traced logo is retightened before roundrect layout @smoke', async ({
   page,
 }) => {

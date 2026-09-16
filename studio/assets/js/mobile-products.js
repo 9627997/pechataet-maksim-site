@@ -223,6 +223,7 @@
             document.body.dataset.hasSticker === 'true';
           const activeWorkspace = document.body.dataset.activeWorkspace;
           const hideOutsideWorkspace =
+            panelMode === 'upload' &&
             productFirstMode &&
             !bothProductsEnabled &&
             activeWorkspace &&
