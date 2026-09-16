@@ -5495,8 +5495,11 @@ const bootStudio = () => {
       submitButton.textContent = 'Заявка отправлена';
     } catch (error) {
       console.warn('Order submission failed:', error);
+      const reason = error?.message && error.message !== 'receiver_unavailable'
+        ? ` Причина: ${error.message}`
+        : '';
       status.textContent =
-        'Не удалось отправить заявку. Она не потеряна: повторите попытку или скачайте копию.';
+        `Не удалось отправить заявку.${reason} Она не потеряна: повторите попытку или скачайте копию.`;
       status.classList.add('is-error');
       submitButton.disabled = false;
       submitButton.textContent = 'Повторить отправку';
