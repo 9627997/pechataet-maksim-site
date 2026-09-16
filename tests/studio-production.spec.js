@@ -1077,6 +1077,10 @@ test('sticker create step keeps one active model and compact future shape picker
       '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]',
     )
     .click();
+  await expect(page.locator('.mobile-products-sticker-sample')).toHaveCSS(
+    'background-color',
+    'rgb(23, 23, 23)',
+  );
   await expect(picker.locator('[data-sticker-option].active')).toHaveCount(1);
   await expect(
     picker.locator('[data-sticker-group="roundrect-80x20"] > summary'),
@@ -1103,6 +1107,15 @@ test('sticker create step keeps one active model and compact future shape picker
       '[data-sticker-option="circle-24"][data-sticker-bg="#b69249"]',
     ),
   ).toHaveAttribute('aria-pressed', 'true');
+
+  await picker.locator('[data-sticker-group="roundrect-80x20"] > summary').click();
+  await picker
+    .locator('[data-sticker-option="roundrect-80x20"][data-sticker-bg="#b7202d"]')
+    .click();
+  await expect(page.locator('.mobile-products-sticker-sample')).toHaveCSS(
+    'background-color',
+    'rgb(183, 32, 45)',
+  );
 });
 
 test('restored traced logo is retightened before roundrect layout @smoke', async ({

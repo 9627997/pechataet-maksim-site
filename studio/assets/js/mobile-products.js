@@ -629,6 +629,8 @@
 
       ribbonSurface.style.backgroundColor = ribbon;
       ribbonSurface.style.height = `${(ribbonWidth / 15) * 46}px`;
+      stickerSurface.style.backgroundColor =
+        document.body.dataset.stickerBg || '#ffffff';
       const ribbonGeometry =
         window.RibbonStudioGeometry.getRibbonPrintableGeometry({
           widthMm: ribbonWidth,
