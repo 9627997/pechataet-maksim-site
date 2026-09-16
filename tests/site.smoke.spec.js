@@ -177,14 +177,15 @@ test('landing page is responsive and leads to Studio @smoke', async ({
     page.locator('.hero-cta-dropdown').getByRole('link', { name: 'Стикер' }),
   ).toHaveAttribute('href', '/studio/?product=sticker');
   await expect(
-    page
-      .locator('.hero-cta-dropdown')
-      .getByRole('link', { name: 'Комплект' }),
-  ).toHaveAttribute('href', '/studio/?product=choose');
+    page.locator('.hero-cta-dropdown').getByRole('link', { name: 'Комплект' }),
+  ).toHaveAttribute('href', '/studio/?product=bundle');
   await page.keyboard.press('Escape');
   await expect(page.locator('.hero-cta-dropdown')).toBeHidden();
   await expect(
-    page.locator('.product-grid').getByRole('link', { name: 'Создать макет →' }).first(),
+    page
+      .locator('.product-grid')
+      .getByRole('link', { name: 'Создать макет →' })
+      .first(),
   ).toHaveAttribute('href', '/studio/?product=ribbon');
   await expect(page.locator('.final-cta')).toContainText(
     'Выберите ленту, стикер или комплект',
@@ -204,6 +205,9 @@ test('Plain Studio entry starts with the product chooser @smoke', async ({
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Сделать стикеры →' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Собрать комплект →' }),
   ).toBeVisible();
   await expect(page.locator('.app-shell')).toBeHidden();
 
