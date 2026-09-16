@@ -956,7 +956,7 @@
   .mobile-products-panel.is-floating {
     position: fixed;
     right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
+    top: max(8px, env(safe-area-inset-top));
     left: 10px;
     z-index: 18;
     width: auto;
@@ -995,9 +995,9 @@
   }
 
   body.mobile-products-floating .sidebar {
-    padding-bottom: calc(
+    padding-top: calc(
       var(--mobile-products-dock-height, 160px) + 28px +
-        env(safe-area-inset-bottom)
+        env(safe-area-inset-top)
     );
   }
 
