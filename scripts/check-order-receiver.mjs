@@ -6,6 +6,11 @@ import PhpParser from 'php-parser';
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const endpointPath = resolve(repositoryRoot, 'api/orders/index.php');
 const endpoint = await readFile(endpointPath, 'utf8');
+const workerPath = resolve(
+  repositoryRoot,
+  'api/orders/notification-worker.php',
+);
+const worker = await readFile(workerPath, 'utf8');
 const parser = new PhpParser.Engine({
   parser: {
     extractDoc: true,
@@ -16,7 +21,12 @@ const parser = new PhpParser.Engine({
 });
 
 const ast = parser.parseCode(endpoint, 'api/orders/index.php');
+const workerAst = parser.parseCode(
+  worker,
+  'api/orders/notification-worker.php',
+);
 assert.equal(ast.kind, 'program');
+assert.equal(workerAst.kind, 'program');
 assert.ok(ast.children.length > 0, 'PHP endpoint must contain executable code');
 
 for (const requiredContract of [
@@ -58,6 +68,18 @@ assert.ok(
 assert.ok(
   endpoint.includes("'/archive.json'"),
   'Order receiver must persist archive lifecycle state',
+);
+assert.ok(
+  endpoint.includes('pm_enqueue_notifications'),
+  'Order receiver must enqueue notifications',
+);
+assert.ok(
+  worker.includes('pmq_process'),
+  'Notification worker must process queued orders',
+);
+assert.ok(
+  worker.includes('notification-queue.json'),
+  'Notification worker must use the queue file',
 );
 console.log(
   'Order receiver PHP syntax, logging contract, and fast-acceptance lifecycle are valid.',

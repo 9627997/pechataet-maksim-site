@@ -137,6 +137,14 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key" \
             ./_site/ "${{ secrets.USERNAME }}@${{ secrets.HOST }}:/var/www/u2767403/data/www/xn--80aaarctnodv3agc9d.xn--p1ai/"
 
+      - name: Install notification worker cron
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.USERNAME }}@${{ secrets.HOST }}" \
+            "set -eu; php_bin=\$(command -v php); \
+             (crontab -l 2>/dev/null | grep -v 'notification-worker.php' || true; \
+              echo \"* * * * * \${php_bin} /var/www/u2767403/data/www/xn--80aaarctnodv3agc9d.xn--p1ai/api/orders/notification-worker.php >> /var/www/u2767403/data/www/.pechataet-maksim-orders/worker.log 2>&1\") | crontab -"
+
       - name: Verify production version and routes
         shell: bash
         env:
