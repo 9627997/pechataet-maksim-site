@@ -1527,3 +1527,37 @@ test('mobile zoom controls use equal left and right insets', async ({
     Math.round(viewportWidth - (plusBounds.x + plusBounds.width)),
   );
 });
+
+test('standalone sticker zoom remains interactive while picker is open', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  const stage = page.locator('[data-preview-zoom-stage]');
+  await expect(page.locator('[data-preview-zoom="in"]')).toBeEnabled();
+  await page.locator('[data-preview-zoom="in"]').click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '110');
+});
+
+test('demo sticker objects support drag positioning on create step', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  const logo = page.locator('.mobile-products-sticker-logo-zone');
+  const box = await logo.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 20,
+    box.y + box.height / 2 + 12,
+  );
+  await page.mouse.up();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-artwork-valid',
+    'true',
+  );
+});
