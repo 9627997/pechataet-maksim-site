@@ -521,6 +521,19 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 .first-step-requirement[hidden]{display:none}
 
 @media(max-width:700px){
+  .main-nav{
+    position:sticky;
+    top:0;
+    z-index:40;
+    background:#f0ece6;
+  }
+  .mobile-products-slot[data-hosted='true']{
+    position:sticky;
+    top:64px;
+    z-index:35;
+    padding-block:6px 10px;
+    background:#fff;
+  }
   .topbar{
     height:auto;
     min-height:58px;

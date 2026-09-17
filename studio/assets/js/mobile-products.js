@@ -959,15 +959,10 @@
 
     const updateFloatingDock = () => {
       dockFrame = null;
-      if (!mobileViewport.matches) {
-        setDockFloating(false);
-        return;
-      }
-
-      const slotTop = panelSlot.getBoundingClientRect().top;
-      const shouldFloat = dockFloating ? window.scrollY > 24 : slotTop <= 8;
-      setDockFloating(shouldFloat);
-      updateKeyboardState();
+      // The full preview now remains in the normal-size sticky slot. The old
+      // compact floating dock is intentionally disabled to avoid a second,
+      // visually identical preview during scroll.
+      setDockFloating(false);
     };
 
     const scheduleDockUpdate = () => {
