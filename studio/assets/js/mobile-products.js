@@ -485,11 +485,13 @@
       const placedLogoWidth = paintedLogoWidth * contentScale;
       const placedInkLogoWidth = inkLogoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
+      const inkLeftRatio = (1 - (ink?.width || 1)) / 2;
+      const inkRightRatio = inkLeftRatio + (ink?.width || 1);
       const layoutGap = layout.manualLayout && hasLogo && hasText
         ? Math.max(
             0,
             textBox.x * repeatWidth -
-              (layout.logoBox.x * repeatWidth + placedLogoWidth * (ink?.right || 1)),
+              (layout.logoBox.x * repeatWidth + placedLogoWidth * inkRightRatio),
           )
         : null;
       const manualGap = hasManualRibbonGapDelta && hasLogo && hasText
@@ -501,8 +503,8 @@
       const placedPitch = hasLogo && hasText
         ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
         : Math.max(placedLogoWidth, placedTextWidth);
-      const contentStart = layout.manualLayout && hasLogo
-        ? layout.logoBox.x * repeatWidth
+      const visibleLogoStart = layout.manualLayout && hasLogo
+        ? layout.logoBox.x * repeatWidth + placedLogoWidth * inkLeftRatio
         : Math.max(0, (repeatWidth - placedPitch) / 2);
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
@@ -520,7 +522,8 @@
           image.className = 'mobile-products-ribbon-repeat-logo';
           image.alt = '';
           image.src = logoSrc;
-          image.style.left = `${contentStart + placedLogoWidth / 2}px`;
+          const imageLeft = visibleLogoStart - placedLogoWidth * inkLeftRatio;
+          image.style.left = `${imageLeft + placedLogoWidth / 2}px`;
           image.style.top = `${repeatHeight / 2}px`;
           image.style.width = `${placedLogoWidth}px`;
           image.style.height = `${(paintedLogoRect?.height || logoHeight) * contentScale}px`;
@@ -533,8 +536,8 @@
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
           const textLeft = hasLogo
-            ? contentStart + placedLogoWidth * (ink?.right || 1) + placedGap
-            : contentStart;
+            ? visibleLogoStart + placedInkLogoWidth + placedGap
+            : visibleLogoStart;
           text.style.left = `${textLeft + placedTextWidth / 2}px`;
           text.style.top = `${repeatHeight / 2}px`;
           text.style.width = `${placedTextWidth}px`;
