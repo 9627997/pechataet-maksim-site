@@ -1392,3 +1392,25 @@ test('full preview stays fixed without compact floating mode', async ({
   expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(1);
   expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
 });
+
+test('ribbon preview adds repeat cycles as zoom decreases', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  const stage = page.locator('[data-preview-zoom-stage]');
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const minus = page.locator('[data-preview-zoom="out"]');
+
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '1');
+  await minus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '90');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
+  await minus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '80');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
+  await minus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '70');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+});
