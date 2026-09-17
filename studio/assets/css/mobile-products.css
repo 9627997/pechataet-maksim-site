@@ -911,7 +911,7 @@
   body[data-active-panel='upload']
     .mobile-products-panel:not(.is-floating)
     .mobile-products-preview {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
     gap: 0;
     width: 100vw;
     margin-inline: calc(50% - 50vw);
@@ -989,7 +989,7 @@
   body[data-active-panel='upload']
     .mobile-products-panel:not(.is-floating)
     .mobile-products-preview {
-    grid-template-columns:1fr;
+    grid-template-columns:52px minmax(0, 1fr) 52px;
     gap:12px;
   }
 
@@ -1022,7 +1022,7 @@
   body[data-active-panel='upload']
     .mobile-products-panel:not(.is-floating)
     [data-preview-zoom='in'] {
-    transform:translateX(-12px);
+    transform:translateX(-24px);
   }
 
   body[data-active-panel='upload']
