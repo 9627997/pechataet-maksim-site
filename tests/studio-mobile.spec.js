@@ -657,12 +657,18 @@ test('traced wide artwork is trimmed to its ink and fills the ribbon safe height
       layoutLogoHeight: layout.logoBox.height,
       layoutSafeHeight: layout.printable.height,
       svgSource: asset?.logoSvgSource,
-      viewBox: asset?.logoSvgSource?.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number),
+      viewBox: asset?.logoSvgSource
+        ?.match(/viewBox="([^"]+)"/)?.[1]
+        ?.split(/\s+/)
+        .map(Number),
     };
   });
 
   expect(result.ratio).toBeGreaterThan(6);
-  expect(result.viewBox?.[2] / result.viewBox?.[3]).toBeCloseTo(result.ratio, 5);
+  expect(result.viewBox?.[2] / result.viewBox?.[3]).toBeCloseTo(
+    result.ratio,
+    5,
+  );
   expect(result.artworkHeight / result.tracedHeight).toBeGreaterThanOrEqual(
     0.98,
   );
@@ -970,6 +976,19 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     const isFloating = await panel.evaluate((element) =>
       element.classList.contains('is-floating'),
     );
+    if (isFloating) {
+      const stickerShape = await panel
+        .locator('.mobile-products-sticker-sample')
+        .evaluate((element) => ({
+          shape: element.dataset.shape,
+          width: element.getBoundingClientRect().width,
+          height: element.getBoundingClientRect().height,
+        }));
+      expect(stickerShape.shape).toBe('circle');
+      expect(
+        Math.abs(stickerShape.width - stickerShape.height),
+      ).toBeLessThanOrEqual(1);
+    }
     await expect(page.locator('body')).toHaveAttribute(
       'data-active-panel',
       step,
@@ -991,8 +1010,8 @@ test('smart mobile preview dock stays visible across all three steps', async ({
 
     if (step === 'upload' && isFloating) {
       await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
-      await expect(ribbonSwitch).toBeHidden();
-      await expect(stickerSwitch).toBeHidden();
+      await expect(ribbonSwitch).toBeVisible();
+      await expect(stickerSwitch).toBeVisible();
       await expect(panel.locator('.mobile-products-choice-label')).toBeHidden();
     } else {
       await expect(ribbonSwitch).toBeVisible();
@@ -1112,8 +1131,8 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       await expect(panel).not.toHaveClass(/is-expanded/);
       await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
-      await expect(ribbonSwitch).toBeHidden();
-      await expect(stickerSwitch).toBeHidden();
+      await expect(ribbonSwitch).toBeVisible();
+      await expect(stickerSwitch).toBeVisible();
     }
   }
 
@@ -1157,7 +1176,7 @@ test('step one dock becomes a compact live strip while the keyboard is open', as
   await expect(panel).not.toHaveClass(/is-expanded/);
   await expect(dockToggle).toBeHidden();
   await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(switches).toBeHidden();
+  await expect(switches).toBeVisible();
   await expect(ribbonSurface).toHaveCSS('height', '32px');
 
   await page.evaluate(() => {

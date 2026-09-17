@@ -655,6 +655,7 @@
         : mobileStickerWidth;
       stickerSurface.style.width = `${mobileStickerWidth}px`;
       stickerSurface.style.height = `${mobileStickerHeight}px`;
+      stickerSurface.dataset.shape = stickerShape;
       panel.style.setProperty('--mobile-products-sticker-size', `${mobileStickerWidth}px`);
       panel.style.setProperty('--mobile-products-sticker-size-expanded', `${Math.max(mobileStickerWidth, mobileStickerHeight) * 1.25}px`);
       const stickerGeometry = isRoundRect
