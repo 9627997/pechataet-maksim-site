@@ -545,6 +545,15 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
   .mobile-products-slot[data-hosted='true'] .mobile-products-panel{
     pointer-events:auto;
   }
+  .mobile-products-slot[data-hosted='true']:has(.mobile-products-panel[data-mode='order']){
+    pointer-events:none;
+  }
+  .mobile-products-slot[data-hosted='true']
+    .mobile-products-panel[data-mode='order'],
+  .mobile-products-slot[data-hosted='true']
+    .mobile-products-panel[data-mode='order'] > *{
+    pointer-events:none !important;
+  }
   .mobile-products-slot[data-hosted='true'] .mobile-products-panel > *{
     pointer-events:auto;
   }

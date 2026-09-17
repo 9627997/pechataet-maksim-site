@@ -1124,9 +1124,7 @@ test('sticker create step keeps one active model and compact future shape picker
   await picker
     .locator('[data-sticker-group="roundrect-80x20"] > summary')
     .click();
-  await expect(page.locator('.mobile-products-panel')).toHaveClass(
-    /is-blocked-by-sticker-picker/,
-  );
+  await expect(page.locator('[data-preview-zoom="in"]')).toBeEnabled();
   await picker
     .locator(
       '[data-sticker-option="roundrect-80x20"][data-sticker-bg="#171717"]',

@@ -1014,6 +1014,7 @@
       setDockFloating(false);
       panelMode = nextMode;
       panel.dataset.mode = panelMode;
+      panelSlot.style.pointerEvents = panelMode === 'order' ? 'none' : 'auto';
       host.appendChild(panelSlot);
       panelSlot.dataset.hosted = 'true';
 
