@@ -26,6 +26,7 @@
     let contentTextState = null;
     let contentLogoState = null;
     let effectiveLayouts = null;
+    const logoInkCache = new Map();
     let dockFrame = null;
     let dockExpanded = false;
     let dockFloating = false;
@@ -34,6 +35,49 @@
     const PREVIEW_ZOOM_MIN = 0.5;
     const PREVIEW_ZOOM_MAX_RIBBON = 1.25;
     let previewZoom = 1;
+
+    const requestLogoInkBounds = (src) => {
+      if (!src || logoInkCache.has(src)) return;
+      logoInkCache.set(src, null);
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const size = 256;
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const context = canvas.getContext('2d', {willReadFrequently: true});
+          context.clearRect(0, 0, size, size);
+          context.drawImage(image, 0, 0, size, size);
+          const pixels = context.getImageData(0, 0, size, size).data;
+          let left = size;
+          let right = -1;
+          let top = size;
+          let bottom = -1;
+          for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+              if (pixels[(y * size + x) * 4 + 3] < 8) continue;
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+              top = Math.min(top, y);
+              bottom = Math.max(bottom, y);
+            }
+          }
+          logoInkCache.set(src, right < left
+            ? {left: 0, right: 1, width: 1}
+            : {
+                left: left / size,
+                right: (right + 1) / size,
+                width: (right + 1 - left) / size,
+              });
+          requestAnimationFrame(() => syncStudioState());
+        } catch {
+          logoInkCache.set(src, {left: 0, right: 1, width: 1});
+        }
+      };
+      image.onerror = () => logoInkCache.set(src, {left: 0, right: 1, width: 1});
+      image.src = src;
+    };
 
     const getPreviewZoomMax = () => {
       const product = document.body.dataset.activeContentProduct || 'ribbon';
@@ -377,6 +421,8 @@
       const repeatWidth = surfaceBounds.width;
       const repeatHeight = surfaceBounds.height;
       const goldenGapRatio = 1 / 1.618;
+      const ink = logoSrc && logoInkCache.get(logoSrc);
+      requestLogoInkBounds(logoSrc);
       ribbonInteractionCell.style.visibility = 'visible';
       ribbonInteractionCell.style.opacity = '0';
       ribbonInteractionCell.style.pointerEvents = 'auto';
@@ -394,29 +440,32 @@
       const logoWidth = layout.logoBox
         ? Math.max(1, layout.logoBox.width * repeatWidth)
         : 0;
+      const inkLogoWidth = logoWidth * (ink?.width || 1);
       const textWidth = textBox ? Math.max(1, textBox.width * repeatWidth) : 0;
-      const gap = logoWidth * goldenGapRatio;
+      const gap = inkLogoWidth * goldenGapRatio;
       const contentWidth =
         hasLogo && hasText
-          ? logoWidth + gap + textWidth
+          ? inkLogoWidth + gap + textWidth
           : Math.max(logoWidth, textWidth);
       const repeatPitch =
         hasLogo && hasText ? contentWidth + gap : contentWidth;
       const contentScale = Math.min(1, (repeatWidth * 0.92) / repeatPitch);
       const placedLogoWidth = logoWidth * contentScale;
+      const placedInkLogoWidth = inkLogoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
       const manualGap = layout.manualLayout && hasLogo && hasText
         ? Math.max(
             0,
             textBox.x * repeatWidth -
-              (layout.logoBox.x * repeatWidth + placedLogoWidth),
+              (layout.logoBox.x * repeatWidth + placedLogoWidth * (ink?.right || 1)),
           )
         : null;
       const placedGap = hasLogo && hasText
-        ? manualGap ?? placedLogoWidth / 1.618
+        ? manualGap ?? placedInkLogoWidth / 1.618
         : 0;
-      const placedPitch =
-        placedLogoWidth + placedGap + placedTextWidth + placedGap;
+      const placedPitch = hasLogo && hasText
+        ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
+        : Math.max(placedLogoWidth, placedTextWidth);
       const contentStart = layout.manualLayout && hasLogo
         ? layout.logoBox.x * repeatWidth
         : Math.max(0, (repeatWidth - placedPitch) / 2);
@@ -462,7 +511,7 @@
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
           const textLeft = hasLogo
-            ? contentStart + placedLogoWidth + placedGap
+            ? contentStart + placedLogoWidth * (ink?.right || 1) + placedGap
             : contentStart;
           text.style.left = `${textLeft + placedTextWidth / 2}px`;
           text.style.top = `${repeatHeight / 2}px`;
