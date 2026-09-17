@@ -485,8 +485,8 @@
       const placedLogoWidth = paintedLogoWidth * contentScale;
       const placedInkLogoWidth = inkLogoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
-      const inkLeftRatio = (1 - (ink?.width || 1)) / 2;
-      const inkRightRatio = inkLeftRatio + (ink?.width || 1);
+      const inkLeftRatio = ink?.left ?? 0;
+      const inkRightRatio = ink?.right ?? 1;
       const layoutGap = layout.manualLayout && hasLogo && hasText
         ? Math.max(
             0,
