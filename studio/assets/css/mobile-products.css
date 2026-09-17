@@ -1131,6 +1131,9 @@
   .mobile-products-panel.is-floating[data-mode='upload']
     .mobile-products-sticker-sample {
     width: var(--mobile-products-sticker-size, 100px) !important;
+    height: var(--mobile-products-sticker-size, 100px) !important;
+    min-height: var(--mobile-products-sticker-size, 100px);
+    aspect-ratio: 1 / 1;
     font-size: 11px;
   }
 
@@ -1238,6 +1241,9 @@
   .mobile-products-panel.is-floating[data-mode='upload'].is-expanded
     .mobile-products-sticker-sample {
     width: var(--mobile-products-sticker-size-expanded, 112px) !important;
+    height: var(--mobile-products-sticker-size-expanded, 112px) !important;
+    min-height: var(--mobile-products-sticker-size-expanded, 112px);
+    aspect-ratio: 1 / 1;
   }
 
   .mobile-products-panel.is-floating.is-expanded
@@ -1281,6 +1287,9 @@
   .mobile-products-panel.is-floating[data-mode='upload'].is-keyboard-compact
     .mobile-products-sticker-sample {
     width: 48px !important;
+    height: 48px !important;
+    min-height: 48px;
+    aspect-ratio: 1 / 1;
     font-size: 7px;
   }
 
