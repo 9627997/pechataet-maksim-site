@@ -50,6 +50,10 @@
   transition: transform 160ms ease;
 }
 
+.mobile-products-preview-stage[data-preview-product='ribbon'] {
+  transform: none;
+}
+
 .mobile-products-dock-toggle {
   display: none;
 }
@@ -406,9 +410,12 @@
     position: absolute;
     inset: 0;
     z-index: 1;
-    overflow: hidden;
+    overflow: visible;
     pointer-events: none;
+    transform: scale(var(--preview-zoom, 1));
+    transform-origin: center;
   }
+
 
   .mobile-products-ribbon-interaction-cell {
     position: absolute;

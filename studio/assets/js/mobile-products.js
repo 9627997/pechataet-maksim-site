@@ -45,6 +45,8 @@
       if (!zoomStage) return;
       zoomStage.style.setProperty('--preview-zoom', String(previewZoom));
       zoomStage.dataset.previewZoom = String(Math.round(previewZoom * 100));
+      zoomStage.dataset.previewProduct =
+        document.body.dataset.activeContentProduct || 'ribbon';
       zoomButtons.forEach((button) => {
         button.disabled =
           (button.dataset.previewZoom === 'out' && previewZoom <= PREVIEW_ZOOM_MIN) ||
