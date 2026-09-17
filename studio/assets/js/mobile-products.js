@@ -31,7 +31,15 @@
     let dockFloating = false;
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
+    const PREVIEW_ZOOM_MIN = 0.5;
+    const PREVIEW_ZOOM_MAX = 1.25;
     let previewZoom = 1;
+
+    const getRibbonPreviewCycleCount = () => {
+      if (previewZoom <= 0.71) return 3;
+      if (previewZoom <= 0.91) return 2;
+      return 1;
+    };
 
     const syncPreviewZoom = () => {
       if (!zoomStage) return;
@@ -39,8 +47,8 @@
       zoomStage.dataset.previewZoom = String(Math.round(previewZoom * 100));
       zoomButtons.forEach((button) => {
         button.disabled =
-          (button.dataset.previewZoom === 'out' && previewZoom <= 0.8) ||
-          (button.dataset.previewZoom === 'in' && previewZoom >= 1.4);
+          (button.dataset.previewZoom === 'out' && previewZoom <= PREVIEW_ZOOM_MIN) ||
+          (button.dataset.previewZoom === 'in' && previewZoom >= PREVIEW_ZOOM_MAX);
         button.title = `Масштаб предпросмотра: ${Math.round(previewZoom * 100)}%`;
       });
     };
@@ -48,10 +56,14 @@
     zoomButtons.forEach((button) => {
       button.addEventListener('click', () => {
         previewZoom = Math.min(
-          1.4,
-          Math.max(0.8, previewZoom + (button.dataset.previewZoom === 'in' ? 0.1 : -0.1)),
+          PREVIEW_ZOOM_MAX,
+          Math.max(
+            PREVIEW_ZOOM_MIN,
+            previewZoom + (button.dataset.previewZoom === 'in' ? 0.1 : -0.1),
+          ),
         );
         syncPreviewZoom();
+        syncStudioState();
       });
     });
     syncPreviewZoom();
@@ -370,13 +382,15 @@
       print,
       fitSingleRepeat = false,
       singleRepeat = false,
+      previewCycleCount = 1,
     }) => {
       if (!layout) return;
       const surfaceBounds = ribbonSurface.getBoundingClientRect();
       if (surfaceBounds.width <= 0 || surfaceBounds.height <= 0) return;
 
+      const visualRepeatMm = repeatMm / Math.max(1, previewCycleCount);
       const naturalRepeatWidth =
-        (repeatMm / ribbonWidth) * surfaceBounds.height;
+        (visualRepeatMm / ribbonWidth) * surfaceBounds.height;
       const repeatWidthScale = fitSingleRepeat
         ? Math.min(1, surfaceBounds.width / naturalRepeatWidth)
         : 1;
@@ -496,6 +510,7 @@
 
       ribbonSurface.dataset.ribbonRepeatCount = String(repeatCount);
       ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
+      ribbonSurface.dataset.ribbonPreviewCycleCount = String(previewCycleCount);
       ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatScale = repeatScale.toFixed(4);
       ribbonSurface.dataset.ribbonSingleRepeat = String(singleRepeat);
@@ -832,6 +847,7 @@
         hasText: hasRibbonText,
         font: ribbonStyle.font,
         print: ribbonStyle.print,
+        previewCycleCount: getRibbonPreviewCycleCount(),
         fitSingleRepeat: demoArtwork || focusSingleRibbonRepeat,
         singleRepeat: focusSingleRibbonRepeat,
       });
