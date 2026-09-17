@@ -1061,7 +1061,9 @@
   }
 
   .mobile-products-panel[data-mode='settings']
-    [data-mobile-products-safe-zone^='sticker-'] {
+    [data-mobile-products-safe-zone^='sticker-'],
+  .mobile-products-panel[data-mode='upload']
+    [data-mobile-products-safe-zone] {
     touch-action: none;
   }
 

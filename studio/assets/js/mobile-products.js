@@ -217,8 +217,12 @@
         const editableDock =
           !panel.classList.contains('is-floating') ||
           panel.classList.contains('is-expanded');
-        if (panelMode !== 'settings' || !editableDock || event.button !== 0) return;
-        requestProductSettings(product);
+        const canDrag =
+          (panelMode === 'settings' || panelMode === 'upload') &&
+          editableDock &&
+          event.button === 0;
+        if (!canDrag) return;
+        if (panelMode === 'settings') requestProductSettings(product);
         pointerId = event.pointerId;
         lastX = event.clientX;
         lastY = event.clientY;
@@ -1010,6 +1014,7 @@
       setDockFloating(false);
       panelMode = nextMode;
       panel.dataset.mode = panelMode;
+      panelSlot.style.pointerEvents = panelMode === 'order' ? 'none' : 'auto';
       host.appendChild(panelSlot);
       panelSlot.dataset.hosted = 'true';
 

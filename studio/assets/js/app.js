@@ -2911,9 +2911,12 @@ const bootStudio = () => {
     picker.hidden = !visible;
     const mobilePreview = document.querySelector('.mobile-products-panel');
     if (mobilePreview) {
-      mobilePreview.classList.toggle('is-blocked-by-sticker-picker', visible);
-      mobilePreview.inert = visible;
-      mobilePreview.setAttribute('aria-hidden', String(visible));
+      // The picker and the live preview are complementary controls. Keep the
+      // preview interactive so zoom and object dragging remain available in
+      // standalone Sticker mode while the shape picker is open.
+      mobilePreview.classList.remove('is-blocked-by-sticker-picker');
+      mobilePreview.inert = false;
+      mobilePreview.removeAttribute('aria-hidden');
     }
     const activeVariant = getStickerVariant(state.stickerVariantId);
     $$('#stickerProductPicker [data-sticker-group]').forEach((group) => {
@@ -5127,9 +5130,10 @@ const bootStudio = () => {
   document.addEventListener('studio:transform-delta', (event) => {
     const product = event.detail?.product;
     const kind = event.detail?.kind;
-    if (product !== 'sticker') return;
+    if (!['ribbon', 'sticker'].includes(product)) return;
     if (!['logo', 'text'].includes(kind)) return;
-    setActiveSettingsProduct(product);
+    if (state.panel === 'settings') setActiveSettingsProduct(product);
+    else state.activeContentProduct = product;
     enterManualLayout(product);
     const style = getProductStyle(product);
     const outer = currentLayouts[product]?.outer;
