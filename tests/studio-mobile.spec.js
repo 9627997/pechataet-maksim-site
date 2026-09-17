@@ -1497,3 +1497,17 @@ test('ribbon preview reaches both mobile viewport edges at every zoom', async ({
     if (await plus.isEnabled()) await plus.click();
   }
 });
+
+test('full-bleed ribbon is not clipped by its hosted slot', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const slot = page.locator('.mobile-products-slot[data-hosted="true"]');
+  await expect(slot).toHaveCSS('overflow', 'visible');
+  const bounds = await ribbon.boundingBox();
+  expect(bounds.x).toBe(0);
+  expect(bounds.x + bounds.width).toBe(390);
+});
