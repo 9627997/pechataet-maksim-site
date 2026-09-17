@@ -539,7 +539,7 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
     padding-block:6px 10px;
     background:#fff;
     max-height:calc(100dvh - 64px);
-    overflow:auto;
+    overflow:visible;
     pointer-events:none;
   }
   .mobile-products-slot[data-hosted='true'] .mobile-products-panel{
