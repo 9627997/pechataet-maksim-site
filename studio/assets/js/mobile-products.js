@@ -520,6 +520,10 @@
     };
 
     const syncStudioState = () => {
+      // All layout measurements below must use the unscaled scene. Measuring
+      // a transformed stage feeds scaled dimensions back into logo/text
+      // placement and causes the scene to collapse after every zoom click.
+      if (zoomStage) zoomStage.style.setProperty('--preview-zoom', '1');
       let productStyles = {};
       try {
         productStyles = JSON.parse(
@@ -879,8 +883,9 @@
           : hasRibbonLogo
             ? 'logo-only'
             : hasRibbonText
-              ? 'text-only'
-              : 'empty';
+            ? 'text-only'
+            : 'empty';
+      syncPreviewZoom();
     };
 
     let studioSyncFrame = null;
