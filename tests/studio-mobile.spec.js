@@ -1393,7 +1393,7 @@ test('full preview stays fixed without compact floating mode', async ({
   expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
 });
 
-test('ribbon preview adds repeat cycles as zoom decreases', async ({
+test('ribbon preview keeps a stable three-repeat scene across zoom levels', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
@@ -1406,15 +1406,17 @@ test('ribbon preview adds repeat cycles as zoom decreases', async ({
   );
   const minus = page.locator('[data-preview-zoom="out"]');
 
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '1');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
+  await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '90');
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
-  await expect(interactionCell).toHaveCSS('visibility', 'hidden');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await expect(interactionCell).toHaveCSS('visibility', 'visible');
+  await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '80');
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
+  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '70');
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
