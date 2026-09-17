@@ -98,8 +98,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').hover();
   await expect(hoverAction).toBeHidden();
   await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').click();
-  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(page.locator('#mobileLogoEditor')).toBeHidden();
 
   const stickerSurface = panel.locator('.mobile-products-sticker-sample');
   const stickerBounds = await stickerSurface.boundingBox();

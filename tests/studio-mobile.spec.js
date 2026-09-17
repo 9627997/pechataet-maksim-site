@@ -145,19 +145,16 @@ test('mobile preview safe zones activate the shared logo and text inputs', async
     zones.ribbonText.locator('.mobile-products-zone-action'),
   ).toHaveCSS('opacity', '1');
 
+  await textInput.focus();
   await zones.ribbonText.click();
-  await expect(textInput).toBeFocused();
+  await expect(textInput).not.toBeFocused();
+  await expect(page.locator('#mobileTextEditor')).toBeHidden();
   await selectContentProduct('sticker');
   await zones.stickerText.click();
-  await expect(textInput).toBeFocused();
+  await expect(textInput).not.toBeFocused();
+  await expect(page.locator('#mobileTextEditor')).toBeHidden();
   await selectContentProduct('ribbon');
-  await zones.ribbonText.focus();
-  await zones.ribbonText.press('Enter');
-  await expect(textInput).toBeFocused();
-  await selectContentProduct('sticker');
-  await zones.stickerText.focus();
-  await zones.stickerText.press('Space');
-  await expect(textInput).toBeFocused();
+  await textInput.focus();
 
   await textInput.fill('общая надпись');
   await expect(zones.ribbonText).toHaveAttribute(
@@ -1559,5 +1556,29 @@ test('demo sticker objects support drag positioning on create step', async ({
   await expect(page.locator('body')).toHaveAttribute(
     'data-artwork-valid',
     'true',
+  );
+});
+
+test('preview content zones do not open editors on click', async ({ page }) => {
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  const textInput = page.locator('#textInput');
+  const logoInput = page.locator('#logoInput');
+  const textZone = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-text"]',
+  );
+  const logoZone = page.locator(
+    '[data-mobile-products-safe-zone="ribbon-logo"]',
+  );
+
+  await textZone.click();
+  await logoZone.click();
+  await expect(page.locator('#mobileTextEditor')).toBeHidden();
+  await expect(page.locator('#mobileLogoEditor')).toBeHidden();
+  await expect(textInput).not.toBeFocused();
+  await expect(logoInput).not.toBeFocused();
+
+  await textInput.fill('текст через поле');
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
+    'текст через поле',
   );
 });
