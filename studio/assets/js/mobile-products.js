@@ -403,7 +403,9 @@
       const contentScale = Math.min(1, (repeatWidth * 0.92) / repeatPitch);
       const placedLogoWidth = logoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
-      const placedGap = gap * contentScale;
+      const placedGap = hasLogo && hasText
+        ? placedLogoWidth / 1.618
+        : 0;
       const placedPitch =
         placedLogoWidth + placedGap + placedTextWidth + placedGap;
       const contentStart = Math.max(0, (repeatWidth - placedPitch) / 2);
