@@ -540,6 +540,13 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
     background:#fff;
     max-height:calc(100dvh - 64px);
     overflow:auto;
+    pointer-events:none;
+  }
+  .mobile-products-slot[data-hosted='true'] .mobile-products-panel{
+    pointer-events:none;
+  }
+  .mobile-products-slot[data-hosted='true'] .mobile-products-panel > *{
+    pointer-events:auto;
   }
   .panel.active{
     padding-top:360px;
