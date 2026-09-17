@@ -1267,3 +1267,28 @@ test('circle sticker stays square while the sticky preview is active', async ({
   });
   expect(Math.abs(geometry.width - geometry.height)).toBeLessThanOrEqual(1);
 });
+
+test('sticker mode starts with the 24 mm contrast demo and no entry banner', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=bundle', { waitUntil: 'networkidle' });
+  await page.locator('[data-order-mode="sticker"]').click();
+
+  await expect(page.locator('#studioEntryContext')).toHaveCount(0);
+  await expect(
+    page.locator('.mobile-products-sticker .mobile-products-sample-label'),
+  ).toHaveText('Стикер 24 мм');
+  await expect(
+    page.locator(
+      '#stickerProductPicker [data-sticker-group="circle-24"] summary',
+    ),
+  ).toHaveClass(/active/);
+
+  const demo = page.locator(
+    '.mobile-products-sticker-text-zone .mobile-products-sticker-text',
+  );
+  await expect(demo).toContainText('Печатает Максим');
+  await expect(demo).toHaveCSS('color', 'rgb(198, 200, 205)');
+});
