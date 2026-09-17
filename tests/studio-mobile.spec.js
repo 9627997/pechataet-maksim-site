@@ -1292,3 +1292,27 @@ test('sticker mode starts with the 24 mm contrast demo and no entry banner', asy
   await expect(demo).toContainText('Печатает Максим');
   await expect(demo).toHaveCSS('color', 'rgb(198, 200, 205)');
 });
+
+test('mobile top controls stay above the step navigation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  const geometry = await page.evaluate(() => {
+    const topbar = document.querySelector('.topbar').getBoundingClientRect();
+    const mode = document
+      .querySelector('#orderModeSwitcher')
+      .getBoundingClientRect();
+    const nav = document.querySelector('.main-nav').getBoundingClientRect();
+    return {
+      topbarBottom: topbar.bottom,
+      modeTop: mode.top,
+      modeBottom: mode.bottom,
+      navTop: nav.top,
+    };
+  });
+
+  expect(geometry.modeTop).toBeGreaterThanOrEqual(0);
+  expect(geometry.navTop).toBeGreaterThanOrEqual(geometry.modeBottom - 1);
+});
