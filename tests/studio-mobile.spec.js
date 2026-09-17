@@ -1420,4 +1420,19 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '70');
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await minus.click();
+  await minus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '50');
+  const visibleRepeatCount = await page
+    .locator('.mobile-products-ribbon-repeat-cell')
+    .evaluateAll((cells) => {
+      const surface = document
+        .querySelector('.mobile-products-ribbon-sample')
+        .getBoundingClientRect();
+      return cells.filter((cell) => {
+        const rect = cell.getBoundingClientRect();
+        return rect.right > surface.left && rect.left < surface.right;
+      }).length;
+    });
+  expect(visibleRepeatCount).toBe(3);
 });
