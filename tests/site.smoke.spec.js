@@ -216,7 +216,7 @@ test('Plain Studio entry starts with the product chooser @smoke', async ({
   await expect(
     page.getByRole('textbox', { name: 'Надпись на ленте' }),
   ).toBeVisible();
-  await expect(page.locator('[data-mobile-product="sticker"]')).toBeHidden();
+  await expect(page.locator('[data-mobile-product="sticker"]')).toHaveCount(0);
 });
 
 test('Studio protects a created project from an accidental reset @smoke', async ({

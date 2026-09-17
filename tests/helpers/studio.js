@@ -79,15 +79,9 @@ export const expectInterfaceResponsive = async (page) => {
   )
     await openSettings(page);
   await ensureProductSettingsVisible(page);
-  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
   const ribbonSample = page.locator('[data-mobile-product-sample="ribbon"]');
-  await ribbonSwitch.uncheck();
   await expect(ribbonSample).toBeVisible();
-  await expect(ribbonSample).toHaveClass(/is-product-disabled/);
-  await expect(ribbonSample).toHaveAttribute('aria-disabled', 'true');
-  await ribbonSwitch.check();
-  await expect(ribbonSample).toBeVisible();
-  await expect(ribbonSample).not.toHaveClass(/is-product-disabled/);
+  await expect(page.locator('[data-mobile-product]')).toHaveCount(0);
 };
 
 export const completeFirstStepWithText = async (page) => {
