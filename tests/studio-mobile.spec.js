@@ -1216,3 +1216,23 @@ test('unified preview occupies the desktop preview column', async ({
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeUpload);
 });
+
+test('switching from bundle to sticker keeps the mobile sticker preview visible', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=bundle');
+  await page.locator('[data-order-mode="sticker"]').click();
+
+  await expect(page.locator('.mobile-products-sticker')).toBeVisible();
+  await expect(
+    page.locator('.mobile-products-sticker .mobile-products-sticker-sample'),
+  ).toBeVisible();
+  await expect(page.locator('.mobile-products-ribbon')).toBeHidden();
+  await expect(page.locator('#stickerProductPicker')).toBeVisible();
+  await expect(page.locator('.mobile-products-preview')).not.toHaveCSS(
+    'height',
+    '0px',
+  );
+});

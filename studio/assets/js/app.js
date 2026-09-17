@@ -2663,6 +2663,10 @@ const bootStudio = () => {
       : nextMode === 'sticker'
         ? 'sticker'
         : activeProduct;
+    if (nextMode !== 'bundle') {
+      setActiveContentProduct(nextMode, {renderPreview: false});
+      setActiveSettingsProduct(nextMode);
+    }
     state.meters = nextMode === 'sticker' ? 0 : state.lastMeters || 100;
     state.stickerQty = nextMode === 'ribbon' ? 0 : state.lastStickerQty || 100;
     state.productFirstMode = true;
