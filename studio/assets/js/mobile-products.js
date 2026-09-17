@@ -399,6 +399,11 @@
       const repeatHeight = surfaceBounds.height * repeatScale;
       const repeatTop = (surfaceBounds.height - repeatHeight) / 2;
       const centerLeft = (surfaceBounds.width - repeatWidth) / 2;
+      // When the preview is split into multiple cycles, the original
+      // interaction cell must not remain visible underneath the repeat track.
+      // Otherwise the original logo/text pair overlaps the generated cycles.
+      ribbonInteractionCell.style.visibility =
+        previewCycleCount > 1 ? 'hidden' : 'visible';
       ribbonInteractionCell.style.left = `${centerLeft}px`;
       ribbonInteractionCell.style.top = `${repeatTop}px`;
       ribbonInteractionCell.style.bottom = 'auto';
@@ -434,7 +439,9 @@
         left += repeatWidth
       ) {
         repeatCount += 1;
-        if (Math.abs(left - centerLeft) < 0.5) continue;
+        if (Math.abs(left - centerLeft) < 0.5 && previewCycleCount <= 1) {
+          continue;
+        }
 
         const cell = document.createElement('span');
         cell.className = 'mobile-products-ribbon-repeat-cell';

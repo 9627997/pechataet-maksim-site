@@ -1401,12 +1401,17 @@ test('ribbon preview adds repeat cycles as zoom decreases', async ({
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const stage = page.locator('[data-preview-zoom-stage]');
   const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const interactionCell = page.locator(
+    '.mobile-products-ribbon-interaction-cell',
+  );
   const minus = page.locator('[data-preview-zoom="out"]');
 
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '1');
+  await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '90');
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
+  await expect(interactionCell).toHaveCSS('visibility', 'hidden');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '80');
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '2');
