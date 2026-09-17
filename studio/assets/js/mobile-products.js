@@ -491,11 +491,13 @@
         panelMode === 'upload' &&
         document.body.dataset.previewDemo === 'true';
       const demoText = document.body.dataset.previewDemoText || 'ленты по любви';
+      const demoStickerText =
+        document.body.dataset.previewStickerText || 'Печатает Максим';
       const ribbonTextValue = demoArtwork
         ? demoText
         : contentTextState?.ribbon?.resolved ?? commonText;
       const stickerTextValue = demoArtwork
-        ? demoText
+        ? demoStickerText
         : contentTextState?.sticker?.resolved ?? commonText;
       const ribbonTextValueTrimmed = ribbonTextValue.trim();
       const stickerTextValueTrimmed = stickerTextValue.trim();

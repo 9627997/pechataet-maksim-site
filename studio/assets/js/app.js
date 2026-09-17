@@ -20,6 +20,7 @@ const bootStudio = () => {
   let textMeasurementSvg = null;
   let demoLogoAsset = null;
   const DEMO_TEXT = 'ленты по любви';
+  const STICKER_DEMO_TEXT = 'Печатает Максим';
   const DEMO_FONT = 'Comfortaa';
   const MIN_RIBBON_REPEAT_MM = 40;
   const MAX_RIBBON_REPEAT_MM = 250;
@@ -570,7 +571,10 @@ const bootStudio = () => {
 
   function getPreviewText(product) {
     const resolved = getResolvedText(product).trim();
-    return isDemoPreviewActive() && !resolved ? DEMO_TEXT : resolved;
+    if (isDemoPreviewActive() && !resolved) {
+      return product === 'sticker' ? STICKER_DEMO_TEXT : DEMO_TEXT;
+    }
+    return resolved;
   }
 
   function getPreviewFont(product) {
@@ -2663,6 +2667,9 @@ const bootStudio = () => {
       : nextMode === 'sticker'
         ? 'sticker'
         : activeProduct;
+    if (nextMode === 'sticker' && previousMode !== 'sticker' && state.productFirstMode) {
+      applyStickerCreateDefaults();
+    }
     if (nextMode !== 'bundle') {
       setActiveContentProduct(nextMode, {renderPreview: false});
       setActiveSettingsProduct(nextMode);
@@ -2760,6 +2767,7 @@ const bootStudio = () => {
       isDemoPreviewActive() || previewLogoDemo,
     );
     document.body.dataset.previewDemoText = DEMO_TEXT;
+    document.body.dataset.previewStickerText = STICKER_DEMO_TEXT;
     document.body.dataset.previewLogoDemo = String(previewLogoDemo);
     if ($('#previewContextTitle')) {
       $('#previewContextTitle').textContent =
