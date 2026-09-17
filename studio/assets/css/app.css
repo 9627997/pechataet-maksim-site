@@ -522,7 +522,8 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 
 @media(max-width:700px){
   .topbar{
-    height:58px;
+    height:auto;
+    min-height:58px;
     padding:0 12px;
   }
   .topbar .button{
@@ -531,7 +532,7 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
     font-size:11px;
   }
   .app-shell{
-    min-height:calc(100dvh - 58px);
+    min-height:calc(100dvh - 108px);
   }
   .sidebar{
     padding:12px 12px calc(24px + env(safe-area-inset-bottom));
