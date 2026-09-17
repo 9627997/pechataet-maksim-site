@@ -510,12 +510,20 @@
       const placedPitch = hasLogo && hasText
         ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
         : Math.max(placedLogoWidth, placedTextWidth);
+      const sceneWidth = placedPitch * 3;
+      ribbonTrack.style.left = '50%';
+      ribbonTrack.style.right = 'auto';
+      ribbonTrack.style.width = `${sceneWidth}px`;
+      ribbonTrack.style.height = `${repeatHeight}px`;
+      ribbonTrack.style.transform = 'translateX(-50%)';
       const visibleLogoStart = layout.manualLayout && hasLogo
         ? layout.logoBox.x * repeatWidth + placedLogoWidth * inkLeftRatio
         : Math.max(0, (repeatWidth - placedPitch) / 2);
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
-      for (const offset of [-1, 0, 1]) {
+      ribbonSurface.dataset.ribbonSceneWidthPx = sceneWidth.toFixed(2);
+      ribbonSurface.dataset.ribbonSceneCentered = 'true';
+      for (const offset of [0, 1, 2]) {
         const left = offset * placedPitch;
         const cell = document.createElement('span');
         cell.className = 'mobile-products-ribbon-repeat-cell';

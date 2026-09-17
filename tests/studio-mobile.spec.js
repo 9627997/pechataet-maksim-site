@@ -1406,6 +1406,21 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
   await expect(ribbon).toHaveAttribute('data-ribbon-logo-text-gap-px', /\d/);
   await expect(ribbon).toHaveAttribute('data-ribbon-repeat-gap-px', /\d/);
+  await expect(ribbon).toHaveAttribute('data-ribbon-scene-centered', 'true');
+  const sceneGeometry = await ribbon.evaluate((surface) => {
+    const track = surface.querySelector('.mobile-products-ribbon-repeat-track');
+    const surfaceBox = surface.getBoundingClientRect();
+    const trackBox = track.getBoundingClientRect();
+    return {
+      centerDelta: Math.abs(
+        (trackBox.left + trackBox.width / 2) -
+          (surfaceBox.left + surfaceBox.width / 2),
+      ),
+      sceneWidth: trackBox.width,
+    };
+  });
+  expect(sceneGeometry.centerDelta).toBeLessThan(1);
+  expect(sceneGeometry.sceneWidth).toBeGreaterThan(0);
   expect(
     await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
   ).toBe(await ribbon.getAttribute('data-ribbon-repeat-gap-px'));
