@@ -136,10 +136,13 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'data-preview-demo',
     'true',
   );
-  await expect(page.locator('#previewContextTitle')).toBeHidden();
   if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('#previewContextTitle')).toBeHidden();
     await expect(page.locator('#previewContextCopy')).toBeHidden();
   } else {
+    await expect(page.locator('#previewContextTitle')).toHaveText(
+      'Пример оформления',
+    );
     await expect(page.locator('#previewContextCopy')).toHaveText(
       'Напишите название или загрузите логотип — я покажу, как выглядит макет.',
     );
