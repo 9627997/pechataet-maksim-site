@@ -32,6 +32,9 @@
     let dockFloating = false;
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
+    let manualRibbonGapDeltaPx = 0;
+    let hasManualRibbonGapDelta = false;
+    let manualRibbonGapContentKey = null;
     const PREVIEW_ZOOM_MIN = 0.5;
     const PREVIEW_ZOOM_MAX_RIBBON = 1.25;
     let previewZoom = 1;
@@ -252,6 +255,10 @@
         event.preventDefault();
         zone.dataset.dragging = 'true';
         const bounds = surface.getBoundingClientRect();
+        if (product === 'ribbon' && dx) {
+          manualRibbonGapDeltaPx += kind === 'text' ? dx : -dx;
+          hasManualRibbonGapDelta = true;
+        }
         document.dispatchEvent(
           new CustomEvent('studio:transform-delta', {
             detail: {
@@ -259,6 +266,12 @@
               kind,
               dxRatio: dx / Math.max(bounds.width, 1),
               dyRatio: dy / Math.max(bounds.height, 1),
+              gapDeltaPx:
+                product === 'ribbon'
+                  ? kind === 'text'
+                    ? dx
+                    : -dx
+                  : 0,
             },
           }),
         );
@@ -420,6 +433,12 @@
 
       const repeatWidth = surfaceBounds.width;
       const repeatHeight = surfaceBounds.height;
+      const contentKey = `${logoSrc || ''}|${textValue || ''}|${logoRatio || ''}`;
+      if (manualRibbonGapContentKey !== contentKey) {
+        manualRibbonGapContentKey = contentKey;
+        manualRibbonGapDeltaPx = 0;
+        hasManualRibbonGapDelta = false;
+      }
       const goldenGapRatio = 1 / 1.618;
       const ink = logoSrc && logoInkCache.get(logoSrc);
       requestLogoInkBounds(logoSrc);
@@ -453,13 +472,16 @@
       const placedLogoWidth = logoWidth * contentScale;
       const placedInkLogoWidth = inkLogoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
-      const manualGap = layout.manualLayout && hasLogo && hasText
+      const layoutGap = layout.manualLayout && hasLogo && hasText
         ? Math.max(
             0,
             textBox.x * repeatWidth -
               (layout.logoBox.x * repeatWidth + placedLogoWidth * (ink?.right || 1)),
           )
         : null;
+      const manualGap = hasManualRibbonGapDelta && hasLogo && hasText
+        ? Math.max(0, placedInkLogoWidth / 1.618 + manualRibbonGapDeltaPx)
+        : layoutGap;
       const placedGap = hasLogo && hasText
         ? manualGap ?? placedInkLogoWidth / 1.618
         : 0;
