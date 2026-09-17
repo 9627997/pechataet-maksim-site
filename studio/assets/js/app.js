@@ -2667,7 +2667,11 @@ const bootStudio = () => {
       : nextMode === 'sticker'
         ? 'sticker'
         : activeProduct;
-    if (nextMode === 'sticker' && previousMode !== 'sticker' && state.productFirstMode) {
+    if (
+      nextMode === 'sticker' &&
+      previousMode !== 'sticker' &&
+      isDemoPreviewActive()
+    ) {
       applyStickerCreateDefaults();
     }
     if (nextMode !== 'bundle') {
