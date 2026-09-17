@@ -66,20 +66,14 @@ test('homepage entry context selects the requested Studio product @smoke', async
     {
       query: 'product=ribbon',
       inputLabel: 'Надпись на ленте',
-      ribbon: true,
-      sticker: false,
     },
     {
       query: 'product=sticker',
       inputLabel: 'Надпись на стикере',
-      ribbon: false,
-      sticker: true,
     },
     {
       query: 'product=set&material=satin',
       inputLabel: 'Надпись на ленте',
-      ribbon: true,
-      sticker: true,
     },
   ];
 
@@ -87,12 +81,7 @@ test('homepage entry context selects the requested Studio product @smoke', async
     await page.goto(`/studio/?${entry.query}`, { waitUntil: 'networkidle' });
     await expect(page.locator('#studioEntryContext')).toHaveCount(0);
     await expect(page.locator('#textInputLabel')).toHaveText(entry.inputLabel);
-    await expect(page.locator('[data-mobile-product="ribbon"]')).toBeChecked({
-      checked: entry.ribbon,
-    });
-    await expect(page.locator('[data-mobile-product="sticker"]')).toBeChecked({
-      checked: entry.sticker,
-    });
+    await expect(page.locator('[data-mobile-product]')).toHaveCount(0);
   }
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -147,12 +136,13 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'data-preview-demo',
     'true',
   );
-  await expect(page.locator('#previewContextTitle')).toHaveText(
-    'Пример оформления',
-  );
   if (testInfo.project.name === 'mobile') {
+    await expect(page.locator('#previewContextTitle')).toBeHidden();
     await expect(page.locator('#previewContextCopy')).toBeHidden();
   } else {
+    await expect(page.locator('#previewContextTitle')).toHaveText(
+      'Пример оформления',
+    );
     await expect(page.locator('#previewContextCopy')).toHaveText(
       'Напишите название или загрузите логотип — я покажу, как выглядит макет.',
     );
@@ -174,12 +164,8 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await expect(page.locator('#contentProductEditorLabel')).toHaveText(
     'Что сейчас настраиваем',
   );
-  await expect(page.locator('#contentProductEditorHint')).toHaveText(
-    'Первый текст и логотип появятся на обоих изделиях. Затем их можно изменить отдельно.',
-  );
-  await expect(page.locator('.mobile-products-choice-label')).toHaveText(
-    'В вашем комплекте',
-  );
+  await expect(page.locator('#contentProductEditorHint')).toHaveCount(0);
+  await expect(page.locator('.mobile-products-choice-label')).toHaveCount(0);
   await expect(
     page.locator('#contentProductEditor').locator('xpath=..'),
   ).toHaveAttribute('data-content-product-host', 'mobile');
@@ -191,7 +177,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
       'data-mode',
       'upload',
     );
-    await expect(page.locator('.mobile-products-switches')).toBeVisible();
+    await expect(page.locator('.mobile-products-switch')).toHaveCount(0);
     await expect(page.locator('.studio')).toBeHidden();
     const mobileOrder = await page.evaluate(() => {
       const text = document.querySelector('#textInput').getBoundingClientRect();
@@ -229,15 +215,13 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     await page
       .locator('#contentProductChoice [data-content-product="ribbon"]')
       .click();
-    await page.locator('[data-mobile-product="ribbon"]').click();
     await expect(page.locator('body')).toHaveAttribute(
       'data-active-content-product',
-      'sticker',
+      'ribbon',
     );
     await expect(
-      page.locator('[data-mobile-product-sample="sticker"]'),
+      page.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
-    await page.locator('[data-mobile-product="ribbon"]').click();
     await page
       .locator('#contentProductChoice [data-content-product="ribbon"]')
       .click();

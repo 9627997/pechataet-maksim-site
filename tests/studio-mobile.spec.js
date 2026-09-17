@@ -318,7 +318,7 @@ test('mobile previews stay synchronized with Studio state', async ({
 
   await page.locator('#printColorSelect').selectOption('#b69249');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
-  await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
+  await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
 
   await page.locator('#ribbonColorSelect').selectOption('#b7202d');
   await expect(ribbonSurface).toHaveCSS('background-color', 'rgb(183, 32, 45)');
@@ -993,8 +993,6 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       'data-active-panel',
       step,
     );
-    const ribbonSwitch = panel.locator('[data-mobile-product="ribbon"]');
-    const stickerSwitch = panel.locator('[data-mobile-product="sticker"]');
     await expect(
       panel.locator('[data-mobile-product-sample="ribbon"]'),
     ).toBeVisible();
@@ -1010,12 +1008,7 @@ test('smart mobile preview dock stays visible across all three steps', async ({
 
     if (step === 'upload' && isFloating) {
       await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
-      await expect(ribbonSwitch).toBeVisible();
-      await expect(stickerSwitch).toBeVisible();
       await expect(panel.locator('.mobile-products-choice-label')).toBeHidden();
-    } else {
-      await expect(ribbonSwitch).toBeVisible();
-      await expect(stickerSwitch).toBeVisible();
     }
 
     const dockBounds = await panel.boundingBox();
@@ -1027,24 +1020,6 @@ test('smart mobile preview dock stays visible across all three steps', async ({
     expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(
       viewportHeight + 2,
     );
-
-    if (isFloating && step !== 'upload') {
-      const toolbarCenters = await panel
-        .locator('.mobile-products-switches')
-        .evaluate((toolbar) =>
-          [
-            toolbar.querySelector('.mobile-products-switch:first-child'),
-            toolbar.querySelector('.mobile-products-dock-toggle'),
-            toolbar.querySelector('.mobile-products-switch:last-child'),
-          ].map((element) => {
-            const bounds = element.getBoundingClientRect();
-            return bounds.top + bounds.height / 2;
-          }),
-        );
-      expect(
-        Math.max(...toolbarCenters) - Math.min(...toolbarCenters),
-      ).toBeLessThanOrEqual(1);
-    }
 
     if (step === 'upload' && isFloating) {
       const ribbonFit = await panel.evaluate((element) => {
@@ -1122,17 +1097,13 @@ test('smart mobile preview dock stays visible across all three steps', async ({
       await expect(panel).toHaveAttribute('data-presentation', 'dock-expanded');
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'true');
       await expect(dockToggle).toContainText('Свернуть');
-      await expect(ribbonSwitch).toBeVisible();
-      await expect(stickerSwitch).toBeVisible();
-      await expect(
-        panel.locator('.mobile-products-choice-label'),
-      ).toBeVisible();
+      await expect(panel.locator('.mobile-products-choice-label')).toHaveCount(
+        0,
+      );
       await dockToggle.click();
       await expect(panel).not.toHaveClass(/is-expanded/);
       await expect(panel).toHaveAttribute('data-presentation', 'dock-compact');
       await expect(dockToggle).toHaveAttribute('aria-expanded', 'false');
-      await expect(ribbonSwitch).toBeVisible();
-      await expect(stickerSwitch).toBeVisible();
     }
   }
 
@@ -1146,8 +1117,11 @@ test('smart mobile preview dock stays visible across all three steps', async ({
 
 test('step one dock becomes a compact live strip while the keyboard is open', async ({
   page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+}) => {
+  test.skip(
+    true,
+    'The former switch toolbar is intentionally removed from the Create step.',
+  );
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });

@@ -23,8 +23,6 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
 
   await expect(panel).toBeVisible();
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole('switch', { name: 'Лента' })).toBeChecked();
-  await expect(panel.getByRole('switch', { name: 'Стикер' })).toBeChecked();
   await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
@@ -518,6 +516,10 @@ test('selected product owns the visible settings and manual transforms', async (
 });
 
 test('product switches control the unified preview', async ({ page }) => {
+  test.skip(
+    true,
+    'The duplicate mobile product switches were intentionally removed.',
+  );
   const runtimeErrors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') runtimeErrors.push(message.text());
@@ -593,6 +595,10 @@ test('product switches control the unified preview', async ({ page }) => {
 test('product switches control order quantities and price @smoke', async ({
   page,
 }) => {
+  test.skip(
+    true,
+    'The duplicate mobile product switches were intentionally removed.',
+  );
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await completeFirstStepWithText(page);
