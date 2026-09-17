@@ -3,6 +3,8 @@
     const panel = document.querySelector('.mobile-products-panel');
     const panelSlot = document.querySelector('#mobileProductsSlot');
     const dockToggle = document.querySelector('#mobileProductsDockToggle');
+    const zoomStage = panel.querySelector('[data-preview-zoom-stage]');
+    const zoomButtons = [...panel.querySelectorAll('[data-preview-zoom]')];
     const panelHosts = [...document.querySelectorAll('[data-products-host]')];
     const logoInput = document.querySelector('#logoInput');
     const textInput = document.querySelector('#textInput');
@@ -28,6 +30,30 @@
     let dockFloating = false;
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
+    let previewZoom = 1;
+
+    const syncPreviewZoom = () => {
+      if (!zoomStage) return;
+      zoomStage.style.setProperty('--preview-zoom', String(previewZoom));
+      zoomStage.dataset.previewZoom = String(Math.round(previewZoom * 100));
+      zoomButtons.forEach((button) => {
+        button.disabled =
+          (button.dataset.previewZoom === 'out' && previewZoom <= 0.8) ||
+          (button.dataset.previewZoom === 'in' && previewZoom >= 1.4);
+        button.title = `Масштаб предпросмотра: ${Math.round(previewZoom * 100)}%`;
+      });
+    };
+
+    zoomButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        previewZoom = Math.min(
+          1.4,
+          Math.max(0.8, previewZoom + (button.dataset.previewZoom === 'in' ? 0.1 : -0.1)),
+        );
+        syncPreviewZoom();
+      });
+    });
+    syncPreviewZoom();
 
     panel.dataset.presentation = 'flow';
 

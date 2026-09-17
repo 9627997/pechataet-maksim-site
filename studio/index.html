@@ -67,7 +67,7 @@
   }
   </script>
   <link rel="stylesheet" href="assets/css/app.css?v=7b4bfe361f5f">
-  <link rel="stylesheet" href="assets/css/mobile-products.css?v=f8a9994fb952">
+  <link rel="stylesheet" href="assets/css/mobile-products.css?v=bf3761c1a3dd">
 </head>
 <body data-active-panel="upload">
 <header class="topbar">
@@ -148,6 +148,10 @@
       </div>
 
       <div class="mobile-products-preview" id="mobileProductsPreview">
+        <button class="mobile-products-zoom-button" type="button" data-preview-zoom="out" aria-label="Уменьшить масштаб предпросмотра">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="13" cy="13" r="8.5"></circle><path d="M19.5 19.5 27 27M9 13h8"></path></svg>
+        </button>
+        <div class="mobile-products-preview-stage" data-preview-zoom-stage>
         <div class="mobile-products-sample mobile-products-ribbon is-settings-active" data-mobile-product-sample="ribbon" role="button" tabindex="0" aria-pressed="true" aria-label="Настроить ленту">
           <span class="mobile-products-sample-label">Лента 15 мм</span>
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
@@ -168,6 +172,10 @@
           <span class="mobile-products-sample-label">Стикер 40 мм</span>
           <div class="mobile-products-sticker-sample" aria-hidden="true">печатает<br>максим</div>
         </div>
+        </div>
+        <button class="mobile-products-zoom-button" type="button" data-preview-zoom="in" aria-label="Увеличить масштаб предпросмотра">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="13" cy="13" r="8.5"></circle><path d="M19.5 19.5 27 27M9 13h8M13 9v8"></path></svg>
+        </button>
       </div>
     </section>
     </div>
@@ -772,6 +780,6 @@
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
 <script src="assets/js/app.js?v=4f282e5ffe8e"></script>
-<script src="assets/js/mobile-products.js?v=056964d63a54"></script>
+<script src="assets/js/mobile-products.js?v=b44c31e430d4"></script>
 </body>
 </html>
