@@ -234,6 +234,8 @@
 
     attachTransformDrag(stickerLogo.zone, 'sticker', 'logo', stickerSurface);
     attachTransformDrag(stickerText.zone, 'sticker', 'text', stickerSurface);
+    attachTransformDrag(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface);
+    attachTransformDrag(ribbonText.zone, 'ribbon', 'text', ribbonSurface);
 
     const syncVisibility = () => {
       switches.forEach((productSwitch) => {
@@ -403,12 +405,21 @@
       const contentScale = Math.min(1, (repeatWidth * 0.92) / repeatPitch);
       const placedLogoWidth = logoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
+      const manualGap = layout.manualLayout && hasLogo && hasText
+        ? Math.max(
+            0,
+            textBox.x * repeatWidth -
+              (layout.logoBox.x * repeatWidth + placedLogoWidth),
+          )
+        : null;
       const placedGap = hasLogo && hasText
-        ? placedLogoWidth / 1.618
+        ? manualGap ?? placedLogoWidth / 1.618
         : 0;
       const placedPitch =
         placedLogoWidth + placedGap + placedTextWidth + placedGap;
-      const contentStart = Math.max(0, (repeatWidth - placedPitch) / 2);
+      const contentStart = layout.manualLayout && hasLogo
+        ? layout.logoBox.x * repeatWidth
+        : Math.max(0, (repeatWidth - placedPitch) / 2);
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
       const logoHeight = layout.logoBox?.height * repeatHeight;

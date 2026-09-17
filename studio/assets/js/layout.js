@@ -190,6 +190,7 @@
       textBox: textResult.bbox,
       fontSize: textResult.fontSize,
       textScaleY: 1,
+      manualLayout,
     };
   }
 

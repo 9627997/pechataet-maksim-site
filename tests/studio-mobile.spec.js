@@ -1597,6 +1597,33 @@ test('demo sticker objects support drag positioning on create step', async ({
   );
 });
 
+test('ribbon default golden gap can be changed by dragging text', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const textZone = page.locator('.mobile-products-ribbon-text-zone');
+  const before = Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px'));
+  const box = await textZone.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 24,
+    box.y + box.height / 2,
+  );
+  await page.mouse.up();
+  await expect
+    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')))
+    .toBeGreaterThan(before + 5);
+  await expect(ribbon).toHaveAttribute(
+    'data-ribbon-logo-text-gap-px',
+    await ribbon.getAttribute('data-ribbon-repeat-gap-px'),
+  );
+});
+
 test('preview content zones do not open editors on click', async ({ page }) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const textInput = page.locator('#textInput');

@@ -2356,6 +2356,7 @@ const bootStudio = () => {
     const normalized = {
       valid: layout.valid,
       reason: layout.reason || null,
+      manualLayout: Boolean(layout.manualLayout),
       logoBox: normalizeBox(layout.logoBox),
       textBox: normalizeBox(layout.textBox),
       textScaleY: layout.textScaleY || 1,
