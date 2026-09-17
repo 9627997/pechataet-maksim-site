@@ -523,7 +523,14 @@
       // All layout measurements below must use the unscaled scene. Measuring
       // a transformed stage feeds scaled dimensions back into logo/text
       // placement and causes the scene to collapse after every zoom click.
-      if (zoomStage) zoomStage.style.setProperty('--preview-zoom', '1');
+      const previousStageTransition = zoomStage?.style.transition || '';
+      if (zoomStage) {
+        zoomStage.style.transition = 'none';
+        zoomStage.style.setProperty('--preview-zoom', '1');
+        // Force the browser to commit scale 1 before any getBoundingClientRect
+        // call below; otherwise the old CSS transition is still measurable.
+        void zoomStage.offsetWidth;
+      }
       let productStyles = {};
       try {
         productStyles = JSON.parse(
@@ -885,6 +892,7 @@
             : hasRibbonText
             ? 'text-only'
             : 'empty';
+      if (zoomStage) zoomStage.style.transition = previousStageTransition;
       syncPreviewZoom();
     };
 
