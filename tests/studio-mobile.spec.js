@@ -1618,6 +1618,23 @@ test('ribbon default golden gap can be changed by dragging text', async ({
   await expect
     .poll(async () => Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')))
     .toBeGreaterThan(before + 5);
+  const increased = Number(
+    await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
+  );
+  const movedBox = await textZone.boundingBox();
+  await page.mouse.move(
+    movedBox.x + movedBox.width / 2,
+    movedBox.y + movedBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    movedBox.x + movedBox.width / 2 - 24,
+    movedBox.y + movedBox.height / 2,
+  );
+  await page.mouse.up();
+  await expect
+    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')))
+    .toBeLessThan(increased - 5);
   await expect(ribbon).toHaveAttribute(
     'data-ribbon-logo-text-gap-px',
     await ribbon.getAttribute('data-ribbon-repeat-gap-px'),
