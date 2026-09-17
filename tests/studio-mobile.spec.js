@@ -1409,6 +1409,22 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   expect(
     await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
   ).toBe(await ribbon.getAttribute('data-ribbon-repeat-gap-px'));
+  const visualGaps = await ribbon.evaluate((surface) => {
+    const cells = [...surface.querySelectorAll('.mobile-products-ribbon-repeat-cell')];
+    const current = cells[1];
+    const next = cells[2];
+    const logo = current.querySelector('.mobile-products-ribbon-repeat-logo').getBoundingClientRect();
+    const text = current.querySelector('.mobile-products-ribbon-repeat-text').getBoundingClientRect();
+    const nextLogo = next.querySelector('.mobile-products-ribbon-repeat-logo').getBoundingClientRect();
+    return {
+      logoText: text.left - logo.right,
+      repeat: nextLogo.left - text.right,
+      expected: logo.width / 1.618,
+    };
+  });
+  expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(0.75);
+  expect(Math.abs(visualGaps.repeat - visualGaps.expected)).toBeLessThan(0.75);
+  expect(Math.abs(visualGaps.logoText - visualGaps.repeat)).toBeLessThan(0.75);
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
