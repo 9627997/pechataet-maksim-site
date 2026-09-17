@@ -1511,3 +1511,19 @@ test('full-bleed ribbon is not clipped by its hosted slot', async ({
   expect(bounds.x).toBe(0);
   expect(bounds.x + bounds.width).toBe(390);
 });
+
+test('mobile zoom controls use equal left and right insets', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const minus = page.locator('[data-preview-zoom="out"]');
+  const plus = page.locator('[data-preview-zoom="in"]');
+  const minusBounds = await minus.boundingBox();
+  const plusBounds = await plus.boundingBox();
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  expect(Math.round(minusBounds.x)).toBe(
+    Math.round(viewportWidth - (plusBounds.x + plusBounds.width)),
+  );
+});
