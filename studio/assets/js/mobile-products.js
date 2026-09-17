@@ -32,8 +32,18 @@
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
     const PREVIEW_ZOOM_MIN = 0.5;
-    const PREVIEW_ZOOM_MAX = 1.25;
+    const PREVIEW_ZOOM_MAX_RIBBON = 1.25;
     let previewZoom = 1;
+
+    const getPreviewZoomMax = () => {
+      const product = document.body.dataset.activeContentProduct || 'ribbon';
+      if (product !== 'sticker' || !stickerSurface) {
+        return PREVIEW_ZOOM_MAX_RIBBON;
+      }
+      const stickerWidth = stickerSurface.offsetWidth || 1;
+      const availableWidth = Math.max(1, window.innerWidth - 32);
+      return Math.max(PREVIEW_ZOOM_MAX_RIBBON, availableWidth / stickerWidth);
+    };
 
     const getRibbonPreviewCycleCount = () => {
       if (previewZoom <= 0.71) return 3;
@@ -43,22 +53,26 @@
 
     const syncPreviewZoom = () => {
       if (!zoomStage) return;
+      const previewZoomMax = getPreviewZoomMax();
+      previewZoom = Math.min(previewZoomMax, Math.max(PREVIEW_ZOOM_MIN, previewZoom));
       zoomStage.style.setProperty('--preview-zoom', String(previewZoom));
       zoomStage.dataset.previewZoom = String(Math.round(previewZoom * 100));
+      zoomStage.dataset.previewZoomMax = String(Math.round(previewZoomMax * 100));
       zoomStage.dataset.previewProduct =
         document.body.dataset.activeContentProduct || 'ribbon';
       zoomButtons.forEach((button) => {
         button.disabled =
           (button.dataset.previewZoom === 'out' && previewZoom <= PREVIEW_ZOOM_MIN) ||
-          (button.dataset.previewZoom === 'in' && previewZoom >= PREVIEW_ZOOM_MAX);
+          (button.dataset.previewZoom === 'in' && previewZoom >= previewZoomMax);
         button.title = `Масштаб предпросмотра: ${Math.round(previewZoom * 100)}%`;
       });
     };
 
     zoomButtons.forEach((button) => {
       button.addEventListener('click', () => {
+        const previewZoomMax = getPreviewZoomMax();
         previewZoom = Math.min(
-          PREVIEW_ZOOM_MAX,
+          previewZoomMax,
           Math.max(
             PREVIEW_ZOOM_MIN,
             previewZoom + (button.dataset.previewZoom === 'in' ? 0.1 : -0.1),
@@ -68,6 +82,7 @@
         syncStudioState();
       });
     });
+    window.addEventListener('resize', syncPreviewZoom, {passive: true});
     syncPreviewZoom();
 
     panel.dataset.presentation = 'flow';
