@@ -1368,7 +1368,7 @@ test('preview zoom controls flank the visualization and change only its scale', 
   await expect(stage).toHaveAttribute('data-preview-zoom', '100');
 });
 
-test('full preview stays sticky without compact floating mode', async ({
+test('full preview stays fixed without compact floating mode', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
@@ -1381,8 +1381,8 @@ test('full preview stays sticky without compact floating mode', async ({
 
   await expect(panel).not.toHaveClass(/is-floating/);
   await expect(panel).toHaveAttribute('data-floating', 'false');
-  await expect(nav).toHaveCSS('position', 'sticky');
-  await expect(slot).toHaveCSS('position', 'sticky');
+  await expect(nav).toHaveCSS('position', 'fixed');
+  await expect(slot).toHaveCSS('position', 'fixed');
 
   const before = await sticker.boundingBox();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
