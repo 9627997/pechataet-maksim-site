@@ -3,6 +3,7 @@
     const panel = document.querySelector('.mobile-products-panel');
     const panelSlot = document.querySelector('#mobileProductsSlot');
     const dockToggle = document.querySelector('#mobileProductsDockToggle');
+    const topbar = document.querySelector('.topbar');
     const zoomStage = panel.querySelector('[data-preview-zoom-stage]');
     const zoomButtons = [...panel.querySelectorAll('[data-preview-zoom]')];
     const panelHosts = [...document.querySelectorAll('[data-products-host]')];
@@ -959,6 +960,16 @@
 
     const updateFloatingDock = () => {
       dockFrame = null;
+      if (topbar) {
+        document.body.style.setProperty(
+          '--studio-mobile-header-height',
+          `${topbar.getBoundingClientRect().height}px`,
+        );
+      }
+      document.body.classList.toggle(
+        'studio-header-scrolled',
+        window.scrollY > 24,
+      );
       // The full preview now remains in the normal-size sticky slot. The old
       // compact floating dock is intentionally disabled to avoid a second,
       // visually identical preview during scroll.
