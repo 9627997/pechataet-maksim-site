@@ -1324,3 +1324,40 @@ test('create step places content choice below preview and keeps sticker demo def
   expect(order[0]).toBeLessThan(order[1]);
   expect(order[1]).toBeLessThan(order[2]);
 });
+
+test('preview zoom controls flank the visualization and change only its scale', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  const stage = page.locator('[data-preview-zoom-stage]');
+  const visual = page.locator('.mobile-products-ribbon-sample');
+  const minus = page.locator('[data-preview-zoom="out"]');
+  const plus = page.locator('[data-preview-zoom="in"]');
+
+  await expect(minus.locator('svg circle')).toHaveCount(1);
+  await expect(minus.locator('svg path')).toHaveAttribute(
+    'd',
+    'M19.5 19.5 27 27M9 13h8',
+  );
+  await expect(plus.locator('svg path')).toHaveAttribute(
+    'd',
+    'M19.5 19.5 27 27M9 13h8M13 9v8',
+  );
+  const initial = await stage.evaluate((element) => ({
+    scale: element.dataset.previewZoom,
+  }));
+  expect(initial.scale).toBe('100');
+  const sides = await Promise.all([minus.boundingBox(), plus.boundingBox()]);
+  const visualBounds = await visual.boundingBox();
+  expect(sides[0].x + sides[0].width).toBeLessThanOrEqual(visualBounds.x + 1);
+  expect(sides[1].x).toBeGreaterThanOrEqual(
+    visualBounds.x + visualBounds.width - 1,
+  );
+
+  await plus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '110');
+  await minus.click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '100');
+});
