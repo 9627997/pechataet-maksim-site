@@ -552,8 +552,15 @@
     color: inherit;
     font: inherit;
     padding: 0;
-    cursor: pointer;
+    cursor: grab;
     touch-action: manipulation;
+  }
+
+  .mobile-products-ribbon-logo-zone:active,
+  .mobile-products-ribbon-text-zone:active,
+  .mobile-products-sticker-logo-zone:active,
+  .mobile-products-sticker-text-zone:active {
+    cursor: grabbing;
   }
 
   .mobile-products-ribbon-logo-zone,

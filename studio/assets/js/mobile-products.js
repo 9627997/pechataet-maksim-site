@@ -120,15 +120,6 @@
       );
     };
 
-    const requestContentEdit = (product, kind) => {
-      requestContentProduct(product);
-      document.dispatchEvent(
-        new CustomEvent('studio:content-edit-request', {
-          detail: {product, kind},
-        }),
-      );
-    };
-
     const createLogoZone = (product) => {
       const zone = document.createElement('button');
       const image = document.createElement('img');
@@ -143,18 +134,6 @@
       action.dataset.placeholderKind = 'logo';
       frame.className = 'mobile-products-object-frame';
       frame.setAttribute('aria-hidden', 'true');
-      zone.addEventListener('click', () => {
-        if (zone.dataset.suppressClick === 'true') {
-          zone.dataset.suppressClick = 'false';
-          return;
-        }
-        if (panelMode === 'order') return;
-        if (panelMode === 'upload') {
-          requestContentEdit(product, 'logo');
-          return;
-        }
-        requestProductSettings(product);
-      });
       zone.append(image, action, frame);
       return { zone, image, action, frame };
     };
@@ -172,18 +151,6 @@
       action.dataset.placeholderKind = 'text';
       frame.className = 'mobile-products-object-frame';
       frame.setAttribute('aria-hidden', 'true');
-      zone.addEventListener('click', () => {
-        if (zone.dataset.suppressClick === 'true') {
-          zone.dataset.suppressClick = 'false';
-          return;
-        }
-        if (panelMode === 'order') return;
-        if (panelMode === 'upload') {
-          requestContentEdit(product, 'text');
-          return;
-        }
-        requestProductSettings(product);
-      });
       zone.append(text, action, frame);
       return { zone, text, action, frame };
     };
@@ -255,7 +222,6 @@
 
       const finishDrag = (event) => {
         if (event.pointerId !== pointerId) return;
-        if (distance >= 4) zone.dataset.suppressClick = 'true';
         zone.dataset.dragging = 'false';
         try {
           zone.releasePointerCapture(pointerId);
