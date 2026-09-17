@@ -1098,6 +1098,16 @@
     font-size: 8px;
   }
 
+  .mobile-products-panel.is-floating
+    .mobile-products-sticker-sample[data-shape='circle'] {
+    width: 58px !important;
+    height: 58px !important;
+    min-height: 58px;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 58px;
+    align-self: center;
+  }
+
   .mobile-products-panel.is-floating[data-mode='upload'] {
     max-height: none;
     overflow: hidden;
@@ -1131,18 +1141,21 @@
 
   .mobile-products-panel.is-floating[data-mode='upload']:not(.is-expanded)
     .mobile-products-switches {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 7px;
   }
 
   .mobile-products-panel.is-floating[data-mode='upload']:not(.is-expanded)
-    .mobile-products-switch {
-    display: none;
+    .mobile-products-dock-toggle {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    order: -1;
   }
 
   .mobile-products-panel.is-floating[data-mode='upload']:not(.is-expanded)
-    .mobile-products-dock-toggle {
-    grid-column: 1;
+    .mobile-products-switch {
+    display: flex;
+    grid-row: 2;
   }
 
   .mobile-products-panel.is-floating.is-expanded {
@@ -1213,6 +1226,15 @@
     font-size: 12px;
   }
 
+  .mobile-products-panel.is-floating.is-expanded
+    .mobile-products-sticker-sample[data-shape='circle'] {
+    width: 100px !important;
+    height: 100px !important;
+    min-height: 100px;
+    aspect-ratio: 1 / 1;
+    flex-basis: 100px;
+  }
+
   .mobile-products-panel.is-floating[data-mode='upload'].is-expanded
     .mobile-products-sticker-sample {
     width: var(--mobile-products-sticker-size-expanded, 112px) !important;
@@ -1260,6 +1282,19 @@
     .mobile-products-sticker-sample {
     width: 48px !important;
     font-size: 7px;
+  }
+
+  .mobile-products-panel.is-floating[data-mode='upload'].is-keyboard-compact
+    .mobile-products-sticker-sample[data-shape='circle'] {
+    width: 48px !important;
+    height: 48px !important;
+    min-height: 48px;
+    aspect-ratio: 1 / 1;
+    flex-basis: 48px;
+  }
+
+  .panel-copy {
+    display: none;
   }
 }
 
