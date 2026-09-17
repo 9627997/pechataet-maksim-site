@@ -1357,9 +1357,9 @@ test('preview zoom controls flank the visualization and change only its scale', 
   expect(initial.scale).toBe('100');
   const sides = await Promise.all([minus.boundingBox(), plus.boundingBox()]);
   const visualBounds = await visual.boundingBox();
-  expect(sides[0].x + sides[0].width).toBeLessThanOrEqual(visualBounds.x + 1);
-  expect(sides[1].x).toBeGreaterThanOrEqual(
-    visualBounds.x + visualBounds.width - 1,
+  expect(sides[0].x).toBeGreaterThanOrEqual(visualBounds.x - 1);
+  expect(sides[1].x + sides[1].width).toBeLessThanOrEqual(
+    visualBounds.x + visualBounds.width + 1,
   );
 
   await plus.click();
