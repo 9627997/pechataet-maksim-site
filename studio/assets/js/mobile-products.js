@@ -380,40 +380,45 @@
       hasText,
       font,
       print,
-      fitSingleRepeat = false,
-      singleRepeat = false,
-      previewCycleCount = 1,
     }) => {
       if (!layout) return;
       const surfaceBounds = ribbonSurface.getBoundingClientRect();
       if (surfaceBounds.width <= 0 || surfaceBounds.height <= 0) return;
 
-      const visualRepeatMm = repeatMm / Math.max(1, previewCycleCount);
-      const naturalRepeatWidth =
-        (visualRepeatMm / ribbonWidth) * surfaceBounds.height;
-      const repeatWidthScale = fitSingleRepeat
-        ? Math.min(1, surfaceBounds.width / naturalRepeatWidth)
-        : 1;
-      const repeatScale = singleRepeat ? repeatWidthScale : 1;
-      const repeatWidth = naturalRepeatWidth * repeatWidthScale;
-      const repeatHeight = surfaceBounds.height * repeatScale;
-      const repeatTop = (surfaceBounds.height - repeatHeight) / 2;
-      const centerLeft = (surfaceBounds.width - repeatWidth) / 2;
-      ribbonInteractionCell.style.left = `${centerLeft}px`;
-      ribbonInteractionCell.style.top = `${repeatTop}px`;
-      ribbonInteractionCell.style.bottom = 'auto';
+      const repeatWidth = surfaceBounds.width;
+      const repeatHeight = surfaceBounds.height;
+      const goldenGapRatio = 1 / 1.618;
+      ribbonInteractionCell.style.visibility = 'visible';
+      ribbonInteractionCell.style.opacity = '0';
+      ribbonInteractionCell.style.pointerEvents = 'auto';
+      ribbonInteractionCell.style.left = '0px';
+      ribbonInteractionCell.style.top = '0px';
       ribbonInteractionCell.style.width = `${repeatWidth}px`;
       ribbonInteractionCell.style.height = `${repeatHeight}px`;
       ribbonTrack.replaceChildren();
-
-      let firstLeft = centerLeft;
-      while (firstLeft > 0) firstLeft -= repeatWidth;
 
       const textBox = layout.valid ? layout.textBox : layout.previewTextBox;
       const visibleText = layout.valid ? textValue : layout.previewText || '';
       const fontSizeRatio = layout.valid
         ? layout.fontSizeRatio
         : layout.previewFontSizeRatio;
+      const logoWidth = layout.logoBox
+        ? Math.max(1, layout.logoBox.width * repeatWidth)
+        : 0;
+      const textWidth = textBox ? Math.max(1, textBox.width * repeatWidth) : 0;
+      const gap = logoWidth * goldenGapRatio;
+      const contentWidth =
+        hasLogo && hasText
+          ? logoWidth + gap + textWidth
+          : Math.max(logoWidth, textWidth);
+      const contentScale = Math.min(1, (repeatWidth * 0.92) / contentWidth);
+      const placedLogoWidth = logoWidth * contentScale;
+      const placedTextWidth = textWidth * contentScale;
+      const placedGap = gap * contentScale;
+      const contentStart = Math.max(
+        0,
+        (repeatWidth - (placedLogoWidth + placedGap + placedTextWidth)) / 2,
+      );
       const logoHeight = layout.logoBox?.height * repeatHeight;
       const paintedLogoRect =
         Number(logoRatio) > 0 && logoHeight > 0
@@ -426,97 +431,55 @@
               logoHeight,
             )
           : null;
-      let repeatCount = singleRepeat ? 1 : 0;
 
-      for (
-        let left = firstLeft;
-        !singleRepeat && left < surfaceBounds.width;
-        left += repeatWidth
-      ) {
-        repeatCount += 1;
-        if (Math.abs(left - centerLeft) < 0.5) continue;
-
+      for (const offset of [-1, 0, 1]) {
+        const left = offset * repeatWidth;
         const cell = document.createElement('span');
         cell.className = 'mobile-products-ribbon-repeat-cell';
         cell.style.left = `${left}px`;
-        cell.style.top = `${repeatTop}px`;
-        cell.style.bottom = 'auto';
+        cell.style.top = '0px';
         cell.style.width = `${repeatWidth}px`;
         cell.style.height = `${repeatHeight}px`;
 
-        const boxIsFullyVisible = (box) => {
-          if (!box) return false;
-          const boxLeft = left + box.x * repeatWidth;
-          const boxRight = left + (box.x + box.width) * repeatWidth;
-          return boxLeft >= 0.5 && boxRight <= surfaceBounds.width - 0.5;
-        };
-        const rectIsFullyVisible = (rect) => {
-          if (!rect) return false;
-          const rectLeft = left + rect.left;
-          const rectRight = rectLeft + rect.width;
-          return rectLeft >= 0.5 && rectRight <= surfaceBounds.width - 0.5;
-        };
-
-        if (
-          hasLogo &&
-          logoSrc &&
-          layout.logoBox &&
-          (paintedLogoRect
-            ? rectIsFullyVisible(paintedLogoRect)
-            : boxIsFullyVisible(layout.logoBox))
-        ) {
+        if (hasLogo && logoSrc && layout.logoBox) {
           const image = document.createElement('img');
-          const box = layout.logoBox;
           image.className = 'mobile-products-ribbon-repeat-logo';
           image.alt = '';
           image.src = logoSrc;
-          if (paintedLogoRect) {
-            image.style.left =
-              `${paintedLogoRect.left + paintedLogoRect.width / 2}px`;
-            image.style.top =
-              `${paintedLogoRect.top + paintedLogoRect.height / 2}px`;
-            image.style.width = `${paintedLogoRect.width}px`;
-            image.style.height = `${paintedLogoRect.height}px`;
-          } else {
-            image.style.left = `${(box.x + box.width / 2) * 100}%`;
-            image.style.top = `${(box.y + box.height / 2) * 100}%`;
-            image.style.width = `${box.width * 100}%`;
-            image.style.height = `${box.height * 100}%`;
-          }
+          image.style.left = `${contentStart + placedLogoWidth / 2}px`;
+          image.style.top = `${repeatHeight / 2}px`;
+          image.style.width = `${placedLogoWidth}px`;
+          image.style.height = `${(paintedLogoRect?.height || logoHeight) * contentScale}px`;
+          image.style.objectFit = 'contain';
           cell.appendChild(image);
         }
 
-        if (
-          hasText &&
-          visibleText &&
-          textBox &&
-          boxIsFullyVisible(textBox)
-        ) {
+        if (hasText && visibleText && textBox) {
           const text = document.createElement('span');
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
-          text.style.left = `${(textBox.x + textBox.width / 2) * 100}%`;
-          text.style.top = `${(textBox.y + textBox.height / 2) * 100}%`;
-          text.style.width = `${textBox.width * 100}%`;
-          text.style.height = `${textBox.height * 100}%`;
+          const textLeft = hasLogo
+            ? contentStart + placedLogoWidth + placedGap
+            : contentStart;
+          text.style.left = `${textLeft + placedTextWidth / 2}px`;
+          text.style.top = `${repeatHeight / 2}px`;
+          text.style.width = `${placedTextWidth}px`;
+          text.style.height = `${textBox.height * repeatHeight * contentScale}px`;
           text.style.color = print;
           text.style.fontFamily = font;
-          text.style.fontSize = `${fontSizeRatio * repeatHeight}px`;
+          text.style.fontSize = `${fontSizeRatio * repeatHeight * contentScale}px`;
           cell.appendChild(text);
         }
-
         ribbonTrack.appendChild(cell);
       }
 
-      ribbonSurface.dataset.ribbonRepeatCount = String(repeatCount);
+      ribbonSurface.dataset.ribbonRepeatCount = '3';
       ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
-      ribbonSurface.dataset.ribbonPreviewCycleCount = String(previewCycleCount);
+      ribbonSurface.dataset.ribbonPreviewCycleCount = '3';
       ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
-      ribbonSurface.dataset.ribbonRepeatScale = repeatScale.toFixed(4);
-      ribbonSurface.dataset.ribbonSingleRepeat = String(singleRepeat);
-      ribbonSurface.dataset.ribbonRepeatScaled = String(
-        repeatWidthScale < 1,
-      );
+      ribbonSurface.dataset.ribbonRepeatScale = '1';
+      ribbonSurface.dataset.ribbonSingleRepeat = 'false';
+      ribbonSurface.dataset.ribbonRepeatScaled = 'false';
     };
 
     const syncStudioState = () => {
