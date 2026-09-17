@@ -390,7 +390,7 @@
       const goldenGapRatio = 1 / 1.618;
       ribbonInteractionCell.style.visibility = 'visible';
       ribbonInteractionCell.style.opacity = '0';
-      ribbonInteractionCell.style.pointerEvents = 'none';
+      ribbonInteractionCell.style.pointerEvents = 'auto';
       ribbonInteractionCell.style.left = '0px';
       ribbonInteractionCell.style.top = '0px';
       ribbonInteractionCell.style.width = `${repeatWidth}px`;
@@ -461,7 +461,7 @@
           const textLeft = hasLogo
             ? contentStart + placedLogoWidth + placedGap
             : contentStart;
-          text.style.left = `${textLeft}px`;
+          text.style.left = `${textLeft + placedTextWidth / 2}px`;
           text.style.top = `${repeatHeight / 2}px`;
           text.style.width = `${placedTextWidth}px`;
           text.style.height = `${textBox.height * repeatHeight * contentScale}px`;

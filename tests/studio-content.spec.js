@@ -273,6 +273,13 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
       ];
       const visibleParts = [];
       const overlaps = cells.filter((cell) => {
+        const cellStyle = getComputedStyle(cell);
+        const cellBox = cell.getBoundingClientRect();
+        const isVisibleCentralCell =
+          cellStyle.opacity !== '0' &&
+          cellBox.left >= surfaceBox.left - 1 &&
+          cellBox.right <= surfaceBox.right + 1;
+        if (!isVisibleCentralCell) return false;
         const logo = cell.querySelector(
           '.mobile-products-ribbon-repeat-logo, .mobile-products-ribbon-logo-zone',
         );
