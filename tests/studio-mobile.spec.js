@@ -1236,3 +1236,34 @@ test('switching from bundle to sticker keeps the mobile sticker preview visible'
     '0px',
   );
 });
+
+test('circle sticker stays square while the sticky preview is active', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  const sticker = page.locator('.mobile-products-sticker-sample');
+  await expect(sticker).toBeVisible();
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect
+    .poll(() =>
+      sticker.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const panel = element.closest('.mobile-products-panel');
+        return {
+          floating: panel?.classList.contains('is-floating'),
+          width: rect.width,
+          height: rect.height,
+        };
+      }),
+    )
+    .toMatchObject({ floating: true });
+
+  const geometry = await sticker.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(Math.abs(geometry.width - geometry.height)).toBeLessThanOrEqual(1);
+});
