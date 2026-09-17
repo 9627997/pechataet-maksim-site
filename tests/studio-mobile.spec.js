@@ -1404,6 +1404,11 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   const minus = page.locator('[data-preview-zoom="out"]');
 
   await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await expect(ribbon).toHaveAttribute('data-ribbon-logo-text-gap-px', /\d/);
+  await expect(ribbon).toHaveAttribute('data-ribbon-repeat-gap-px', /\d/);
+  expect(
+    await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
+  ).toBe(await ribbon.getAttribute('data-ribbon-repeat-gap-px'));
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
@@ -1455,11 +1460,25 @@ test('mobile preview is frameless and ribbon base scales edge to edge', async ({
   expect(initial.right).toBeGreaterThanOrEqual(389);
 
   await page.locator('[data-preview-zoom="in"]').click();
+  await page.waitForTimeout(220);
   const zoomed = await readRibbon();
   expect(zoomed.left).toBeLessThanOrEqual(1);
   expect(zoomed.right).toBeGreaterThanOrEqual(389);
   expect(zoomed.height).toBeGreaterThan(initial.height);
   await expect(stage).toHaveAttribute('data-preview-zoom', '110');
+});
+
+test('switching order modes preserves the ribbon default print color', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', {waitUntil: 'networkidle'});
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const text = ribbon.locator('.mobile-products-ribbon-repeat-text').first();
+  await expect(text).toHaveCSS('color', 'rgb(23, 23, 23)');
+  await page.locator('[data-order-mode="sticker"]').click();
+  await page.locator('[data-order-mode="bundle"]').click();
+  await page.locator('[data-order-mode="ribbon"]').click();
+  await expect(text).toHaveCSS('color', 'rgb(23, 23, 23)');
 });
 
 test('sticker zoom max uses available mobile viewport width', async ({
@@ -1491,7 +1510,10 @@ test('ribbon preview reaches both mobile viewport edges at every zoom', async ({
     const bounds = await ribbon.boundingBox();
     expect(bounds.x).toBeLessThanOrEqual(1);
     expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(389);
-    if (await plus.isEnabled()) await plus.click();
+    if (await plus.isEnabled()) {
+      await plus.click();
+      await page.waitForTimeout(220);
+    }
   }
 });
 

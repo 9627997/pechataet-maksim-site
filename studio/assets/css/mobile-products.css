@@ -50,10 +50,6 @@
   transition: transform 160ms ease;
 }
 
-  .mobile-products-preview-stage[data-preview-product='ribbon'] {
-    transform: none;
-  }
-
 .mobile-products-dock-toggle {
   display: none;
 }
@@ -392,9 +388,9 @@
     display: grid;
     grid-template-columns: minmax(0, 42%) minmax(0, 58%);
     align-items: stretch;
-    width: calc(100% + 32px);
+    width: calc((100% + 32px) / var(--preview-zoom, 1));
     min-width: 0;
-    height: calc(var(--ribbon-base-height, 46px) * var(--preview-zoom, 1));
+    height: var(--ribbon-base-height, 46px);
     margin-inline: -16px;
     overflow: hidden;
     box-sizing: border-box;
@@ -412,7 +408,7 @@
     z-index: 1;
     overflow: visible;
     pointer-events: none;
-    transform: scale(var(--preview-zoom, 1));
+    transform: none;
     transform-origin: center;
   }
 
@@ -928,12 +924,15 @@
     .mobile-products-panel:not(.is-floating)
     .mobile-products-ribbon-sample {
     position: relative;
-    left: calc(50% - 50vw - 12px);
-    width: 100vw;
-    height: calc(46px * var(--preview-zoom, 1));
+    left: calc(
+      50% - 50vw - 12px +
+        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) +
+        ((var(--preview-zoom, 1) - 1) * 12px)
+    );
+    width: calc(100vw / var(--preview-zoom, 1));
+    height: 46px;
     min-height: 28px;
     margin-inline: 0;
-    transform: none;
     transform-origin: center;
   }
 
@@ -1017,12 +1016,11 @@
     .mobile-products-panel:not(.is-floating)
     .mobile-products-ribbon-sample {
     position:relative;
-    left:calc(50% - 50vw - 12px);
-    width:100vw;
-    height:calc(46px * var(--preview-zoom, 1));
+    left:calc(50% - 50vw - 12px + ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) + ((var(--preview-zoom, 1) - 1) * 12px));
+    width:calc(100vw / var(--preview-zoom, 1));
+    height:46px;
     min-height:28px;
     margin-inline:0;
-    transform:none;
     border-radius:0;
   }
 
@@ -1351,7 +1349,7 @@
 
   .mobile-products-panel.is-floating.is-expanded
     .mobile-products-ribbon-sample {
-    width: calc(100% + 32px);
+    width: calc((100% + 32px) / var(--preview-zoom, 1));
     margin-inline: -16px;
     border-radius: 0;
   }

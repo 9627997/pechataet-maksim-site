@@ -2657,7 +2657,6 @@ const bootStudio = () => {
     if (nextMode === 'bundle' && previousMode !== 'bundle') {
       const targetProduct = activeProduct === 'ribbon' ? 'sticker' : 'ribbon';
       copyProductContentOnce(activeProduct, targetProduct);
-      copyProductStyleOnce(activeProduct, targetProduct);
     }
     if (state.meters > 0) state.lastMeters = state.meters;
     if (state.stickerQty > 0) state.lastStickerQty = state.stickerQty;
@@ -5596,11 +5595,9 @@ const bootStudio = () => {
     if (addSticker) {
       state.stickerQty = state.lastStickerQty;
       copyProductContentOnce(sourceProduct, 'sticker');
-      copyProductStyleOnce(sourceProduct, 'sticker');
     } else {
       state.meters = state.lastMeters;
       copyProductContentOnce(sourceProduct, 'ribbon');
-      copyProductStyleOnce(sourceProduct, 'ribbon');
     }
     state.bundle = 'bundle';
     render();
