@@ -522,17 +522,40 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
 
 @media(max-width:700px){
   .main-nav{
-    position:sticky;
-    top:0;
+    position:fixed;
+    top:var(--studio-mobile-header-height,72px);
+    left:12px;
+    right:12px;
     z-index:40;
+    margin-bottom:0;
     background:#f0ece6;
   }
   .mobile-products-slot[data-hosted='true']{
-    position:sticky;
-    top:64px;
+    position:fixed;
+    top:calc(var(--studio-mobile-header-height,72px) + 64px);
+    left:12px;
+    right:12px;
     z-index:35;
     padding-block:6px 10px;
     background:#fff;
+    max-height:calc(100dvh - 64px);
+    overflow:auto;
+    pointer-events:none;
+  }
+  .mobile-products-slot[data-hosted='true'] .mobile-products-panel{
+    pointer-events:none;
+  }
+  .mobile-products-slot[data-hosted='true'] .mobile-products-panel > *{
+    pointer-events:auto;
+  }
+  .panel.active{
+    padding-top:360px;
+  }
+  body.studio-header-scrolled .main-nav{
+    top:0;
+  }
+  body.studio-header-scrolled .mobile-products-slot[data-hosted='true']{
+    top:64px;
   }
   .topbar{
     height:auto;
