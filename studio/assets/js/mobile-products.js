@@ -649,7 +649,11 @@
       );
 
       ribbonSurface.style.backgroundColor = ribbon;
-      ribbonSurface.style.height = `${(ribbonWidth / 15) * 46}px`;
+      ribbonSurface.style.setProperty(
+        '--ribbon-base-height',
+        `${(ribbonWidth / 15) * 46}px`,
+      );
+      ribbonSurface.style.removeProperty('height');
       stickerSurface.style.backgroundColor =
         document.body.dataset.stickerBg || '#ffffff';
       const ribbonGeometry =

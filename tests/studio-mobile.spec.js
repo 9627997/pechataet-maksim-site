@@ -1436,3 +1436,31 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
     });
   expect(visibleRepeatCount).toBe(3);
 });
+
+test('mobile preview is frameless and ribbon base scales edge to edge', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  const panel = page.locator('.mobile-products-panel');
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const stage = page.locator('[data-preview-zoom-stage]');
+  await expect(panel).toHaveCSS('border-style', 'none');
+
+  const readRibbon = () =>
+    ribbon.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, height: rect.height };
+    });
+  const initial = await readRibbon();
+  expect(initial.left).toBeLessThanOrEqual(1);
+  expect(initial.right).toBeGreaterThanOrEqual(389);
+
+  await page.locator('[data-preview-zoom="in"]').click();
+  const zoomed = await readRibbon();
+  expect(zoomed.left).toBeLessThanOrEqual(1);
+  expect(zoomed.right).toBeGreaterThanOrEqual(389);
+  expect(zoomed.height).toBeGreaterThan(initial.height);
+  await expect(stage).toHaveAttribute('data-preview-zoom', '110');
+});
