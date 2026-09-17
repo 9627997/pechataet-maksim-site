@@ -65,21 +65,18 @@ test('homepage entry context selects the requested Studio product @smoke', async
   const cases = [
     {
       query: 'product=ribbon',
-      banner: 'Вы создаёте макет ленты.',
       inputLabel: 'Надпись на ленте',
       ribbon: true,
       sticker: false,
     },
     {
       query: 'product=sticker',
-      banner: 'Вы создаёте макет стикера.',
       inputLabel: 'Надпись на стикере',
       ribbon: false,
       sticker: true,
     },
     {
       query: 'product=set&material=satin',
-      banner: 'Вы создаёте комплект ленты и стикеров. Материал: сатин.',
       inputLabel: 'Надпись на ленте',
       ribbon: true,
       sticker: true,
@@ -88,10 +85,7 @@ test('homepage entry context selects the requested Studio product @smoke', async
 
   for (const entry of cases) {
     await page.goto(`/studio/?${entry.query}`, { waitUntil: 'networkidle' });
-    await expect(page.locator('#studioEntryContext')).toBeVisible();
-    await expect(page.locator('#studioEntryContextText')).toContainText(
-      entry.banner,
-    );
+    await expect(page.locator('#studioEntryContext')).toHaveCount(0);
     await expect(page.locator('#textInputLabel')).toHaveText(entry.inputLabel);
     await expect(page.locator('[data-mobile-product="ribbon"]')).toBeChecked({
       checked: entry.ribbon,
@@ -102,10 +96,7 @@ test('homepage entry context selects the requested Studio product @smoke', async
   }
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
-  await expect(page.locator('#studioEntryContext')).toBeVisible();
-  await expect(page.locator('#studioEntryContextText')).toContainText(
-    'Вы создаёте комплект ленты и стикеров.',
-  );
+  await expect(page.locator('#studioEntryContext')).toHaveCount(0);
   await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
 
   if (testInfo.project.name === 'desktop') {
