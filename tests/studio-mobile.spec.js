@@ -1464,3 +1464,36 @@ test('mobile preview is frameless and ribbon base scales edge to edge', async ({
   expect(zoomed.height).toBeGreaterThan(initial.height);
   await expect(stage).toHaveAttribute('data-preview-zoom', '110');
 });
+
+test('sticker zoom max uses available mobile viewport width', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
+  const stage = page.locator('[data-preview-zoom-stage]');
+  const sticker = page.locator('.mobile-products-sticker-sample');
+  const maxZoom = Number(await stage.getAttribute('data-preview-zoom-max'));
+  const stickerWidth = (await sticker.boundingBox()).width;
+  expect(maxZoom).toBeGreaterThan(125);
+  expect(maxZoom).toBeGreaterThanOrEqual(
+    Math.round(((390 - 32) / stickerWidth) * 100) - 2,
+  );
+  await expect(page.locator('[data-preview-zoom="in"]')).toBeEnabled();
+});
+
+test('ribbon preview reaches both mobile viewport edges at every zoom', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const plus = page.locator('[data-preview-zoom="in"]');
+  for (let i = 0; i < 3; i += 1) {
+    const bounds = await ribbon.boundingBox();
+    expect(bounds.x).toBeLessThanOrEqual(1);
+    expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(389);
+    if (await plus.isEnabled()) await plus.click();
+  }
+});
