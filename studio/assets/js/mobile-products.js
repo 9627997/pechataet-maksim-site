@@ -66,19 +66,21 @@
               bottom = Math.max(bottom, y);
             }
           }
+          const ratio = image.naturalWidth / Math.max(image.naturalHeight, 1);
           logoInkCache.set(src, right < left
-            ? {left: 0, right: 1, width: 1}
+            ? {left: 0, right: 1, width: 1, ratio}
             : {
                 left: left / size,
                 right: (right + 1) / size,
                 width: (right + 1 - left) / size,
+                ratio,
               });
           requestAnimationFrame(() => syncStudioState());
         } catch {
-          logoInkCache.set(src, {left: 0, right: 1, width: 1});
+          logoInkCache.set(src, {left: 0, right: 1, width: 1, ratio: 1});
         }
       };
-      image.onerror = () => logoInkCache.set(src, {left: 0, right: 1, width: 1});
+      image.onerror = () => logoInkCache.set(src, {left: 0, right: 1, width: 1, ratio: 1});
       image.src = src;
     };
 
@@ -460,14 +462,19 @@
         ? Math.max(1, layout.logoBox.width * repeatWidth)
         : 0;
       const logoHeight = layout.logoBox?.height * repeatHeight;
+      const sourceLogoRatio = Number(logoRatio) > 0
+        ? Number(logoRatio)
+        : Number(ink?.ratio) > 0
+          ? Number(ink.ratio)
+          : 0;
       const paintedLogoRect =
-        Number(logoRatio) > 0 && logoHeight > 0
+        sourceLogoRatio > 0 && logoHeight > 0
           ? getPaintedRect(
               layout,
               layout.logoBox,
               repeatWidth,
               repeatHeight,
-              logoHeight * Number(logoRatio),
+              logoHeight * sourceLogoRatio,
               logoHeight,
             )
           : null;
