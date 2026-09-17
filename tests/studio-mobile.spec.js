@@ -1316,3 +1316,37 @@ test('mobile top controls stay above the step navigation', async ({
   expect(geometry.modeTop).toBeGreaterThanOrEqual(0);
   expect(geometry.navTop).toBeGreaterThanOrEqual(geometry.modeBottom - 1);
 });
+
+test('create step places content choice below preview and keeps sticker demo defaults', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await page
+    .locator('#contentProductChoice [data-content-product="sticker"]')
+    .click();
+
+  await expect(page.locator('#previewContextTitle')).toBeHidden();
+  await expect(page.locator('#panel-upload .panel-head h2')).toBeHidden();
+  await expect(
+    page.locator('.mobile-products-sticker .mobile-products-sample-label'),
+  ).toHaveText('Стикер 24 мм');
+  await expect(page.locator('.mobile-products-sticker-text')).toContainText(
+    'Печатает Максим',
+  );
+  await expect(page.locator('.mobile-products-sticker-logo')).toBeVisible();
+
+  const order = await page.evaluate(() =>
+    [
+      '.mobile-products-switches',
+      '.mobile-products-preview',
+      '.content-product-editor-host-mobile',
+    ].map(
+      (selector) =>
+        document.querySelector(selector).getBoundingClientRect().top,
+    ),
+  );
+  expect(order[0]).toBeLessThan(order[1]);
+  expect(order[1]).toBeLessThan(order[2]);
+});

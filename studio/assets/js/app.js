@@ -4384,12 +4384,20 @@ const bootStudio = () => {
   });
 
   document.addEventListener('studio:content-product-change', (event) => {
-    setActiveContentProduct(event.detail?.product);
+    const product = event.detail?.product;
+    if (product === 'sticker' && state.productFirstMode && isDemoPreviewActive()) {
+      applyStickerCreateDefaults();
+    }
+    setActiveContentProduct(product);
   });
 
   $$('#contentProductChoice [data-content-product]').forEach((button) => {
     button.addEventListener('click', () => {
-      setActiveContentProduct(button.dataset.contentProduct);
+      const product = button.dataset.contentProduct;
+      if (product === 'sticker' && state.productFirstMode && isDemoPreviewActive()) {
+        applyStickerCreateDefaults();
+      }
+      setActiveContentProduct(product);
     });
   });
 

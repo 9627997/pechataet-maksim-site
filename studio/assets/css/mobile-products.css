@@ -15,6 +15,31 @@
 }
 
 @media (max-width: 700px) {
+  body[data-active-panel='upload'] .panel-head h2 {
+    display: none;
+  }
+
+  body[data-active-panel='upload'] .mobile-products-preview-context {
+    display: none;
+  }
+
+  body[data-active-panel='upload'] .mobile-products-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body[data-active-panel='upload'] .mobile-products-switches {
+    order: 1;
+  }
+
+  body[data-active-panel='upload'] .mobile-products-preview {
+    order: 2;
+  }
+
+  body[data-active-panel='upload'] .content-product-editor-host-mobile {
+    order: 3;
+  }
+
   .mobile-text-editor:not([hidden]) {
     position: fixed;
     inset: 0;
