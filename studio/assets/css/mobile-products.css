@@ -921,12 +921,12 @@
     .mobile-products-panel:not(.is-floating)
     .mobile-products-ribbon-sample {
     position: relative;
-    left: calc(50% - 12px);
+    left: calc(50% - 50vw - 12px);
     width: 100vw;
     height: calc(46px * var(--preview-zoom, 1));
     min-height: 28px;
     margin-inline: 0;
-    transform: translateX(-50%);
+    transform: none;
     transform-origin: center;
   }
 
@@ -1010,12 +1010,12 @@
     .mobile-products-panel:not(.is-floating)
     .mobile-products-ribbon-sample {
     position:relative;
-    left:calc(50% - 12px);
+    left:calc(50% - 50vw - 12px);
     width:100vw;
     height:calc(46px * var(--preview-zoom, 1));
     min-height:28px;
     margin-inline:0;
-    transform:translateX(-50%);
+    transform:none;
     border-radius:0;
   }
 
