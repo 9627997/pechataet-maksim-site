@@ -26,6 +26,15 @@ const bootStudio = () => {
   const MAX_RIBBON_REPEAT_MM = 250;
   const GOLDEN_RATIO = 1.618;
   const REPEAT_ROUNDING_MM = 5;
+  const RIBBON_REPEAT_PX_PER_MM = 6.2;
+  const RIBBON_REPEAT_WIDTH_FLOOR_PX = 360;
+  // Below this, repeatMm * RIBBON_REPEAT_PX_PER_MM would be clamped up to
+  // RIBBON_REPEAT_WIDTH_FLOOR_PX, breaking the linear mm<->px relationship
+  // that the auto-repeat centering math (and its mm-based consumers) rely
+  // on. The manual repeatMm slider can still go below this; only the
+  // *automatic* calculation avoids landing here.
+  const MIN_UNFLOORED_REPEAT_MM =
+    RIBBON_REPEAT_WIDTH_FLOOR_PX / RIBBON_REPEAT_PX_PER_MM;
   const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
   const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
@@ -1640,7 +1649,10 @@ const bootStudio = () => {
     const style = getProductStyle('ribbon');
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
-    const repeatWidth = Math.max(360, repeatMm * 6.2);
+    const repeatWidth = Math.max(
+      RIBBON_REPEAT_WIDTH_FLOOR_PX,
+      repeatMm * RIBBON_REPEAT_PX_PER_MM,
+    );
     let layoutRepeatMm = repeatMm;
     let layoutWidth = repeatWidth;
     let layoutX = 0;
@@ -1655,14 +1667,18 @@ const bootStudio = () => {
         Math.ceil(
           Math.max(
             MIN_RIBBON_REPEAT_MM,
-            natural.widthMm + natural.widthMm / GOLDEN_RATIO,
+            MIN_UNFLOORED_REPEAT_MM,
+            natural.widthMm + getRibbonRepeatGapMm(natural),
           ) / REPEAT_ROUNDING_MM,
         ) * REPEAT_ROUNDING_MM,
       );
       layoutRepeatMm = Math.min(repeatMm, naturalRepeatMm);
       layoutWidth = Math.min(
         repeatWidth,
-        Math.max(360, layoutRepeatMm * 6.2),
+        Math.max(
+          RIBBON_REPEAT_WIDTH_FLOOR_PX,
+          layoutRepeatMm * RIBBON_REPEAT_PX_PER_MM,
+        ),
       );
       layoutX = (repeatWidth - layoutWidth) / 2;
     }
@@ -1737,13 +1753,7 @@ const bootStudio = () => {
     const logoWidthMm = hasLogo
       ? printableHeightMm * logoRatio * effectiveLogoScale
       : 0;
-    const internalGapMm =
-      hasLogo && hasText
-        ? Math.max(
-            PRINT_MARGIN_MM,
-            Math.min(8, (logoWidthMm + textWidthMm) * 0.04),
-          )
-        : 0;
+    const internalGapMm = hasLogo && hasText ? logoWidthMm / GOLDEN_RATIO : 0;
 
     return {
       widthMm: logoWidthMm + textWidthMm + internalGapMm,
@@ -1761,6 +1771,16 @@ const bootStudio = () => {
     };
   }
 
+  // The gap after the last element of a repeat (before the next repeat
+  // starts) uses the same logoWidth / GOLDEN_RATIO rule as the internal
+  // logo<->text gap whenever a logo is present; text-only content has no
+  // logo width to base it on, so it falls back to its own natural width.
+  function getRibbonRepeatGapMm(natural) {
+    return natural.source === 'composition'
+      ? natural.logoWidthMm / GOLDEN_RATIO
+      : natural.widthMm / GOLDEN_RATIO;
+  }
+
   function calculateAutomaticRibbonRepeat() {
     const text = getPreviewText('ribbon').trim();
     const resolvedLogo = getPreviewLogo('ribbon');
@@ -1774,11 +1794,15 @@ const bootStudio = () => {
       resolvedLogo,
       textMetrics,
     );
-    const goldenGapMm = content.widthMm / GOLDEN_RATIO;
+    const goldenGapMm = getRibbonRepeatGapMm(content);
     const desiredRepeatMm = content.widthMm + goldenGapMm;
     let repeatMm =
       Math.ceil(
-        Math.max(MIN_RIBBON_REPEAT_MM, desiredRepeatMm) / REPEAT_ROUNDING_MM,
+        Math.max(
+          MIN_RIBBON_REPEAT_MM,
+          MIN_UNFLOORED_REPEAT_MM,
+          desiredRepeatMm,
+        ) / REPEAT_ROUNDING_MM,
       ) * REPEAT_ROUNDING_MM;
     repeatMm = Math.min(MAX_RIBBON_REPEAT_MM, repeatMm);
 
@@ -1808,6 +1832,7 @@ const bootStudio = () => {
     document.body.dataset.ribbonRepeatMode = state.repeatMode;
     document.body.dataset.ribbonRepeatSource = automatic.source;
     document.body.dataset.ribbonContentWidthMm = automatic.widthMm.toFixed(2);
+    document.body.dataset.ribbonLogoWidthMm = automatic.logoWidthMm.toFixed(2);
     document.body.dataset.ribbonGoldenGapMm = automatic.goldenGapMm.toFixed(2);
     document.body.dataset.ribbonRepeatGapMm = actualGapMm.toFixed(2);
     document.body.dataset.ribbonRepeatMm = String(state.repeatMm);
@@ -1824,7 +1849,9 @@ const bootStudio = () => {
       hint.textContent =
         automatic.source === 'empty'
           ? 'Минимальный шаг до добавления логотипа или надписи.'
-          : `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина композиции ÷ 1,618.`;
+          : automatic.source === 'text'
+            ? `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина текста ÷ 1,618.`
+            : `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина логотипа ÷ 1,618.`;
     }
   }
 
@@ -1992,13 +2019,17 @@ const bootStudio = () => {
     const resolvedText = getResolvedText('ribbon').trim();
     const previewTextValue = getPreviewText('ribbon');
     const textMetrics = getTextMetrics(resolvedText, 'ribbon');
+    // Always center the natural-sized composition inside the chosen repeat
+    // step. Otherwise auto mode stretches content to fill the full repeat
+    // width while manual mode keeps it at natural size, and the two paths
+    // can each round differently and drift apart as repeatMm changes.
     const ribbonLayout = addRibbonOverflow(
       calculateRibbonLayout(
         state.repeatMm,
         resolvedText,
         resolvedLogo,
         textMetrics,
-        state.repeatMode === 'manual',
+        true,
       ),
       resolvedText,
       resolvedLogo,
@@ -2019,7 +2050,7 @@ const bootStudio = () => {
             previewTextValue,
             previewLogo,
             previewTextMetrics,
-            state.repeatMode === 'manual',
+            true,
           ),
           previewTextValue,
           previewLogo,
