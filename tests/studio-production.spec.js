@@ -882,19 +882,32 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       source: document.body.dataset.ribbonRepeatSource,
       mode: document.body.dataset.ribbonRepeatMode,
       contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
+      logoWidthMm: Number(document.body.dataset.ribbonLogoWidthMm),
       goldenGapMm: Number(document.body.dataset.ribbonGoldenGapMm),
     }));
   const expectGoldenRepeat = async (source) => {
     const result = await readRepeat();
+    // The gap between repeats is logoWidth / 1.618 whenever a logo is
+    // present (logo-only or logo+text); text-only ribbons fall back to
+    // textWidth / 1.618, since there is no logo width to base it on.
+    const expectedGoldenGapMm =
+      source === 'text'
+        ? result.contentWidthMm / 1.618
+        : result.logoWidthMm / 1.618;
+    // Below ~58.06mm the ribbon's outer width hits a 360px floor, breaking
+    // the linear mm<->px relationship the centering math relies on; the
+    // automatic calculation stays above that threshold so it never lands
+    // there (see MIN_UNFLOORED_REPEAT_MM in app.js).
+    const minUnflooredRepeatMm = 360 / 6.2;
     const expected = Math.min(
       250,
       Math.ceil(
-        Math.max(40, result.contentWidthMm + result.contentWidthMm / 1.618) / 5,
+        Math.max(40, minUnflooredRepeatMm, result.contentWidthMm + expectedGoldenGapMm) / 5,
       ) * 5,
     );
     expect(result.source).toBe(source);
     expect(result.mode).toBe('auto');
-    expect(result.goldenGapMm).toBeCloseTo(result.contentWidthMm / 1.618, 1);
+    expect(result.goldenGapMm).toBeCloseTo(expectedGoldenGapMm, 1);
     expect(result.repeatMm).toBe(expected);
     await expect(page.locator('#repeatMm')).toHaveValue(String(expected));
     return result;
@@ -913,18 +926,32 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       'data-ribbon-repeat-mm',
       String(textRepeat.repeatMm),
     );
+    // The live scene keeps three repeat cells mounted at all times (left/
+    // center/right) so zooming and panning never trigger a re-render; the
+    // side cells are intentionally allowed to sit partly or fully outside
+    // the visible surface. Only the cell with the most overlap with the
+    // surface is the one a shopper actually sees, so that is the one that
+    // must render as a whole, uncropped repeat.
     const repeatTextIsWhole = await ribbon
       .locator('.mobile-products-ribbon-repeat-text')
       .evaluateAll(
         (elements, surface) => {
           const bounds = surface.getBoundingClientRect();
-          return elements.every((element) => {
-            const textBounds = element.getBoundingClientRect();
-            return (
-              textBounds.left >= bounds.left - 0.5 &&
-              textBounds.right <= bounds.right + 0.5
+          const overlapWidth = (rect) =>
+            Math.max(
+              0,
+              Math.min(rect.right, bounds.right) -
+                Math.max(rect.left, bounds.left),
             );
-          });
+          const visible = elements
+            .map((element) => element.getBoundingClientRect())
+            .reduce((best, rect) =>
+              overlapWidth(rect) > overlapWidth(best) ? rect : best,
+            );
+          return (
+            visible.left >= bounds.left - 0.5 &&
+            visible.right <= bounds.right + 0.5
+          );
         },
         await ribbon.elementHandle(),
       );
@@ -1022,6 +1049,9 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       )
       .toBeGreaterThan(1);
   }
+
+  await page.locator('#textInput').fill('МАКСИМ');
+  await expectGoldenRepeat('composition');
 
   await expectNoHorizontalOverflow(page);
 });

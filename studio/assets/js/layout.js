@@ -1,5 +1,6 @@
 (() => {
   const MIN_PRINT_FONT_SIZE = 10;
+  const GOLDEN_RATIO = 1.618;
 
   function fitTextToArea({
     text,
@@ -103,19 +104,21 @@
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
 
     if (hasLogo && hasText) {
-      const gap = Math.max(1, bounds.width * 0.04);
       const minimumTextWidth = Math.max(
         1,
         textMetrics.widthPerSize * minFontSize,
       );
+      // The gap is defined as logoWidth / GOLDEN_RATIO, so logoWidth and gap
+      // grow together; cap logoWidth so a minimum-width text still fits.
       const maximumLogoWidth = Math.max(
         1,
-        bounds.width - gap - minimumTextWidth,
+        (bounds.width - minimumTextWidth) / (1 + 1 / GOLDEN_RATIO),
       );
       const logoWidth = Math.min(
         maximumLogoWidth,
         logo.ratio * bounds.height,
       );
+      const gap = Math.max(1, logoWidth / GOLDEN_RATIO);
       const textWidth = Math.max(1, bounds.width - logoWidth - gap);
       const logoBounds = {...bounds, width: logoWidth};
       const source = logo.ratio >= 1
