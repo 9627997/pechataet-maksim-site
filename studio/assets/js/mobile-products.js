@@ -482,12 +482,18 @@
       const inkLogoWidth = paintedLogoWidth * (ink?.width || 1);
       const textWidth = textBox ? Math.max(1, textBox.width * repeatWidth) : 0;
       const gap = inkLogoWidth * goldenGapRatio;
+      // With only one element present there is no logo<->text gap to
+      // measure, but the repeat-to-repeat gap still applies, sized off
+      // whichever single element is there.
+      const singleElementGap = (hasLogo ? inkLogoWidth : textWidth) * goldenGapRatio;
       const contentWidth =
         hasLogo && hasText
           ? inkLogoWidth + gap + textWidth
           : Math.max(logoWidth, textWidth);
       const repeatPitch =
-        hasLogo && hasText ? contentWidth + gap : contentWidth;
+        hasLogo && hasText
+          ? contentWidth + gap
+          : contentWidth + singleElementGap;
       const contentScale = Math.min(1, (repeatWidth * 0.92) / repeatPitch);
       const placedLogoWidth = paintedLogoWidth * contentScale;
       const placedInkLogoWidth = inkLogoWidth * contentScale;
@@ -504,21 +510,29 @@
       const manualGap = hasManualRibbonGapDelta && hasLogo && hasText
         ? Math.max(0, placedInkLogoWidth / 1.618 + manualRibbonGapDeltaPx)
         : layoutGap;
+      const placedSingleElementGap =
+        (hasLogo ? placedInkLogoWidth : placedTextWidth) / 1.618;
       const placedGap = hasLogo && hasText
         ? manualGap ?? placedInkLogoWidth / 1.618
-        : 0;
+        : placedSingleElementGap;
       const placedPitch = hasLogo && hasText
         ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
-        : Math.max(placedLogoWidth, placedTextWidth);
+        : Math.max(placedLogoWidth, placedTextWidth) + placedGap;
       const sceneWidth = placedPitch * 3;
       ribbonTrack.style.left = '50%';
       ribbonTrack.style.right = 'auto';
       ribbonTrack.style.width = `${sceneWidth}px`;
       ribbonTrack.style.height = `${repeatHeight}px`;
       ribbonTrack.style.transform = 'translateX(-50%)';
+      // Each cell tiles at a `placedPitch` step inside a track that the CSS
+      // transform above already centers as a whole. placedPitch = content +
+      // one trailing gap, so nudging content forward by half that gap
+      // (rather than starting flush at 0, or centering against the full,
+      // much wider `repeatWidth`) puts the middle cell's content exactly on
+      // the scene's true center for any content size.
       const visibleLogoStart = layout.manualLayout && hasLogo
         ? layout.logoBox.x * repeatWidth + placedLogoWidth * inkLeftRatio
-        : Math.max(0, (repeatWidth - placedPitch) / 2);
+        : placedGap / 2;
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonSceneWidthPx = sceneWidth.toFixed(2);
