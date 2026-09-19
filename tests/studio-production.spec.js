@@ -894,16 +894,14 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       source === 'text'
         ? result.contentWidthMm / 1.618
         : result.logoWidthMm / 1.618;
-    // Below ~58.06mm the ribbon's outer width hits a 360px floor, breaking
-    // the linear mm<->px relationship the centering math relies on; the
-    // automatic calculation stays above that threshold so it never lands
-    // there (see MIN_UNFLOORED_REPEAT_MM in app.js).
-    const minUnflooredRepeatMm = 360 / 6.2;
+    // No artificial minimum beyond the 5mm rounding step itself: the
+    // automatic repeat is purely content.widthMm + the golden gap.
     const expected = Math.min(
       250,
-      Math.ceil(
-        Math.max(40, minUnflooredRepeatMm, result.contentWidthMm + expectedGoldenGapMm) / 5,
-      ) * 5,
+      Math.max(
+        5,
+        Math.ceil((result.contentWidthMm + expectedGoldenGapMm) / 5) * 5,
+      ),
     );
     expect(result.source).toBe(source);
     expect(result.mode).toBe('auto');
