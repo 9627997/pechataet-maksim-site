@@ -22,19 +22,13 @@ const bootStudio = () => {
   const DEMO_TEXT = 'ленты по любви';
   const STICKER_DEMO_TEXT = 'Печатает Максим';
   const DEMO_FONT = 'Comfortaa';
-  const MIN_RIBBON_REPEAT_MM = 40;
+  const REPEAT_ROUNDING_MM = 5;
+  // The repeat step has no design-level minimum beyond the rounding step
+  // itself; it is driven purely by content size and the golden-ratio gap.
+  const MIN_RIBBON_REPEAT_MM = REPEAT_ROUNDING_MM;
   const MAX_RIBBON_REPEAT_MM = 250;
   const GOLDEN_RATIO = 1.618;
-  const REPEAT_ROUNDING_MM = 5;
   const RIBBON_REPEAT_PX_PER_MM = 6.2;
-  const RIBBON_REPEAT_WIDTH_FLOOR_PX = 360;
-  // Below this, repeatMm * RIBBON_REPEAT_PX_PER_MM would be clamped up to
-  // RIBBON_REPEAT_WIDTH_FLOOR_PX, breaking the linear mm<->px relationship
-  // that the auto-repeat centering math (and its mm-based consumers) rely
-  // on. The manual repeatMm slider can still go below this; only the
-  // *automatic* calculation avoids landing here.
-  const MIN_UNFLOORED_REPEAT_MM =
-    RIBBON_REPEAT_WIDTH_FLOOR_PX / RIBBON_REPEAT_PX_PER_MM;
   const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
   const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
@@ -1649,10 +1643,7 @@ const bootStudio = () => {
     const style = getProductStyle('ribbon');
     const height = state.width === 15 ? 76 : 100;
     const y = 130 - height / 2;
-    const repeatWidth = Math.max(
-      RIBBON_REPEAT_WIDTH_FLOOR_PX,
-      repeatMm * RIBBON_REPEAT_PX_PER_MM,
-    );
+    const repeatWidth = repeatMm * RIBBON_REPEAT_PX_PER_MM;
     let layoutRepeatMm = repeatMm;
     let layoutWidth = repeatWidth;
     let layoutX = 0;
@@ -1664,21 +1655,18 @@ const bootStudio = () => {
       );
       const naturalRepeatMm = Math.min(
         MAX_RIBBON_REPEAT_MM,
-        Math.ceil(
-          Math.max(
-            MIN_RIBBON_REPEAT_MM,
-            MIN_UNFLOORED_REPEAT_MM,
-            natural.widthMm + getRibbonRepeatGapMm(natural),
-          ) / REPEAT_ROUNDING_MM,
-        ) * REPEAT_ROUNDING_MM,
+        Math.max(
+          REPEAT_ROUNDING_MM,
+          Math.ceil(
+            (natural.widthMm + getRibbonRepeatGapMm(natural)) /
+              REPEAT_ROUNDING_MM,
+          ) * REPEAT_ROUNDING_MM,
+        ),
       );
       layoutRepeatMm = Math.min(repeatMm, naturalRepeatMm);
       layoutWidth = Math.min(
         repeatWidth,
-        Math.max(
-          RIBBON_REPEAT_WIDTH_FLOOR_PX,
-          layoutRepeatMm * RIBBON_REPEAT_PX_PER_MM,
-        ),
+        layoutRepeatMm * RIBBON_REPEAT_PX_PER_MM,
       );
       layoutX = (repeatWidth - layoutWidth) / 2;
     }
@@ -1796,14 +1784,10 @@ const bootStudio = () => {
     );
     const goldenGapMm = getRibbonRepeatGapMm(content);
     const desiredRepeatMm = content.widthMm + goldenGapMm;
-    let repeatMm =
-      Math.ceil(
-        Math.max(
-          MIN_RIBBON_REPEAT_MM,
-          MIN_UNFLOORED_REPEAT_MM,
-          desiredRepeatMm,
-        ) / REPEAT_ROUNDING_MM,
-      ) * REPEAT_ROUNDING_MM;
+    let repeatMm = Math.max(
+      REPEAT_ROUNDING_MM,
+      Math.ceil(desiredRepeatMm / REPEAT_ROUNDING_MM) * REPEAT_ROUNDING_MM,
+    );
     repeatMm = Math.min(MAX_RIBBON_REPEAT_MM, repeatMm);
 
     while (
