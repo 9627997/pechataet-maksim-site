@@ -894,20 +894,28 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       source === 'text'
         ? result.contentWidthMm / 1.618
         : result.logoWidthMm / 1.618;
-    // No artificial minimum beyond the 5mm rounding step itself: the
-    // automatic repeat is purely content.widthMm + the golden gap.
+    // Auto mode no longer rounds up to a 5mm print grid: the repeat step
+    // is exactly content width + the golden gap, so the repeat-to-repeat
+    // gap matches the logo<->text gap instead of being inflated by
+    // rounding slop. contentWidthMm/goldenGapMm come from dataset strings
+    // rounded to 2 decimals for display, so compare with a tolerance
+    // rather than exact equality.
     const expected = Math.min(
       250,
-      Math.max(
-        5,
-        Math.ceil((result.contentWidthMm + expectedGoldenGapMm) / 5) * 5,
-      ),
+      Math.max(5, result.contentWidthMm + expectedGoldenGapMm),
     );
     expect(result.source).toBe(source);
     expect(result.mode).toBe('auto');
     expect(result.goldenGapMm).toBeCloseTo(expectedGoldenGapMm, 1);
-    expect(result.repeatMm).toBe(expected);
-    await expect(page.locator('#repeatMm')).toHaveValue(String(expected));
+    expect(result.repeatMm).toBeCloseTo(expected, 1);
+    // The slider itself has step="5" for comfortable manual dragging, so
+    // the browser's own value-sanitization snaps whatever exact value we
+    // assign to the nearest 5mm tick — that snap is native <input
+    // type="range"> behavior, not something this fix controls. Geometry
+    // always uses the precise state.repeatMm checked above; the slider
+    // only needs to land within one tick of it.
+    const sliderValue = Number(await page.locator('#repeatMm').inputValue());
+    expect(Math.abs(sliderValue - expected)).toBeLessThanOrEqual(5);
     return result;
   };
 

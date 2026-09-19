@@ -1784,11 +1784,14 @@ const bootStudio = () => {
     );
     const goldenGapMm = getRibbonRepeatGapMm(content);
     const desiredRepeatMm = content.widthMm + goldenGapMm;
-    let repeatMm = Math.max(
-      REPEAT_ROUNDING_MM,
-      Math.ceil(desiredRepeatMm / REPEAT_ROUNDING_MM) * REPEAT_ROUNDING_MM,
+    // Auto mode keeps the exact desired distance instead of rounding up to
+    // a 5 mm print grid, so the repeat-to-repeat gap matches the logo<->text
+    // gap exactly (rounding here used to inflate only the repeat gap, never
+    // the internal one, making the two visibly different).
+    let repeatMm = Math.min(
+      MAX_RIBBON_REPEAT_MM,
+      Math.max(MIN_RIBBON_REPEAT_MM, desiredRepeatMm),
     );
-    repeatMm = Math.min(MAX_RIBBON_REPEAT_MM, repeatMm);
 
     while (
       repeatMm < MAX_RIBBON_REPEAT_MM &&
@@ -1826,8 +1829,12 @@ const bootStudio = () => {
     const hint = $('#repeatHint');
     if (input) input.value = state.repeatMm;
     if (mode) {
+      const displayRepeatMm =
+        state.repeatMode === 'auto'
+          ? Math.round(state.repeatMm)
+          : state.repeatMm;
       mode.textContent =
-        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · ${state.repeatMm} мм`;
+        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · ${displayRepeatMm} мм`;
     }
     if (hint) {
       hint.textContent =
