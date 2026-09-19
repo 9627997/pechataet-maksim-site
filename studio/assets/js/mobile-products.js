@@ -701,7 +701,11 @@
       const stickerHeightMm = Number(document.body.dataset.stickerHeightMm) || stickerWidthMm;
       const stickerDisplaySize = document.body.dataset.stickerDisplaySize || `Ø${stickerWidthMm} мм`;
       const stickerSize = stickerWidthMm;
-      const repeatMm = Number(document.querySelector('#repeatMm')?.value) || 100;
+      // Read the precise value app.js publishes rather than the #repeatMm
+      // slider's own .value: <input type="range" step="5"> silently snaps
+      // whatever is assigned to it to the nearest step, which would round
+      // away the exact (unrounded) auto-mode repeat distance.
+      const repeatMm = Number(document.body.dataset.ribbonRepeatMm) || 100;
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
       const getProductionLogoSource = (selector) => {
