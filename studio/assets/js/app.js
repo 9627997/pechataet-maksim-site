@@ -4346,6 +4346,28 @@ const bootStudio = () => {
     element instanceof Element &&
     Boolean(element.closest(printGuideEditingSelector));
 
+  // Pinch/scroll gestures are reserved for future in-editor content controls.
+  // Native page zoom is disabled everywhere except the bottom step CTA
+  // (see the matching touch-action rules in app.css), so trackpad zoom
+  // (Ctrl+wheel in Chrome/Firefox, gesture* events in Safari) must be
+  // blocked the same way — touch-action has no effect on non-touch input.
+  const ZOOM_SAFE_SELECTOR = '.button.primary.wide';
+  const isInZoomSafeZone = (element) =>
+    element instanceof Element && Boolean(element.closest(ZOOM_SAFE_SELECTOR));
+
+  document.addEventListener(
+    'wheel',
+    (event) => {
+      if (event.ctrlKey && !isInZoomSafeZone(event.target)) event.preventDefault();
+    },
+    {passive: false}
+  );
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
+    document.addEventListener(type, (event) => {
+      if (!isInZoomSafeZone(event.target)) event.preventDefault();
+    });
+  });
+
   document.addEventListener('focusin', (event) => {
     if (isPrintGuideEditor(event.target)) setPrintGuidesEditing(true);
   });

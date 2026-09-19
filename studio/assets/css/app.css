@@ -2358,3 +2358,21 @@ body:not(.product-first-mode) #stickerProductPicker,body[data-primary-product="r
   .sticker-product-option .sticker-product-shape{width:23px;height:23px}
   .sticker-product-option .sticker-product-shape-roundrect{height:14px}
 }
+
+/* Page pinch-zoom is disabled everywhere so the gesture stays free for
+   in-editor content controls, except on the bottom step CTA button
+   (continue/order buttons), which stays a deliberate zoom-safe zone.
+   touch-action is the intersection of an element's value with ALL its
+   ancestors' values, so it can only be tightened going down the tree,
+   never loosened again below a restricted ancestor. That means body,
+   .app-shell, .sidebar and .panel (every ancestor of the CTA button)
+   must stay untouched here — the restriction is applied only to their
+   OTHER children, never to the ancestor chain the button lives in. */
+header.topbar,
+#productFirstChoice,
+.sidebar>.main-nav,
+.sidebar>.mobile-products-slot,
+.panel>*:not(.button.primary.wide),
+main.studio{
+  touch-action:pan-y;
+}
