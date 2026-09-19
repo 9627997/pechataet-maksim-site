@@ -499,6 +499,18 @@
       const repeatWidth = surfaceBounds.width;
       const repeatHeight = surfaceBounds.height;
       const goldenGapRatio = 1 / 1.618;
+      // repeatHeight is already print-accurate: it's set from the real
+      // ribbon width in mm (--ribbon-base-height), independent of the
+      // container's on-screen width. Deriving logo/text/gap sizes straight
+      // from the fluid repeatWidth (as the old code did for text) made
+      // their relative proportions drift with viewport width — a narrow
+      // phone and a wide one showed different gaps for the same content.
+      // trueRepeatWidth applies that same mm-accurate scale to width, so
+      // every size below is computed on one consistent basis; only the
+      // final contentScale fit-to-screen step still depends on the actual
+      // container width, applied uniformly to everything at once.
+      const pxPerMm = repeatHeight / ribbonWidth;
+      const trueRepeatWidth = repeatMm * pxPerMm;
       const ink = logoSrc && logoInkCache.get(logoSrc);
       requestLogoInkBounds(logoSrc);
       ribbonInteractionCell.style.visibility = 'visible';
@@ -516,7 +528,7 @@
         ? layout.fontSizeRatio
         : layout.previewFontSizeRatio;
       const logoWidth = layout.logoBox
-        ? Math.max(1, layout.logoBox.width * repeatWidth)
+        ? Math.max(1, layout.logoBox.width * trueRepeatWidth)
         : 0;
       const logoHeight = layout.logoBox?.height * repeatHeight;
       const sourceLogoRatio = Number(logoRatio) > 0
@@ -529,7 +541,7 @@
           ? getPaintedRect(
               layout,
               layout.logoBox,
-              repeatWidth,
+              trueRepeatWidth,
               repeatHeight,
               logoHeight * sourceLogoRatio,
               logoHeight,
@@ -537,7 +549,9 @@
           : null;
       const paintedLogoWidth = paintedLogoRect?.width || logoWidth;
       const inkLogoWidth = paintedLogoWidth * (ink?.width || 1);
-      const textWidth = textBox ? Math.max(1, textBox.width * repeatWidth) : 0;
+      const textWidth = textBox
+        ? Math.max(1, textBox.width * trueRepeatWidth)
+        : 0;
       const gap = inkLogoWidth * goldenGapRatio;
       // With only one element present there is no logo<->text gap to
       // measure, but the repeat-to-repeat gap still applies, sized off
@@ -560,8 +574,9 @@
       const layoutGap = layout.manualLayout && hasLogo && hasText
         ? Math.max(
             0,
-            textBox.x * repeatWidth -
-              (layout.logoBox.x * repeatWidth + placedLogoWidth * inkRightRatio),
+            textBox.x * trueRepeatWidth -
+              (layout.logoBox.x * trueRepeatWidth +
+                placedLogoWidth * inkRightRatio),
           )
         : null;
       const manualGap = layoutGap;
@@ -586,7 +601,7 @@
       // much wider `repeatWidth`) puts the middle cell's content exactly on
       // the scene's true center for any content size.
       const visibleLogoStart = layout.manualLayout && hasLogo
-        ? layout.logoBox.x * repeatWidth + placedLogoWidth * inkLeftRatio
+        ? layout.logoBox.x * trueRepeatWidth + placedLogoWidth * inkLeftRatio
         : placedGap / 2;
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
