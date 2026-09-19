@@ -5187,6 +5187,21 @@ const bootStudio = () => {
     render();
   });
 
+  document.addEventListener('studio:repeat-delta', (event) => {
+    const deltaRatio = Number(event.detail?.deltaRatio || 0);
+    if (!deltaRatio) return;
+    state.repeatMode = 'manual';
+    state.repeatMm = Math.min(
+      MAX_RIBBON_REPEAT_MM,
+      Math.max(
+        MIN_RIBBON_REPEAT_MM,
+        state.repeatMm + deltaRatio * (MAX_RIBBON_REPEAT_MM - MIN_RIBBON_REPEAT_MM),
+      ),
+    );
+    syncControls();
+    render();
+  });
+
   $('#makeBeautiful').addEventListener('click', () => {
     const rec = getRecommendation();
     state.width = rec.width;
