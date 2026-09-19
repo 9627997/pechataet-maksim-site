@@ -5638,7 +5638,12 @@ const bootStudio = () => {
       return;
     }
     localStorage.removeItem('ribbon-studio-v042');
-    location.reload();
+    // A plain reload() may be served from the browser's HTTP cache, showing
+    // a stale index.html (and, through it, stale hashed JS/CSS) even though
+    // the saved project was just cleared. Force a real network fetch.
+    const freshUrl = new URL(location.href);
+    freshUrl.searchParams.set('_fresh', Date.now().toString());
+    location.replace(freshUrl.toString());
   });
 
   initCropInteractions();
