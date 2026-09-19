@@ -144,6 +144,19 @@
         scaleUpToFill: !manualLayout,
         minFontSize,
       });
+      // fitTextToArea centers whatever width it actually fits within the
+      // textWidth slot. A short word capped by height (not width) ends up
+      // narrower than the slot, and centering it there pushes the visible
+      // logo<->text gap wider than `gap` — by up to half the unused slot
+      // width. Re-anchor flush after the gap so the gap the shopper sees
+      // always equals the golden-ratio value exactly, regardless of how
+      // much of the slot the fitted text actually uses.
+      if (textResult.bbox) {
+        textResult.bbox = {
+          ...textResult.bbox,
+          x: bounds.x + logoWidth + gap,
+        };
+      }
     } else if (hasLogo) {
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
