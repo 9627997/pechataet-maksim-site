@@ -32,9 +32,6 @@
     let dockFloating = false;
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
-    let manualRibbonGapDeltaPx = 0;
-    let hasManualRibbonGapDelta = false;
-    let manualRibbonGapContentKey = null;
     const PREVIEW_ZOOM_MIN = 0.5;
     const PREVIEW_ZOOM_MAX_RIBBON = 1.25;
     let previewZoom = 1;
@@ -223,7 +220,12 @@
     stickerContent.append(stickerLogo.zone, stickerText.zone);
     stickerSurface.append(stickerContent, stickerGuide);
 
-    const attachTransformDrag = (zone, product, kind, surface) => {
+    // axis 'free' (sticker) drags the zone in both X/Y. axis 'y' (ribbon
+    // logo/text zones) only nudges that one element vertically — the
+    // horizontal axis and the rest of the ribbon surface are handled by
+    // attachRibbonSurfaceDrag below (repeat step + moving logo+text as a
+    // block), so a single zone never fights two different gestures.
+    const attachTransformDrag = (zone, product, kind, surface, axis = 'free') => {
       let pointerId = null;
       let lastX = 0;
       let lastY = 0;
@@ -257,23 +259,13 @@
         event.preventDefault();
         zone.dataset.dragging = 'true';
         const bounds = surface.getBoundingClientRect();
-        if (product === 'ribbon' && dx) {
-          manualRibbonGapDeltaPx += kind === 'text' ? dx : -dx;
-          hasManualRibbonGapDelta = true;
-        }
         document.dispatchEvent(
           new CustomEvent('studio:transform-delta', {
             detail: {
               product,
               kind,
-              dxRatio: dx / Math.max(bounds.width, 1),
+              dxRatio: axis === 'y' ? 0 : dx / Math.max(bounds.width, 1),
               dyRatio: dy / Math.max(bounds.height, 1),
-              gapDeltaPx:
-                product === 'ribbon'
-                  ? kind === 'text'
-                    ? dx
-                    : -dx
-                  : 0,
             },
           }),
         );
@@ -291,10 +283,81 @@
       zone.addEventListener('pointercancel', finishDrag);
     };
 
+    // Anywhere else on the ribbon surface: horizontal drag adjusts the
+    // repeat step, vertical drag moves the logo+text block together.
+    // The logo/text zones opt out via data-mobile-products-safe-zone so
+    // their own (vertical-only) drag from attachTransformDrag above wins.
+    const attachRibbonSurfaceDrag = (surface) => {
+      let pointerId = null;
+      let lastX = 0;
+      let lastY = 0;
+      let distance = 0;
+
+      surface.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('[data-mobile-products-safe-zone]')) return;
+        const editableDock =
+          !panel.classList.contains('is-floating') ||
+          panel.classList.contains('is-expanded');
+        const canDrag =
+          (panelMode === 'settings' || panelMode === 'upload') &&
+          editableDock &&
+          event.button === 0;
+        if (!canDrag) return;
+        if (panelMode === 'settings') requestProductSettings('ribbon');
+        pointerId = event.pointerId;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        distance = 0;
+        surface.setPointerCapture(pointerId);
+      });
+
+      surface.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== pointerId) return;
+        const dx = event.clientX - lastX;
+        const dy = event.clientY - lastY;
+        distance += Math.hypot(dx, dy);
+        lastX = event.clientX;
+        lastY = event.clientY;
+        if (distance < 4) return;
+        event.preventDefault();
+        surface.dataset.dragging = 'true';
+        const bounds = surface.getBoundingClientRect();
+        if (dx) {
+          document.dispatchEvent(
+            new CustomEvent('studio:repeat-delta', {
+              detail: {deltaRatio: dx / Math.max(bounds.width, 1)},
+            }),
+          );
+        }
+        if (dy) {
+          const dyRatio = dy / Math.max(bounds.height, 1);
+          ['logo', 'text'].forEach((kind) => {
+            document.dispatchEvent(
+              new CustomEvent('studio:transform-delta', {
+                detail: {product: 'ribbon', kind, dxRatio: 0, dyRatio},
+              }),
+            );
+          });
+        }
+      });
+
+      const finishDrag = (event) => {
+        if (event.pointerId !== pointerId) return;
+        surface.dataset.dragging = 'false';
+        try {
+          surface.releasePointerCapture(pointerId);
+        } catch {}
+        pointerId = null;
+      };
+      surface.addEventListener('pointerup', finishDrag);
+      surface.addEventListener('pointercancel', finishDrag);
+    };
+
     attachTransformDrag(stickerLogo.zone, 'sticker', 'logo', stickerSurface);
     attachTransformDrag(stickerText.zone, 'sticker', 'text', stickerSurface);
-    attachTransformDrag(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface);
-    attachTransformDrag(ribbonText.zone, 'ribbon', 'text', ribbonSurface);
+    attachTransformDrag(ribbonLogo.zone, 'ribbon', 'logo', ribbonSurface, 'y');
+    attachTransformDrag(ribbonText.zone, 'ribbon', 'text', ribbonSurface, 'y');
+    attachRibbonSurfaceDrag(ribbonSurface);
 
     const syncVisibility = () => {
       switches.forEach((productSwitch) => {
@@ -435,12 +498,6 @@
 
       const repeatWidth = surfaceBounds.width;
       const repeatHeight = surfaceBounds.height;
-      const contentKey = `${logoSrc || ''}|${textValue || ''}|${logoRatio || ''}`;
-      if (manualRibbonGapContentKey !== contentKey) {
-        manualRibbonGapContentKey = contentKey;
-        manualRibbonGapDeltaPx = 0;
-        hasManualRibbonGapDelta = false;
-      }
       const goldenGapRatio = 1 / 1.618;
       const ink = logoSrc && logoInkCache.get(logoSrc);
       requestLogoInkBounds(logoSrc);
@@ -507,9 +564,7 @@
               (layout.logoBox.x * repeatWidth + placedLogoWidth * inkRightRatio),
           )
         : null;
-      const manualGap = hasManualRibbonGapDelta && hasLogo && hasText
-        ? Math.max(0, placedInkLogoWidth / 1.618 + manualRibbonGapDeltaPx)
-        : layoutGap;
+      const manualGap = layoutGap;
       const placedSingleElementGap =
         (hasLogo ? placedInkLogoWidth : placedTextWidth) / 1.618;
       const placedGap = hasLogo && hasText
