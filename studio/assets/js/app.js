@@ -1610,11 +1610,23 @@ const bootStudio = () => {
           inkX: -measureTextBox(text, 100, product, font).width / 2,
           inkY: -measureTextBox(text, 100, product, font).height / 2,
         };
+    // getBBox() above measures the tight visual ink of the glyphs — no
+    // normal inter-letter spacing — which is exactly what drawText's
+    // ink-centering below needs. But every "how much horizontal room does
+    // this text need" caller (fitTextToArea, fitTextToCircle, the natural
+    // repeat-width estimate) needs the wider, normal typographic advance
+    // width instead: real rendering (SVG <text> or a CSS <span>) always
+    // lays text out with that spacing, so sizing boxes off the tighter ink
+    // width let text visually overflow its allocated slot. measureTextBox
+    // already measures that advance width via canvas — reuse it here
+    // rather than introduce a second, possibly-diverging implementation.
+    const layoutWidth = measureTextBox(text, 100, product, font).width;
     return {
       widthPerSize: measured.width / 100,
       heightPerSize: measured.height / 100,
       inkXPerSize: measured.inkX / 100,
       inkYPerSize: measured.inkY / 100,
+      layoutWidthPerSize: layoutWidth / 100,
     };
   }
 
@@ -1690,6 +1702,14 @@ const bootStudio = () => {
       : printable;
     const layout = getRibbonContentLayout({
       bounds: contentPrintable.bounds,
+      // Ribbon length (x) and ribbon width (y) are deliberately different
+      // real-world quantities, scaled at different px-per-mm rates
+      // (RIBBON_REPEAT_PX_PER_MM vs the fixed outer height) — bounds.width
+      // and bounds.height are therefore NOT directly comparable units.
+      // getRibbonContentLayout needs this ratio to convert a height-based
+      // size (e.g. a logo fitted to the ribbon's height) into the width
+      // axis correctly instead of treating both axes as one scale.
+      axisScale: contentPrintable.unitsPerMmX / contentPrintable.unitsPerMmY,
       centerY: y + height / 2,
       logo: resolvedLogo?.logo
         ? {ratio: Number(resolvedLogo.logo.ratio) || 1}
@@ -1734,7 +1754,9 @@ const bootStudio = () => {
         )
       : 0;
     const textWidthMm = hasText
-      ? textMetrics.widthPerSize * fittedFontSize * (state.width / outerHeight)
+      ? textMetrics.layoutWidthPerSize *
+        fittedFontSize *
+        (state.width / outerHeight)
       : 0;
     const logoRatio = Number(resolvedLogo?.logo?.ratio) || 1;
     const effectiveLogoScale = Math.min(1, Math.max(0, style.logoScale));
@@ -1876,6 +1898,7 @@ const bootStudio = () => {
     const recommendationMetrics = {
       ...textMetrics,
       widthPerSize: textMetrics.widthPerSize * 1.28,
+      layoutWidthPerSize: textMetrics.layoutWidthPerSize * 1.28,
     };
     const minimum = Math.max(MIN_RIBBON_REPEAT_MM, state.repeatMm);
     let maximum = Math.max(MAX_RIBBON_REPEAT_MM, minimum);
