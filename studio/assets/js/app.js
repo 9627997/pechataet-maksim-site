@@ -1659,7 +1659,14 @@ const bootStudio = () => {
     let layoutRepeatMm = repeatMm;
     let layoutWidth = repeatWidth;
     let layoutX = 0;
-    if (preserveComposition) {
+    const hasLogo = Boolean(resolvedLogo?.logo);
+    const hasText = Boolean(text);
+    if (preserveComposition && !(hasLogo && hasText)) {
+      // Logo-only / text-only: there's no logo<->text gap to preserve, so
+      // just keep the single element at its natural size and center it
+      // within any extra repeat length. The composition (logo + text)
+      // case below preserves its own natural size differently, via
+      // expandGap, which needs the full (uncapped) repeatMm as bounds.
       const natural = getNaturalRibbonContentWidthMm(
         text,
         resolvedLogo,
@@ -1690,7 +1697,7 @@ const bootStudio = () => {
       width: repeatWidth,
       height,
     });
-    const contentPrintable = preserveComposition
+    const contentPrintable = layoutRepeatMm !== repeatMm
       ? getRibbonPrintableGeometry({
       widthMm: state.width,
       repeatMm: layoutRepeatMm,
@@ -1724,6 +1731,7 @@ const bootStudio = () => {
       manualLayout: style.layoutMode === 'manual',
       preferredFontSize:
         (state.width === 20 ? 39 : 31) * (style.fontSize / 32),
+      expandGap: preserveComposition,
     });
     return {
       ...layout,
@@ -1837,7 +1845,21 @@ const bootStudio = () => {
     const automatic = calculateAutomaticRibbonRepeat();
     if (state.repeatMode === 'auto') state.repeatMm = automatic.repeatMm;
 
-    const actualGapMm = Math.max(0, state.repeatMm - automatic.widthMm);
+    // The value shown next to the slider is the gap itself (the whitespace
+    // the slider actually controls), not the raw repeat length. For a
+    // logo+text composition, calculateRibbonLayout's expandGap keeps logo
+    // and text at their natural size and puts every extra millimeter of
+    // repeatMm into an equal gap on both sides (logo<->text and
+    // repeat<->repeat), so that gap is repeatMm minus the natural content,
+    // split in two. Logo-only/text-only content has a single gap instead.
+    const actualGapMm =
+      automatic.source === 'composition'
+        ? Math.max(
+            0,
+            (state.repeatMm - automatic.logoWidthMm - automatic.textWidthMm) /
+              2,
+          )
+        : Math.max(0, state.repeatMm - automatic.widthMm);
     document.body.dataset.ribbonRepeatMode = state.repeatMode;
     document.body.dataset.ribbonRepeatSource = automatic.source;
     document.body.dataset.ribbonContentWidthMm = automatic.widthMm.toFixed(2);
@@ -1854,12 +1876,8 @@ const bootStudio = () => {
     if (input) input.value = state.repeatMm;
     if (previewInput) previewInput.value = state.repeatMm;
     if (mode || previewMode) {
-      const displayRepeatMm =
-        state.repeatMode === 'auto'
-          ? Math.round(state.repeatMm)
-          : state.repeatMm;
       const modeText =
-        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · ${displayRepeatMm} мм`;
+        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · зазор ${actualGapMm.toFixed(1)} мм`;
       if (mode) mode.textContent = modeText;
       if (previewMode) previewMode.textContent = modeText;
     }
