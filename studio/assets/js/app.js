@@ -1847,16 +1847,21 @@ const bootStudio = () => {
     document.body.dataset.ribbonRepeatMm = String(state.repeatMm);
 
     const input = $('#repeatMm');
+    const previewInput = $('#repeatMmPreview');
     const mode = $('#repeatMode');
+    const previewMode = $('#repeatModePreview');
     const hint = $('#repeatHint');
     if (input) input.value = state.repeatMm;
-    if (mode) {
+    if (previewInput) previewInput.value = state.repeatMm;
+    if (mode || previewMode) {
       const displayRepeatMm =
         state.repeatMode === 'auto'
           ? Math.round(state.repeatMm)
           : state.repeatMm;
-      mode.textContent =
+      const modeText =
         `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · ${displayRepeatMm} мм`;
+      if (mode) mode.textContent = modeText;
+      if (previewMode) previewMode.textContent = modeText;
     }
     if (hint) {
       hint.textContent =
@@ -4246,6 +4251,9 @@ const bootStudio = () => {
     if ($('#repeatMm')) {
       $('#repeatMm').value = state.repeatMm;
     }
+    if ($('#repeatMmPreview')) {
+      $('#repeatMmPreview').value = state.repeatMm;
+    }
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
     if ($('#logoScale')) $('#logoScale').value = Math.round(style.logoScale * 100);
@@ -5081,14 +5089,20 @@ const bootStudio = () => {
   });
 
 
-  $('#repeatMm').addEventListener('input', (event) => {
+  const handleRepeatMmInput = (rawValue) => {
     state.repeatMode = 'manual';
     state.repeatMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
-      Math.max(MIN_RIBBON_REPEAT_MM, +event.target.value || 100),
+      Math.max(MIN_RIBBON_REPEAT_MM, +rawValue || 100),
     );
     syncControls();
     render();
+  };
+  $('#repeatMm').addEventListener('input', (event) => {
+    handleRepeatMmInput(event.target.value);
+  });
+  $('#repeatMmPreview')?.addEventListener('input', (event) => {
+    handleRepeatMmInput(event.target.value);
   });
 
   $$('[data-apply-ribbon-repeat]').forEach((button) => {
@@ -5212,21 +5226,6 @@ const bootStudio = () => {
     );
     style[`${kind}OffsetY`] = clampOffset(
       style[`${kind}OffsetY`] + Number(event.detail.dyRatio || 0) * outer.height,
-    );
-    syncControls();
-    render();
-  });
-
-  document.addEventListener('studio:repeat-delta', (event) => {
-    const deltaRatio = Number(event.detail?.deltaRatio || 0);
-    if (!deltaRatio) return;
-    state.repeatMode = 'manual';
-    state.repeatMm = Math.min(
-      MAX_RIBBON_REPEAT_MM,
-      Math.max(
-        MIN_RIBBON_REPEAT_MM,
-        state.repeatMm + deltaRatio * (MAX_RIBBON_REPEAT_MM - MIN_RIBBON_REPEAT_MM),
-      ),
     );
     syncControls();
     render();

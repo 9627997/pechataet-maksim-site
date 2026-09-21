@@ -396,14 +396,34 @@
     box-sizing: border-box;
     color: #171717;
     border-radius: 0;
-    /* Drag anywhere here is a custom gesture (repeat step / block position),
-       so native scroll/zoom must not compete with it — see the pointer
-       handlers in mobile-products.js. */
+    /* Drag anywhere here moves the logo+text block vertically (a custom
+       gesture), so native scroll/zoom must not compete with it — see the
+       pointer handlers in mobile-products.js. */
     touch-action: none;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.65), transparent 45%, rgba(0, 0, 0, 0.08)),
       #e9d2b1;
     box-shadow: 0 8px 18px rgba(64, 48, 33, 0.16);
+  }
+
+  .mobile-products-repeat-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .mobile-products-repeat-control .settings-range {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mobile-products-repeat-value {
+    flex: 0 0 auto;
+    color: #756b60;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   .mobile-products-ribbon-repeat-track {
