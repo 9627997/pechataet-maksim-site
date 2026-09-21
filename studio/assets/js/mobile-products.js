@@ -601,11 +601,18 @@
       // much wider `repeatWidth`) puts the middle cell's content exactly on
       // the scene's true center for any content size.
       const visibleLogoStart = layout.manualLayout && hasLogo
-        ? layout.logoBox.x * trueRepeatWidth + placedLogoWidth * inkLeftRatio
+        ? Math.max(
+            0,
+            Math.min(
+              placedPitch - (placedInkLogoWidth + placedGap + placedTextWidth),
+              layout.logoBox.x * trueRepeatWidth + placedLogoWidth * inkLeftRatio,
+            ),
+          )
         : placedGap / 2;
       ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonSceneWidthPx = sceneWidth.toFixed(2);
+      ribbonSurface.dataset.ribbonRepeatPitchPx = placedPitch.toFixed(2);
       ribbonSurface.dataset.ribbonSceneCentered = 'true';
       for (const offset of [0, 1, 2]) {
         const left = offset * placedPitch;
@@ -613,7 +620,7 @@
         cell.className = 'mobile-products-ribbon-repeat-cell';
         cell.style.left = `${left}px`;
         cell.style.top = '0px';
-        cell.style.width = `${repeatWidth}px`;
+        cell.style.width = `${placedPitch}px`;
         cell.style.height = `${repeatHeight}px`;
 
         if (hasLogo && logoSrc && layout.logoBox) {
@@ -621,6 +628,8 @@
           image.className = 'mobile-products-ribbon-repeat-logo';
           image.alt = '';
           image.src = logoSrc;
+          image.dataset.inkLeftRatio = String(inkLeftRatio);
+          image.dataset.inkRightRatio = String(inkRightRatio);
           const imageLeft = visibleLogoStart - placedLogoWidth * inkLeftRatio;
           image.style.left = `${imageLeft + placedLogoWidth / 2}px`;
           image.style.top = `${repeatHeight / 2}px`;
