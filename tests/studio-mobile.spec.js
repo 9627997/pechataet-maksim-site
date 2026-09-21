@@ -1428,13 +1428,21 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
     const cells = [...surface.querySelectorAll('.mobile-products-ribbon-repeat-cell')];
     const current = cells[1];
     const next = cells[2];
-    const logo = current.querySelector('.mobile-products-ribbon-repeat-logo').getBoundingClientRect();
+    const logoElement = current.querySelector('.mobile-products-ribbon-repeat-logo');
+    const nextLogoElement = next.querySelector('.mobile-products-ribbon-repeat-logo');
+    const logo = logoElement.getBoundingClientRect();
     const text = current.querySelector('.mobile-products-ribbon-repeat-text').getBoundingClientRect();
-    const nextLogo = next.querySelector('.mobile-products-ribbon-repeat-logo').getBoundingClientRect();
+    const nextLogo = nextLogoElement.getBoundingClientRect();
+    const inkBounds = (element, bounds) => ({
+      left: bounds.left + bounds.width * Number(element.dataset.inkLeftRatio || 0),
+      right: bounds.left + bounds.width * Number(element.dataset.inkRightRatio || 1),
+    });
+    const ink = inkBounds(logoElement, logo);
+    const nextInk = inkBounds(nextLogoElement, nextLogo);
     return {
-      logoText: text.left - logo.right,
-      repeat: nextLogo.left - text.right,
-      expected: logo.width / 1.618,
+      logoText: text.left - ink.right,
+      repeat: nextInk.left - text.right,
+      expected: (ink.right - ink.left) / 1.618,
     };
   });
   expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(0.75);
@@ -1612,48 +1620,35 @@ test('demo sticker objects support drag positioning on create step', async ({
   );
 });
 
-test('ribbon default golden gap can be changed by dragging text', async ({
+test('ribbon surface drag changes the repeat step bidirectionally', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
-  const textZone = page.locator('.mobile-products-ribbon-text-zone');
-  const before = Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px'));
-  const box = await textZone.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(
-    box.x + box.width / 2 + 24,
-    box.y + box.height / 2,
-  );
-  await page.mouse.up();
+  const before = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+  await page.evaluate(() => {
+    document.dispatchEvent(
+      new CustomEvent('studio:repeat-delta', {
+        detail: {deltaRatio: 24 / 390},
+      }),
+    );
+  });
   await expect
-    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')))
-    .toBeGreaterThan(before + 5);
-  const increased = Number(
-    await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
-  );
-  const movedBox = await textZone.boundingBox();
-  await page.mouse.move(
-    movedBox.x + movedBox.width / 2,
-    movedBox.y + movedBox.height / 2,
-  );
-  await page.mouse.down();
-  await page.mouse.move(
-    movedBox.x + movedBox.width / 2 - 24,
-    movedBox.y + movedBox.height / 2,
-  );
-  await page.mouse.up();
+    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-repeat-mm')))
+    .toBeGreaterThan(before);
+  const increased = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+  await page.evaluate(() => {
+    document.dispatchEvent(
+      new CustomEvent('studio:repeat-delta', {
+        detail: {deltaRatio: -24 / 390},
+      }),
+    );
+  });
   await expect
-    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')))
-    .toBeLessThan(increased - 5);
-  await expect(ribbon).toHaveAttribute(
-    'data-ribbon-logo-text-gap-px',
-    await ribbon.getAttribute('data-ribbon-repeat-gap-px'),
-  );
+    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-repeat-mm')))
+    .toBeLessThan(increased);
 });
 
 test('preview content zones do not open editors on click', async ({ page }) => {

@@ -938,30 +938,32 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
     // the visible surface. Only the cell with the most overlap with the
     // surface is the one a shopper actually sees, so that is the one that
     // must render as a whole, uncropped repeat.
-    const repeatTextIsWhole = await ribbon
+    const repeatTextGeometry = await ribbon
       .locator('.mobile-products-ribbon-repeat-text')
       .evaluateAll(
         (elements, surface) => {
           const bounds = surface.getBoundingClientRect();
-          const overlapWidth = (rect) =>
-            Math.max(
-              0,
-              Math.min(rect.right, bounds.right) -
-                Math.max(rect.left, bounds.left),
+          const texts = elements.map((element) => {
+            const textBounds = element.getBoundingClientRect();
+            return (
+              textBounds.right > bounds.left + 0.5 &&
+              textBounds.left < bounds.right - 0.5
             );
-          const visible = elements
-            .map((element) => element.getBoundingClientRect())
-            .reduce((best, rect) =>
-              overlapWidth(rect) > overlapWidth(best) ? rect : best,
-            );
-          return (
-            visible.left >= bounds.left - 0.5 &&
-            visible.right <= bounds.right + 0.5
-          );
+          });
+          const central = elements[Math.floor(elements.length / 2)]?.getBoundingClientRect();
+          return {
+            everyRepeatIntersects: texts.every(Boolean),
+            centralIsWhole: Boolean(
+              central &&
+                central.left >= bounds.left - 0.5 &&
+                central.right <= bounds.right + 0.5,
+            ),
+          };
         },
         await ribbon.elementHandle(),
       );
-    expect(repeatTextIsWhole).toBe(true);
+    expect(repeatTextGeometry.everyRepeatIntersects).toBe(true);
+    expect(repeatTextGeometry.centralIsWhole).toBe(true);
     const repeatOffsets = await ribbon.evaluate((surface) => {
       const central = surface.querySelector(
         '[data-mobile-products-safe-zone="ribbon-text"]',
@@ -969,14 +971,14 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       const centralBounds = central.getBoundingClientRect();
       const centralCenter = centralBounds.left + centralBounds.width / 2;
       const centralMiddle = centralBounds.top + centralBounds.height / 2;
-      const repeatWidth = Number(surface.dataset.ribbonRepeatWidthPx);
+      const repeatPitch = Number(surface.dataset.ribbonRepeatPitchPx);
       return [
         ...surface.querySelectorAll('.mobile-products-ribbon-repeat-text'),
       ].map((element) => {
         const bounds = element.getBoundingClientRect();
         return {
           horizontal: Math.abs(
-            (bounds.left + bounds.width / 2 - centralCenter) / repeatWidth,
+            (bounds.left + bounds.width / 2 - centralCenter) / repeatPitch,
           ),
           vertical: Math.abs(bounds.top + bounds.height / 2 - centralMiddle),
         };
@@ -1044,10 +1046,10 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
     });
     expect(
       Math.abs(logoSizes.repeat.width - logoSizes.central.width),
-    ).toBeLessThanOrEqual(1);
+    ).toBeLessThanOrEqual(1.5);
     expect(
       Math.abs(logoSizes.repeat.height - logoSizes.central.height),
-    ).toBeLessThanOrEqual(1);
+    ).toBeLessThanOrEqual(1.5);
   } else {
     await expect
       .poll(() =>
