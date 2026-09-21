@@ -103,6 +103,7 @@
     scaleTextToFitWidth = false,
     minFontSize = MIN_PRINT_FONT_SIZE,
     axisScale = 1,
+    expandGap = false,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -142,8 +143,36 @@
         maximumLogoWidth,
         logo.ratio * bounds.height,
       );
-      const gap = Math.max(1, logoWidth / GOLDEN_RATIO);
-      const textWidth = Math.max(1, widthUnits - logoWidth - gap);
+      let gap = Math.max(1, logoWidth / GOLDEN_RATIO);
+      let textWidth = Math.max(1, widthUnits - logoWidth - gap);
+      if (expandGap) {
+        // A manual repeat step can be longer than the logo+text need at
+        // their natural (preferred) size. Work out how wide the text
+        // renders at that natural size — the same purely height-driven
+        // formula fitTextToArea uses below — and, if it actually fits,
+        // give the text exactly that much room and put everything left
+        // over into the gap, split evenly so the logo<->text gap and the
+        // repeat<->repeat gap stay equal for any manual repeat length,
+        // instead of stretching or shrinking the text to fill whatever
+        // slot the repeat step happens to leave.
+        const naturalFontSize = Math.max(
+          minFontSize,
+          preferredFontSize *
+            Math.min(
+              1,
+              bounds.height /
+                Math.max(textMetrics.heightPerSize * preferredFontSize, 1e-7),
+            ),
+        );
+        const naturalTextWidth = Math.max(
+          1,
+          textMetrics.layoutWidthPerSize * naturalFontSize,
+        );
+        if (widthUnits >= logoWidth + naturalTextWidth) {
+          gap = Math.max(1, (widthUnits - logoWidth - naturalTextWidth) / 2);
+          textWidth = naturalTextWidth;
+        }
+      }
       const logoBounds = {...boundsX, width: logoWidth};
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
