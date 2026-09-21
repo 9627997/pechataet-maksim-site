@@ -60,6 +60,24 @@ function pm_allowed_number($value, array $allowed, string $field): int
     return $number;
 }
 
+// Some studio measurements (the ribbon repeat step) are a continuous
+// physical quantity computed from font metrics, not a small enumerated
+// set — the client almost always sends a fractional millimeter value
+// (e.g. 47.530178563769724), so pm_allowed_number's whole-number-only
+// allowlist would reject the vast majority of legitimate orders. This
+// validates type and bounds instead of exact membership.
+function pm_ranged_number($value, float $min, float $max, string $field): float
+{
+    if (!is_int($value) && !is_float($value)) {
+        throw new InvalidArgumentException("Некорректное значение: {$field}.");
+    }
+    $number = (float) $value;
+    if (!is_finite($number) || $number < $min || $number > $max) {
+        throw new InvalidArgumentException("Недопустимое значение: {$field}.");
+    }
+    return $number;
+}
+
 function pm_clean_color($value, string $fallback): string
 {
     if (!is_string($value) || !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) {
@@ -212,7 +230,10 @@ function pm_normalize_payload(array $input): array
         'enabled' => $ribbonEnabled,
         'widthMm' => $ribbonEnabled ? pm_allowed_number($ribbonInput['widthMm'] ?? null, [15, 20], 'ширина ленты') : 0,
         'meters' => $ribbonEnabled ? pm_allowed_number($ribbonInput['meters'] ?? null, [10, 25, 50, 100, 200], 'метраж ленты') : 0,
-        'repeatMm' => $ribbonEnabled ? pm_allowed_number($ribbonInput['repeatMm'] ?? null, range(40, 250), 'шаг повтора') : 0,
+        // Rounded to 0.1mm for storage/notifications — the client sends a
+        // long float from font-metrics math, but nothing downstream (print,
+        // the summary text Maxim reads) needs more precision than that.
+        'repeatMm' => $ribbonEnabled ? round(pm_ranged_number($ribbonInput['repeatMm'] ?? null, 40, 250, 'шаг повтора'), 1) : 0,
         'materialColor' => pm_clean_color($ribbonInput['materialColor'] ?? '', '#f3eadc'),
         'printColor' => pm_clean_color($ribbonInput['printColor'] ?? '', '#171717'),
     ];
