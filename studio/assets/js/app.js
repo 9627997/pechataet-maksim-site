@@ -1791,12 +1791,16 @@ const bootStudio = () => {
 
   // The gap after the last element of a repeat (before the next repeat
   // starts) uses the same logoWidth / GOLDEN_RATIO rule as the internal
-  // logo<->text gap whenever a logo is present; text-only content has no
-  // logo width to base it on, so it falls back to its own natural width.
+  // logo<->text gap whenever a logo is present. Text-only content has no
+  // logo width to base it on, and scaling the gap off the text's own width
+  // would make it balloon for a long line of text — instead it uses a
+  // fixed gap equal to the ribbon's physical width (15 or 20 mm), the same
+  // regardless of how long the text is. Logo-only content still falls
+  // back to its own natural width.
   function getRibbonRepeatGapMm(natural) {
-    return natural.source === 'composition'
-      ? natural.logoWidthMm / GOLDEN_RATIO
-      : natural.widthMm / GOLDEN_RATIO;
+    if (natural.source === 'composition') return natural.logoWidthMm / GOLDEN_RATIO;
+    if (natural.source === 'text') return state.width;
+    return natural.widthMm / GOLDEN_RATIO;
   }
 
   function calculateAutomaticRibbonRepeat() {
@@ -1886,7 +1890,7 @@ const bootStudio = () => {
         automatic.source === 'empty'
           ? 'Минимальный шаг до добавления логотипа или надписи.'
           : automatic.source === 'text'
-            ? `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина текста ÷ 1,618.`
+            ? `Свободный интервал ${actualGapMm.toFixed(1)} мм: равен ширине ленты, не зависит от длины надписи.`
             : `Свободный интервал ${actualGapMm.toFixed(1)} мм: ширина логотипа ÷ 1,618.`;
     }
   }
