@@ -283,10 +283,12 @@
       zone.addEventListener('pointercancel', finishDrag);
     };
 
-    // Anywhere else on the ribbon surface: horizontal drag adjusts the
-    // repeat step, vertical drag moves the logo+text block together.
-    // The logo/text zones opt out via data-mobile-products-safe-zone so
-    // their own (vertical-only) drag from attachTransformDrag above wins.
+    // Anywhere else on the ribbon surface: vertical drag moves the
+    // logo+text block together (the repeat step now has its own slider
+    // under the preview — see #repeatMmPreview — since dragging along the
+    // ribbon to change it was confusing). The logo/text zones opt out via
+    // data-mobile-products-safe-zone so their own (vertical-only) drag
+    // from attachTransformDrag above wins.
     const attachRibbonSurfaceDrag = (surface) => {
       let pointerId = null;
       let lastX = 0;
@@ -322,13 +324,6 @@
         event.preventDefault();
         surface.dataset.dragging = 'true';
         const bounds = surface.getBoundingClientRect();
-        if (dx) {
-          document.dispatchEvent(
-            new CustomEvent('studio:repeat-delta', {
-              detail: {deltaRatio: dx / Math.max(bounds.width, 1)},
-            }),
-          );
-        }
         if (dy) {
           const dyRatio = dy / Math.max(bounds.height, 1);
           ['logo', 'text'].forEach((kind) => {
@@ -1239,7 +1234,10 @@
 
     samples.forEach((sample) => {
       sample.addEventListener('click', (event) => {
-        if (event.target.closest('button[data-mobile-products-safe-zone]'))
+        if (
+          event.target.closest('button[data-mobile-products-safe-zone]') ||
+          event.target.closest('[data-mobile-products-repeat-control]')
+        )
           return;
         const product = sample.dataset.mobileProductSample;
         requestContentProduct(product);

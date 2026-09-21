@@ -1413,7 +1413,8 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
     const trackBox = track.getBoundingClientRect();
     return {
       centerDelta: Math.abs(
-        (trackBox.left + trackBox.width / 2) -
+        trackBox.left +
+          trackBox.width / 2 -
           (surfaceBox.left + surfaceBox.width / 2),
       ),
       sceneWidth: trackBox.width,
@@ -1421,21 +1422,31 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   });
   expect(sceneGeometry.centerDelta).toBeLessThan(1);
   expect(sceneGeometry.sceneWidth).toBeGreaterThan(0);
-  expect(
-    await ribbon.getAttribute('data-ribbon-logo-text-gap-px'),
-  ).toBe(await ribbon.getAttribute('data-ribbon-repeat-gap-px'));
+  expect(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')).toBe(
+    await ribbon.getAttribute('data-ribbon-repeat-gap-px'),
+  );
   const visualGaps = await ribbon.evaluate((surface) => {
-    const cells = [...surface.querySelectorAll('.mobile-products-ribbon-repeat-cell')];
+    const cells = [
+      ...surface.querySelectorAll('.mobile-products-ribbon-repeat-cell'),
+    ];
     const current = cells[1];
     const next = cells[2];
-    const logoElement = current.querySelector('.mobile-products-ribbon-repeat-logo');
-    const nextLogoElement = next.querySelector('.mobile-products-ribbon-repeat-logo');
+    const logoElement = current.querySelector(
+      '.mobile-products-ribbon-repeat-logo',
+    );
+    const nextLogoElement = next.querySelector(
+      '.mobile-products-ribbon-repeat-logo',
+    );
     const logo = logoElement.getBoundingClientRect();
-    const text = current.querySelector('.mobile-products-ribbon-repeat-text').getBoundingClientRect();
+    const text = current
+      .querySelector('.mobile-products-ribbon-repeat-text')
+      .getBoundingClientRect();
     const nextLogo = nextLogoElement.getBoundingClientRect();
     const inkBounds = (element, bounds) => ({
-      left: bounds.left + bounds.width * Number(element.dataset.inkLeftRatio || 0),
-      right: bounds.left + bounds.width * Number(element.dataset.inkRightRatio || 1),
+      left:
+        bounds.left + bounds.width * Number(element.dataset.inkLeftRatio || 0),
+      right:
+        bounds.left + bounds.width * Number(element.dataset.inkRightRatio || 1),
     });
     const ink = inkBounds(logoElement, logo);
     const nextInk = inkBounds(nextLogoElement, nextLogo);
@@ -1445,7 +1456,9 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
       expected: (ink.right - ink.left) / 1.618,
     };
   });
-  expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(0.75);
+  expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(
+    0.75,
+  );
   expect(Math.abs(visualGaps.repeat - visualGaps.expected)).toBeLessThan(0.75);
   expect(Math.abs(visualGaps.logoText - visualGaps.repeat)).toBeLessThan(0.75);
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
@@ -1510,7 +1523,7 @@ test('mobile preview is frameless and ribbon base scales edge to edge', async ({
 test('switching order modes preserves the ribbon default print color', async ({
   page,
 }) => {
-  await page.goto('/studio/?product=ribbon', {waitUntil: 'networkidle'});
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
   const text = ribbon.locator('.mobile-products-ribbon-repeat-text').first();
   await expect(text).toHaveCSS('color', 'rgb(23, 23, 23)');
@@ -1620,7 +1633,46 @@ test('demo sticker objects support drag positioning on create step', async ({
   );
 });
 
-test('ribbon surface drag changes the repeat step bidirectionally', async ({
+test('repeat slider under the ribbon preview changes the repeat step bidirectionally', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const slider = page.locator('#repeatMmPreview');
+  await expect(slider).toHaveAttribute('type', 'range');
+  const before = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+
+  await slider.evaluate((element, value) => {
+    element.value = String(value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  }, before + 40);
+  await expect
+    .poll(async () =>
+      Number(await ribbon.getAttribute('data-ribbon-repeat-mm')),
+    )
+    .toBeGreaterThan(before);
+  const increased = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+
+  await slider.evaluate((element, value) => {
+    element.value = String(value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  }, before);
+  await expect
+    .poll(async () =>
+      Number(await ribbon.getAttribute('data-ribbon-repeat-mm')),
+    )
+    .toBeLessThan(increased);
+
+  // The settings-panel slider (#repeatMm) stays in sync with the one
+  // under the preview, since both control the same state.repeatMm.
+  await expect(page.locator('#repeatMm')).toHaveValue(
+    await slider.inputValue(),
+  );
+});
+
+test('ribbon surface drag no longer changes the repeat step (moved to the slider)', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
@@ -1628,27 +1680,17 @@ test('ribbon surface drag changes the repeat step bidirectionally', async ({
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
   const before = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
-  await page.evaluate(() => {
-    document.dispatchEvent(
-      new CustomEvent('studio:repeat-delta', {
-        detail: {deltaRatio: 24 / 390},
-      }),
-    );
-  });
-  await expect
-    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-repeat-mm')))
-    .toBeGreaterThan(before);
-  const increased = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
-  await page.evaluate(() => {
-    document.dispatchEvent(
-      new CustomEvent('studio:repeat-delta', {
-        detail: {deltaRatio: -24 / 390},
-      }),
-    );
-  });
-  await expect
-    .poll(async () => Number(await ribbon.getAttribute('data-ribbon-repeat-mm')))
-    .toBeLessThan(increased);
+  const box = await ribbon.boundingBox();
+  expect(box).not.toBeNull();
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2);
+  await page.mouse.up();
+
+  expect(Number(await ribbon.getAttribute('data-ribbon-repeat-mm'))).toBe(
+    before,
+  );
 });
 
 test('preview content zones do not open editors on click', async ({ page }) => {
