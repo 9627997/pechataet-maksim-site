@@ -15,7 +15,13 @@
     minFontSize = MIN_PRINT_FONT_SIZE,
   }) {
     if (!text) return {fits: true, fontSize: preferredSize, bbox: null};
-    const widthAtPreferred = metrics.widthPerSize * preferredSize;
+    // Layout math (how much horizontal room this text needs) must use the
+    // normal typographic advance width, not the tight ink width getBBox()
+    // gives: real rendering always includes ordinary inter-letter spacing,
+    // so sizing off the narrower ink width let text visually overflow
+    // whatever box was allocated for it. Height keeps using the ink metric
+    // — untouched here, only width was ever the source of the overflow.
+    const widthAtPreferred = metrics.layoutWidthPerSize * preferredSize;
     const heightAtPreferred = metrics.heightPerSize * preferredSize;
     const scale = Math.min(
       scaleToFitWidth
@@ -27,7 +33,7 @@
       scaleUpToFill ? Infinity : 1,
     );
     const fontSize = Math.max(minFontSize, preferredSize * scale);
-    const width = metrics.widthPerSize * fontSize;
+    const width = metrics.layoutWidthPerSize * fontSize;
     const height = metrics.heightPerSize * fontSize;
     const fits = width <= maxWidth + 1e-7 && height <= maxHeight + 1e-7;
     return {
@@ -58,7 +64,7 @@
     const source = {
       x: 0,
       y: 0,
-      width: Math.max(metrics.widthPerSize, 1e-7),
+      width: Math.max(metrics.layoutWidthPerSize, 1e-7),
       height: Math.max(metrics.heightPerSize, 1e-7),
     };
     const bbox = geometry.fitRectToCircle(
@@ -96,6 +102,7 @@
     preferredFontSize,
     scaleTextToFitWidth = false,
     minFontSize = MIN_PRINT_FONT_SIZE,
+    axisScale = 1,
   }) {
     const geometry = window.RibbonStudioGeometry;
     const hasLogo = Boolean(logo);
@@ -103,32 +110,49 @@
     let logoBox = null;
     let textResult = {fits: true, bbox: null, fontSize: preferredFontSize};
 
+    // Ribbon length (x) and ribbon width/height (y) can use different
+    // real-world px-per-mm scales (see calculateRibbonLayout's axisScale) —
+    // bounds.width and bounds.height are then not directly comparable, but
+    // logoWidth (logo.ratio * bounds.height) and text metrics (which pair
+    // with fontSize, itself fit against bounds.height) both naturally live
+    // in bounds.height's own scale. So every horizontal fitting computation
+    // below works in that one scale (bounds.width converted once, via
+    // widthUnits/boundsX), and only the final logoBox/textBox — the values
+    // handed back to callers that expect bounds.width's own scale — get
+    // converted back through toWidthScale. axisScale defaults to 1 (a
+    // no-op) for callers whose bounds are already uniformly scaled, e.g.
+    // sticker roundrect layout, which reuses this same function.
+    const widthUnits = bounds.width / axisScale;
+    const boundsX = {...bounds, x: bounds.x / axisScale, width: widthUnits};
+    const toWidthScale = (box) =>
+      box && {...box, x: box.x * axisScale, width: box.width * axisScale};
+
     if (hasLogo && hasText) {
       const minimumTextWidth = Math.max(
         1,
-        textMetrics.widthPerSize * minFontSize,
+        textMetrics.layoutWidthPerSize * minFontSize,
       );
       // The gap is defined as logoWidth / GOLDEN_RATIO, so logoWidth and gap
       // grow together; cap logoWidth so a minimum-width text still fits.
       const maximumLogoWidth = Math.max(
         1,
-        (bounds.width - minimumTextWidth) / (1 + 1 / GOLDEN_RATIO),
+        (widthUnits - minimumTextWidth) / (1 + 1 / GOLDEN_RATIO),
       );
       const logoWidth = Math.min(
         maximumLogoWidth,
         logo.ratio * bounds.height,
       );
       const gap = Math.max(1, logoWidth / GOLDEN_RATIO);
-      const textWidth = Math.max(1, bounds.width - logoWidth - gap);
-      const logoBounds = {...bounds, width: logoWidth};
+      const textWidth = Math.max(1, widthUnits - logoWidth - gap);
+      const logoBounds = {...boundsX, width: logoWidth};
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
       logoBox = geometry.fitRectToBounds(source, logoBounds, logoScale);
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
-        manualLayout ? bounds : logoBounds,
-        manualLayout ? logoOffsetX : 0,
+        manualLayout ? boundsX : logoBounds,
+        manualLayout ? logoOffsetX / axisScale : 0,
         manualLayout ? logoOffsetY : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
@@ -138,7 +162,7 @@
         preferredSize: preferredFontSize,
         maxWidth: textWidth,
         maxHeight: bounds.height,
-        centerX: bounds.x + logoWidth + gap + textWidth / 2,
+        centerX: boundsX.x + logoWidth + gap + textWidth / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
         scaleUpToFill: !manualLayout,
@@ -154,18 +178,18 @@
       if (textResult.bbox) {
         textResult.bbox = {
           ...textResult.bbox,
-          x: bounds.x + logoWidth + gap,
+          x: boundsX.x + logoWidth + gap,
         };
       }
     } else if (hasLogo) {
       const source = logo.ratio >= 1
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
-      logoBox = geometry.fitRectToBounds(source, bounds, logoScale);
+      logoBox = geometry.fitRectToBounds(source, boundsX, logoScale);
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
-        bounds,
-        manualLayout ? logoOffsetX : 0,
+        boundsX,
+        manualLayout ? logoOffsetX / axisScale : 0,
         manualLayout ? logoOffsetY : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
@@ -174,9 +198,9 @@
         text,
         metrics: textMetrics,
         preferredSize: preferredFontSize,
-        maxWidth: bounds.width,
+        maxWidth: widthUnits,
         maxHeight: bounds.height,
-        centerX: bounds.x + bounds.width / 2,
+        centerX: boundsX.x + widthUnits / 2,
         centerY,
         scaleToFitWidth: scaleTextToFitWidth,
         scaleUpToFill: !manualLayout,
@@ -187,8 +211,8 @@
     if (manualLayout && textResult.bbox) {
       const clamped = geometry.clampRectOffsetToBounds(
         textResult.bbox,
-        bounds,
-        textOffsetX,
+        boundsX,
+        textOffsetX / axisScale,
         textOffsetY,
       );
       textResult.bbox = {
@@ -202,8 +226,8 @@
       valid: textResult.fits,
       reason: textResult.reason,
       bounds,
-      logoBox,
-      textBox: textResult.bbox,
+      logoBox: toWidthScale(logoBox),
+      textBox: toWidthScale(textResult.bbox),
       fontSize: textResult.fontSize,
       textScaleY: 1,
       manualLayout,
