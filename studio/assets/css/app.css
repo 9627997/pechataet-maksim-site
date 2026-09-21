@@ -557,12 +557,15 @@ body[data-preview-demo="true"] #scene-kit > .scene-caption span::after{
   .mobile-products-slot[data-hosted='true'] .mobile-products-panel > *{
     pointer-events:auto;
   }
+  /* #mobileProductsSlot floats over the step content (position:fixed), so
+     the content needs matching top padding reserved or the overlay covers
+     it. Its height changes a lot — bundle vs. single product, whether the
+     ribbon overflow card is showing, etc. — so this is measured live in
+     mobile-products.js and published as --mobile-products-slot-space
+     instead of guessed as a fixed number that drifts out of sync. The
+     320px fallback only applies for an instant before that JS runs. */
   .panel.active{
-    padding-top:320px;
-  }
-  body[data-order-mode='ribbon'] .panel.active,
-  body[data-order-mode='sticker'] .panel.active{
-    padding-top:190px;
+    padding-top:calc(var(--mobile-products-slot-space, 320px) + 16px);
   }
   body.studio-header-scrolled .main-nav{
     top:0;

@@ -1045,6 +1045,31 @@
             : 'empty';
       if (zoomStage) zoomStage.style.transition = previousStageTransition;
       syncPreviewZoom();
+      // In the mobile layout .main-nav and #mobileProductsSlot both float
+      // (position:fixed) above the step content, so that content needs
+      // matching top padding reserved via CSS (see .panel.active in
+      // app.css) or the overlay covers it. The overlay's height varies a
+      // lot — bundle vs. single product, whether the ribbon overflow card
+      // is showing, the repeat slider row — so a hardcoded padding number
+      // always eventually drifts out of sync and hides real controls
+      // underneath it. Measure the actual gap between the two fixed
+      // elements instead: both are position:fixed, so — unlike the step
+      // content itself — their rects stay correct regardless of scroll
+      // position, safe to recompute on every sync (already scheduled on
+      // every relevant content, layout and viewport change) without a
+      // mid-scroll measurement briefly producing a wrong, huge value.
+      const mainNav = document.querySelector('.main-nav');
+      if (mainNav) {
+        const space = Math.max(
+          0,
+          panelSlot.getBoundingClientRect().bottom -
+            mainNav.getBoundingClientRect().top,
+        );
+        document.body.style.setProperty(
+          '--mobile-products-slot-space',
+          `${space}px`,
+        );
+      }
     };
 
     let studioSyncFrame = null;
