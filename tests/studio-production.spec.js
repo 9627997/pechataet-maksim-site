@@ -884,16 +884,17 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
       logoWidthMm: Number(document.body.dataset.ribbonLogoWidthMm),
       goldenGapMm: Number(document.body.dataset.ribbonGoldenGapMm),
+      ribbonWidthMm: Number(document.body.dataset.ribbonWidth),
     }));
   const expectGoldenRepeat = async (source) => {
     const result = await readRepeat();
     // The gap between repeats is logoWidth / 1.618 whenever a logo is
-    // present (logo-only or logo+text); text-only ribbons fall back to
-    // textWidth / 1.618, since there is no logo width to base it on.
+    // present (logo-only or logo+text). Text-only ribbons use a fixed gap
+    // equal to the ribbon's own physical width (15 or 20mm) instead —
+    // scaling the gap off the text's own width would make it balloon for
+    // a long line of text, so it stays constant regardless of text length.
     const expectedGoldenGapMm =
-      source === 'text'
-        ? result.contentWidthMm / 1.618
-        : result.logoWidthMm / 1.618;
+      source === 'text' ? result.ribbonWidthMm : result.logoWidthMm / 1.618;
     // Auto mode no longer rounds up to a 5mm print grid: the repeat step
     // is exactly content width + the golden gap, so the repeat-to-repeat
     // gap matches the logo<->text gap instead of being inflated by
@@ -959,13 +960,14 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
               textBounds.left < bounds.right - 0.5
             );
           });
-          const central = elements[Math.floor(elements.length / 2)]?.getBoundingClientRect();
+          const central =
+            elements[Math.floor(elements.length / 2)]?.getBoundingClientRect();
           return {
             everyRepeatIntersects: texts.every(Boolean),
             centralIsWhole: Boolean(
               central &&
-                central.left >= bounds.left - 0.5 &&
-                central.right <= bounds.right + 0.5,
+              central.left >= bounds.left - 0.5 &&
+              central.right <= bounds.right + 0.5,
             ),
           };
         },
