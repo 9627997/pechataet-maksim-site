@@ -355,34 +355,23 @@
     attachRibbonSurfaceDrag(ribbonSurface);
 
     const syncVisibility = () => {
-      switches.forEach((productSwitch) => {
-        const sample = samples.find(
-          (item) =>
-            item.dataset.mobileProductSample === productSwitch.dataset.mobileProduct,
-        );
-
-        if (sample) {
-          const productFirstMode = document.body.classList.contains('product-first-mode');
-          const bothProductsEnabled =
-            document.body.dataset.hasRibbon === 'true' &&
-            document.body.dataset.hasSticker === 'true';
-          const activeWorkspace = document.body.dataset.activeWorkspace;
-          const hideOutsideWorkspace =
-            panelMode === 'upload' &&
-            productFirstMode &&
-            !bothProductsEnabled &&
+      const productFirstMode = document.body.classList.contains('product-first-mode');
+      const productFirstEntry = document.body.dataset.studioEntryProduct;
+      const activeWorkspace = document.body.dataset.activeWorkspace;
+      samples.forEach((sample) => {
+        const product = sample.dataset.mobileProductSample;
+        const hideOutsideWorkspace =
+          productFirstMode &&
+          productFirstEntry !== 'set' &&
+          ((['upload', 'settings'].includes(panelMode) &&
             activeWorkspace &&
-            activeWorkspace !== productSwitch.dataset.mobileProduct;
-          sample.hidden = Boolean(hideOutsideWorkspace);
-          sample.classList.toggle(
-            'is-product-disabled',
-            !productSwitch.checked || hideOutsideWorkspace,
-          );
-          sample.setAttribute(
-            'aria-disabled',
-            String(!productSwitch.checked || hideOutsideWorkspace),
-          );
-        }
+            activeWorkspace !== product) ||
+            (panelMode === 'order' &&
+              document.body.dataset.orderMode !== 'bundle' &&
+              document.body.dataset.primaryProduct !== product));
+        sample.hidden = Boolean(hideOutsideWorkspace);
+        sample.classList.toggle('is-product-disabled', hideOutsideWorkspace);
+        sample.setAttribute('aria-disabled', String(hideOutsideWorkspace));
       });
     };
 
@@ -1041,8 +1030,9 @@
           : hasRibbonLogo
             ? 'logo-only'
             : hasRibbonText
-            ? 'text-only'
-            : 'empty';
+              ? 'text-only'
+              : 'empty';
+      syncVisibility();
       if (zoomStage) zoomStage.style.transition = previousStageTransition;
       syncPreviewZoom();
       // In the mobile layout .main-nav and #mobileProductsSlot both float

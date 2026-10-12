@@ -699,6 +699,7 @@ const bootStudio = () => {
     activeTextTarget =
       state.content.text[product].mode === 'override' ? product : 'common';
     syncContentEditor();
+    syncProductFirstShell();
     updateProductShowcase();
     updateStudioContext();
     if (renderPreview) render();
@@ -1156,11 +1157,12 @@ const bootStudio = () => {
       ? state.activeContentProduct
       : state.activeSettingsProduct;
     const focusSingleProduct = onSettings || onUpload;
-    const productFirstBothEnabled =
-      state.productFirstMode && state.meters > 0 && state.stickerQty > 0;
+    const productFirstEditing = state.productFirstMode && focusSingleProduct;
+    const productFirstSingleMode =
+      state.productFirstMode && state.bundle !== 'bundle';
     const productFirstWorkspace =
-      state.productFirstMode && !productFirstBothEnabled
-        ? state.primaryProduct || focusedProduct
+      productFirstEditing || productFirstSingleMode
+        ? focusedProduct || state.primaryProduct
         : null;
     const workspaceProduct = productFirstWorkspace || focusedProduct;
     const ribbonsOnly = productFirstWorkspace
@@ -1173,8 +1175,8 @@ const bootStudio = () => {
       : focusSingleProduct
         ? focusedProduct === 'sticker'
         : !onUpload && state.bundle === 'sticker';
-    const showAll = productFirstBothEnabled
-      ? true
+    const showAll = state.productFirstMode
+      ? !focusSingleProduct && state.bundle === 'bundle'
       : !onUpload && !onSettings && state.bundle === 'bundle';
 
     scene.classList.toggle('showcase-ribbons-only', ribbonsOnly);
@@ -2880,7 +2882,11 @@ const bootStudio = () => {
   });
 
   function syncProductFirstLabels() {
-    const product = state.primaryProduct || state.activeSettingsProduct || 'ribbon';
+    const product = state.productFirstMode && state.bundle === 'bundle'
+      ? state.panel === 'settings'
+        ? state.activeSettingsProduct
+        : state.activeContentProduct
+      : state.primaryProduct || state.activeSettingsProduct || 'ribbon';
     const isSticker = product === 'sticker';
     const productName = isSticker ? 'стикер' : 'ленту';
     const productPrepositional = isSticker ? 'стикере' : 'ленте';
@@ -2976,11 +2982,13 @@ const bootStudio = () => {
       });
     }
     document.body.classList.toggle('product-first-mode', state.productFirstMode && !choosing);
-    const bothProductsEnabled = state.meters > 0 && state.stickerQty > 0;
+    const focusedProduct = state.panel === 'settings'
+      ? state.activeSettingsProduct
+      : state.activeContentProduct;
     const activeWorkspace = state.productFirstMode
-      ? bothProductsEnabled
-        ? state.activeSettingsProduct || state.activeContentProduct || state.primaryProduct || 'ribbon'
-        : state.primaryProduct || state.activeSettingsProduct || state.activeContentProduct || 'ribbon'
+      ? state.bundle === 'bundle'
+        ? focusedProduct || state.primaryProduct || 'ribbon'
+        : state.primaryProduct || focusedProduct || 'ribbon'
       : '';
     document.body.dataset.primaryProduct = state.primaryProduct || '';
     document.body.dataset.orderMode = state.bundle || '';
@@ -4288,6 +4296,7 @@ const bootStudio = () => {
     if (!['ribbon', 'sticker'].includes(product)) return;
     state.activeSettingsProduct = product;
     syncLegacyStyleAliases(product);
+    syncProductFirstShell();
     document.body.dataset.activeSettingsProduct = product;
     $$('[data-settings-product]').forEach((section) => {
       section.hidden = section.dataset.settingsProduct !== product;
