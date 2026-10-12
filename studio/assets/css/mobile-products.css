@@ -1072,6 +1072,76 @@
     content:'';
   }
 
+  /* Steps 02–03 reuse the step-01 full-bleed ribbon: the strip spans the
+     viewport edge to edge while the label, zoom buttons and repeat slider
+     stay inside the page column. Only the in-flow panel is affected; the
+     floating dock keeps its compact card look. */
+  body[data-active-panel='settings'] .mobile-products-panel:not(.is-floating),
+  body[data-active-panel='order'] .mobile-products-panel:not(.is-floating) {
+    margin: 0 0 14px;
+    padding: 12px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body[data-active-panel='settings']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-preview,
+  body[data-active-panel='order']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-preview {
+    gap: 12px;
+    width: 100vw;
+    margin-inline: calc(50% - 50vw);
+  }
+
+  body[data-active-panel='settings']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-sample,
+  body[data-active-panel='order']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-sample {
+    width: 100%;
+  }
+
+  body[data-active-panel='settings']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-ribbon-sample,
+  body[data-active-panel='order']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-ribbon-sample {
+    position: relative;
+    left: calc(
+      50% - 50vw - 12px +
+        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) +
+        ((var(--preview-zoom, 1) - 1) * 12px)
+    );
+    width: calc(100vw / var(--preview-zoom, 1));
+    height: 46px;
+    min-height: 28px;
+    margin-inline: 0;
+    border-radius: 0;
+  }
+
+  body[data-active-panel='settings']
+    .mobile-products-panel:not(.is-floating)
+    [data-preview-zoom='in'],
+  body[data-active-panel='order']
+    .mobile-products-panel:not(.is-floating)
+    [data-preview-zoom='in'] {
+    transform: translateX(-24px);
+  }
+
+  body[data-active-panel='settings']
+    .mobile-products-panel:not(.is-floating)
+    .mobile-products-sample.is-settings-active
+    .mobile-products-ribbon-sample {
+    outline-offset: -3px;
+  }
+
   .mobile-products-slot {
     width: 100%;
     min-width: 0;
