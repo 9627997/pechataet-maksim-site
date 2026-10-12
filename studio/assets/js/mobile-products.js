@@ -32,6 +32,9 @@
     let dockFloating = false;
     let keyboardCompact = false;
     let panelMode = document.body.dataset.activePanel || 'upload';
+    // Горизонтальная панорама ленты — только представление: смещение не
+    // записывается в состояние проекта, production SVG или заявку.
+    let ribbonPanX = 0;
     const PREVIEW_ZOOM_MIN = 0.5;
     const PREVIEW_ZOOM_MAX_RIBBON = 1.25;
     let previewZoom = 1;
@@ -220,6 +223,33 @@
     stickerContent.append(stickerLogo.zone, stickerText.zone);
     stickerSurface.append(stickerContent, stickerGuide);
 
+    // Панорама циклическая: смещение нормализуется в диапазон одного шага
+    // повтора (-pitch, 0], поэтому лента прокручивается бесконечно в обе
+    // стороны, а дорожке всегда хватает запасных ячеек по краям.
+    const applyRibbonPan = () => {
+      const pitch = Number(ribbonSurface.dataset.ribbonRepeatPitchPx) || 0;
+      if (pitch <= 0) return;
+      let shift = ribbonPanX % pitch;
+      if (shift > 0) shift -= pitch;
+      ribbonTrack.style.transform = `translateX(calc(-50% + ${shift}px))`;
+      ribbonSurface.dataset.ribbonPanOffsetPx = shift.toFixed(2);
+    };
+
+    ribbonSurface.addEventListener(
+      'wheel',
+      (event) => {
+        const lineHeight = event.deltaMode === 1 ? 16 : 1;
+        const deltaX = event.deltaX * lineHeight;
+        const deltaY = event.deltaY * lineHeight;
+        const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+        if (!delta) return;
+        event.preventDefault();
+        ribbonPanX -= delta;
+        applyRibbonPan();
+      },
+      {passive: false},
+    );
+
     // axis 'free' (sticker) drags the zone in both X/Y. axis 'y' (ribbon
     // logo/text zones) only nudges that one element vertically — the
     // horizontal axis and the rest of the ribbon surface are handled by
@@ -230,6 +260,8 @@
       let lastX = 0;
       let lastY = 0;
       let distance = 0;
+      let totalDx = 0;
+      let totalDy = 0;
 
       zone.addEventListener('pointerdown', (event) => {
         const editableDock =
@@ -245,6 +277,8 @@
         lastX = event.clientX;
         lastY = event.clientY;
         distance = 0;
+        totalDx = 0;
+        totalDy = 0;
         zone.setPointerCapture(pointerId);
       });
 
@@ -253,11 +287,17 @@
         const dx = event.clientX - lastX;
         const dy = event.clientY - lastY;
         distance += Math.hypot(dx, dy);
+        totalDx += dx;
+        totalDy += dy;
         lastX = event.clientX;
         lastY = event.clientY;
         if (distance < 4) return;
         event.preventDefault();
         zone.dataset.dragging = 'true';
+        // Ribbon zones only nudge vertically; a horizontal-dominant gesture
+        // pans the strip via the surface handler (events bubble up), so the
+        // zone must not turn it into a vertical nudge.
+        if (axis === 'y' && Math.abs(totalDx) > Math.abs(totalDy)) return;
         const bounds = surface.getBoundingClientRect();
         document.dispatchEvent(
           new CustomEvent('studio:transform-delta', {
@@ -283,34 +323,51 @@
       zone.addEventListener('pointercancel', finishDrag);
     };
 
-    // Anywhere else on the ribbon surface: vertical drag moves the
+    // Anywhere else on the ribbon surface: horizontal drag pans the ribbon
+    // strip (view-only, works in every panel mode), vertical drag moves the
     // logo+text block together (the repeat step now has its own slider
     // under the preview — see #repeatMmPreview — since dragging along the
-    // ribbon to change it was confusing). The logo/text zones opt out via
-    // data-mobile-products-safe-zone so their own (vertical-only) drag
-    // from attachTransformDrag above wins.
+    // ribbon to change it was confusing). The logo/text zones opt out of the
+    // vertical nudge via data-mobile-products-safe-zone so their own
+    // (vertical-only) drag from attachTransformDrag above wins, but a
+    // horizontal gesture over them still pans: the events bubble up from
+    // the capturing zone, and panning must work over any point of the
+    // ribbon.
     const attachRibbonSurfaceDrag = (surface) => {
       let pointerId = null;
       let lastX = 0;
       let lastY = 0;
       let distance = 0;
+      let totalDx = 0;
+      let totalDy = 0;
+      let gesture = null;
+      let canNudge = false;
 
       surface.addEventListener('pointerdown', (event) => {
-        if (event.target.closest('[data-mobile-products-safe-zone]')) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        const overZone = Boolean(
+          event.target.closest('[data-mobile-products-safe-zone]'),
+        );
         const editableDock =
           !panel.classList.contains('is-floating') ||
           panel.classList.contains('is-expanded');
-        const canDrag =
+        canNudge =
+          !overZone &&
           (panelMode === 'settings' || panelMode === 'upload') &&
-          editableDock &&
-          event.button === 0;
-        if (!canDrag) return;
-        if (panelMode === 'settings') requestProductSettings('ribbon');
+          editableDock;
+        if (canNudge && panelMode === 'settings')
+          requestProductSettings('ribbon');
         pointerId = event.pointerId;
         lastX = event.clientX;
         lastY = event.clientY;
         distance = 0;
-        surface.setPointerCapture(pointerId);
+        totalDx = 0;
+        totalDy = 0;
+        gesture = null;
+        // Pointer capture is only needed for the vertical nudge; panning
+        // also works without it (zone drags bubble their moves here), and
+        // capturing here would steal the zone's own vertical drag.
+        if (canNudge) surface.setPointerCapture(pointerId);
       });
 
       surface.addEventListener('pointermove', (event) => {
@@ -318,11 +375,24 @@
         const dx = event.clientX - lastX;
         const dy = event.clientY - lastY;
         distance += Math.hypot(dx, dy);
+        totalDx += dx;
+        totalDy += dy;
         lastX = event.clientX;
         lastY = event.clientY;
         if (distance < 4) return;
+        if (!gesture) {
+          gesture = Math.abs(totalDx) >= Math.abs(totalDy) ? 'pan' : 'nudge';
+        }
         event.preventDefault();
         surface.dataset.dragging = 'true';
+        if (gesture === 'pan') {
+          if (dx) {
+            ribbonPanX += dx;
+            applyRibbonPan();
+          }
+          return;
+        }
+        if (!canNudge) return;
         const bounds = surface.getBoundingClientRect();
         if (dy) {
           const dyRatio = dy / Math.max(bounds.height, 1);
@@ -340,9 +410,11 @@
         if (event.pointerId !== pointerId) return;
         surface.dataset.dragging = 'false';
         try {
-          surface.releasePointerCapture(pointerId);
+          if (canNudge) surface.releasePointerCapture(pointerId);
         } catch {}
         pointerId = null;
+        gesture = null;
+        canNudge = false;
       };
       surface.addEventListener('pointerup', finishDrag);
       surface.addEventListener('pointercancel', finishDrag);
@@ -572,12 +644,20 @@
       const placedPitch = hasLogo && hasText
         ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
         : Math.max(placedLogoWidth, placedTextWidth) + placedGap;
-      const sceneWidth = placedPitch * 3;
+      // The track must cover the surface plus one full pitch on each side,
+      // otherwise panning by nearly a whole pitch would expose empty ribbon
+      // at the far edge. An odd cell count keeps the central repeat exactly
+      // on the scene center, as the fixed 3-cell scene did before.
+      let cycleCount = Math.max(
+        3,
+        Math.ceil((repeatWidth + placedPitch * 2) / placedPitch),
+      );
+      if (cycleCount % 2 === 0) cycleCount += 1;
+      const sceneWidth = placedPitch * cycleCount;
       ribbonTrack.style.left = '50%';
       ribbonTrack.style.right = 'auto';
       ribbonTrack.style.width = `${sceneWidth}px`;
       ribbonTrack.style.height = `${repeatHeight}px`;
-      ribbonTrack.style.transform = 'translateX(-50%)';
       // Each cell tiles at a `placedPitch` step inside a track that the CSS
       // transform above already centers as a whole. placedPitch = content +
       // one trailing gap, so nudging content forward by half that gap
@@ -598,7 +678,8 @@
       ribbonSurface.dataset.ribbonSceneWidthPx = sceneWidth.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatPitchPx = placedPitch.toFixed(2);
       ribbonSurface.dataset.ribbonSceneCentered = 'true';
-      for (const offset of [0, 1, 2]) {
+      applyRibbonPan();
+      for (let offset = 0; offset < cycleCount; offset++) {
         const left = offset * placedPitch;
         const cell = document.createElement('span');
         cell.className = 'mobile-products-ribbon-repeat-cell';
@@ -642,9 +723,9 @@
         ribbonTrack.appendChild(cell);
       }
 
-      ribbonSurface.dataset.ribbonRepeatCount = '3';
+      ribbonSurface.dataset.ribbonRepeatCount = String(cycleCount);
       ribbonSurface.dataset.ribbonRepeatMm = String(repeatMm);
-      ribbonSurface.dataset.ribbonPreviewCycleCount = '3';
+      ribbonSurface.dataset.ribbonPreviewCycleCount = String(cycleCount);
       ribbonSurface.dataset.ribbonRepeatWidthPx = repeatWidth.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatScale = '1';
       ribbonSurface.dataset.ribbonSingleRepeat = 'false';
