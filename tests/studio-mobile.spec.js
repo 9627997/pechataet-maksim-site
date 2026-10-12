@@ -1123,10 +1123,31 @@ test('ribbon preview stays full-bleed and frameless on every step', async ({
   for (const step of ['settings', 'order']) {
     await page.locator(`[data-panel="${step}"]`).click();
     await expect(panel).toHaveCSS('border-style', 'none');
+    await expect(ribbon).toHaveCSS('outline-style', 'none');
     const bounds = await ribbon.boundingBox();
     expect(bounds.x).toBeLessThanOrEqual(1);
     expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(389);
   }
+});
+
+test('crop dialog hides the hosted mobile preview slot', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const slot = page.locator('.mobile-products-slot[data-hosted="true"]');
+  await expect(slot).toBeVisible();
+
+  await page
+    .locator('#logoInput')
+    .setInputFiles(fixturePath('opaque-logo.png'));
+  await expect(page.locator('#cropModal')).toHaveClass(/open/);
+  await expect(slot).toBeHidden();
+
+  await page.locator('#cropCancel').click();
+  await expect(page.locator('#cropModal')).not.toHaveClass(/open/);
+  await expect(slot).toBeVisible();
 });
 
 test('mobile zoom controls use equal left and right insets', async ({
