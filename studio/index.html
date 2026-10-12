@@ -730,6 +730,10 @@
     <div class="contact-field" id="customerTelegramField" hidden><label for="customerTelegram">Ваш Telegram</label><input class="input" id="customerTelegram" name="customerTelegram" autocomplete="off" maxlength="80" placeholder="@username"></div>
     <label for="customerComment">Комментарий</label><textarea class="input" id="customerComment" name="customerComment" maxlength="2000" placeholder="Сроки, доставка или пожелания"></textarea>
     <p class="order-form-help">Оставьте имя и один удобный контакт. Я посмотрю макет и свяжусь с вами выбранным способом.</p>
+    <div class="order-consent">
+      <input id="orderConsent" name="orderConsent" type="checkbox" required aria-describedby="orderConsentText">
+      <label id="orderConsentText" for="orderConsent">Я согласен(на) на обработку указанных данных <strong>только для обратной связи по этой заявке</strong>. <a id="privacyPolicyLink" href="/privacy.html" target="_blank" rel="noopener noreferrer">Политика обработки данных</a></label>
+    </div>
     <p class="order-form-status" id="orderFormStatus" role="status" aria-live="polite"></p>
     <button class="button primary wide" id="submitOrder" type="submit">Отправить Максиму на проверку</button>
     <button class="button ghost wide order-copy" id="downloadOrderCopy" type="button">Скачать копию</button>

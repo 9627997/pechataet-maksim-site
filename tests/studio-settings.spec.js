@@ -623,13 +623,25 @@ test('order dialog sends production files, retries safely and keeps a local copy
   const customerName = page.getByLabel('Имя');
   const phonePreference = page.getByLabel('Позвонить');
   const customerPhone = page.getByLabel('Ваш телефон');
+  const orderConsent = dialog.getByLabel(
+    /только для обратной связи по этой заявке/,
+  );
+  const privacyPolicyLink = dialog.getByRole('link', {
+    name: 'Политика обработки данных',
+  });
   const submitOrder = dialog.getByRole('button', {
     name: 'Отправить Максиму на проверку',
   });
   await expect(dialog).toBeVisible();
   await expect(customerName).toBeFocused();
+  await expect(orderConsent).toHaveAttribute('required', '');
+  await expect(orderConsent).not.toBeChecked();
+  await expect(privacyPolicyLink).toHaveAttribute('href', '/privacy.html');
+  await expect(privacyPolicyLink).toHaveAttribute('target', '_blank');
+  await expect(privacyPolicyLink).toHaveAttribute('rel', 'noopener noreferrer');
 
   await customerName.fill('Максим');
+  await orderConsent.check();
   await submitOrder.click();
   await expect(page.locator('#orderFormStatus')).toHaveText(
     'Выберите удобный способ связи.',
