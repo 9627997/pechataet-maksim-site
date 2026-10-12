@@ -1110,6 +1110,25 @@ test('full-bleed ribbon is not clipped by its hosted slot', async ({
   expect(bounds.x + bounds.width).toBe(390);
 });
 
+test('ribbon preview stays full-bleed and frameless on every step', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Привет');
+  const panel = page.locator('.mobile-products-panel');
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+
+  for (const step of ['settings', 'order']) {
+    await page.locator(`[data-panel="${step}"]`).click();
+    await expect(panel).toHaveCSS('border-style', 'none');
+    const bounds = await ribbon.boundingBox();
+    expect(bounds.x).toBeLessThanOrEqual(1);
+    expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(389);
+  }
+});
+
 test('mobile zoom controls use equal left and right insets', async ({
   page,
 }, testInfo) => {
