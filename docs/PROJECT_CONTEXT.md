@@ -69,8 +69,11 @@ Production-скрипты Studio подключаются как обычные 
 3. `studio/assets/js/smart-crop.js`
 4. `studio/assets/js/trace-mask.js`
 5. `studio/assets/js/trace-engine.js`
-6. `studio/assets/js/app.js`
-7. `studio/assets/js/mobile-products.js`
+6. `studio/assets/js/state.js`
+7. `studio/assets/js/storage.js`
+8. `studio/assets/js/migrations.js`
+9. `studio/assets/js/app.js`
+10. `studio/assets/js/mobile-products.js`
 
 `geometry.js` публикует `window.RibbonStudioGeometry`, а `layout.js` использует
 его и публикует `window.RibbonStudioLayout`. `smart-crop.js` локально анализирует
@@ -80,8 +83,12 @@ Production-скрипты Studio подключаются как обычные 
 плашки и публикует `window.RibbonStudioTraceMask`. `trace-engine.js` публикует
 `window.RibbonStudioTrace` и выполняет построение контуров через отдельный
 `trace-worker.js`; worker загружает локальную копию ImageTracerJS 1.2.6.
-Главный `app.js` зависит от geometry, layout, trace-mask и trace-engine. Менять
-порядок подключения нельзя без отдельной миграции.
+`state.js` публикует фабрику начального состояния и ключ проекта,
+`storage.js` изолирует безопасное чтение/запись/удаление `localStorage`, а
+`migrations.js` нормализует persisted-state перед восстановлением. Главный
+`app.js` пока остаётся координатором и зависит от geometry, layout, trace-mask,
+trace-engine и этих state-модулей. Менять порядок подключения нельзя без
+отдельной миграции.
 
 В product-first режиме при выборе стикера на шаге «Создать» отображается
 компактный picker форм изделий. Пока picker открыт, мобильный preview получает

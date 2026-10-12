@@ -148,76 +148,10 @@ const bootStudio = () => {
   let pdfJsPromise = null;
   let tracePolaritySession = null;
 
-  const state = {
-    panel: 'upload',
-    width: 15,
-    ribbon: '#f3eadc',
-    print: '#171717',
-    logo: null,
-    logoType: null,
-    logoSvgSource: null,
-    originalRaster: null,
-    traceInfo: null,
-    logoScale: 1,
-    logoOffsetX: 0,
-    text: '',
-    content: {
-      logo: {
-        common: null,
-        ribbon: {mode: 'inherit'},
-        sticker: {mode: 'inherit'}
-      },
-      text: {
-        common: '',
-        ribbon: {mode: 'inherit'},
-        sticker: {mode: 'inherit'}
-      }
-    },
-    font: 'Manrope',
-    fontSize: 32,
-    productStyles: {
-      ribbon: {
-        font: 'Manrope',
-        print: '#171717',
-        fontSize: 32,
-        layoutMode: 'auto',
-        textOffsetX: 0,
-        textOffsetY: 0,
-        logoScale: 1,
-        logoOffsetX: 0,
-        logoOffsetY: 0
-      },
-      sticker: {
-        font: 'Manrope',
-        print: '#c6c8cd',
-        fontSize: 32,
-        layoutMode: 'auto',
-        textOffsetX: 0,
-        textOffsetY: 0,
-        logoScale: 1,
-        logoOffsetX: 0,
-        logoOffsetY: 0,
-        textScaleY: 1
-      }
-    },
-    activeContentProduct: 'ribbon',
-    activeSettingsProduct: 'ribbon',
-    primaryProduct: null,
-    productFirstMode: false,
-    repeatMm: 100,
-    repeatMode: 'auto',
-    bundle: 'bundle',
-    stickerVariantId: 'circle-24',
-    stickerSize: 24,
-    stickerBg: '#171717',
-    showPrintGuides: false,
-    commonTextAuthored: false,
-    commonLogoUploaded: false,
-    meters: 100,
-    stickerQty: 100,
-    lastMeters: 100,
-    lastStickerQty: 100
-  };
+  const {createInitialState, storageKey} = window.RibbonStudioState;
+  const storage = window.RibbonStudioStorage;
+  const migrations = window.RibbonStudioMigrations;
+  const state = createInitialState();
 
   const FONT_OPTIONS = [
     'Manrope',
@@ -998,12 +932,12 @@ const bootStudio = () => {
       traceInfo: null,
       content: contentForStorage()
     };
-    localStorage.setItem('ribbon-studio-v042', JSON.stringify(copy));
+    storage.write(storageKey, copy);
   }
 
   function restoreState() {
     try {
-      const restored = JSON.parse(localStorage.getItem('ribbon-studio-v042') || '{}');
+      const restored = migrations.normalizePersistedState(storage.read(storageKey));
       Object.assign(state, restored);
       state.activeContentProduct =
         restored.activeContentProduct === 'sticker' ? 'sticker' : 'ribbon';
@@ -5725,7 +5659,7 @@ const bootStudio = () => {
     ) {
       return;
     }
-    localStorage.removeItem('ribbon-studio-v042');
+    storage.remove(storageKey);
     // A plain reload() may be served from the browser's HTTP cache, showing
     // a stale index.html (and, through it, stale hashed JS/CSS) even though
     // the saved project was just cleared. Force a real network fetch.
