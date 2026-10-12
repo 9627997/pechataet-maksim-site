@@ -350,12 +350,6 @@
     color: #171717;
   }
 
-  .mobile-products-ribbon.is-settings-active .mobile-products-ribbon-sample,
-  .mobile-products-sticker.is-settings-active .mobile-products-sticker-sample {
-    outline: 3px solid var(--accent, #7d1c26);
-    outline-offset: 3px;
-  }
-
   .mobile-products-sample[hidden] {
     display: none;
   }
@@ -1135,13 +1129,6 @@
     transform: translateX(-24px);
   }
 
-  body[data-active-panel='settings']
-    .mobile-products-panel:not(.is-floating)
-    .mobile-products-sample.is-settings-active
-    .mobile-products-ribbon-sample {
-    outline-offset: -3px;
-  }
-
   .mobile-products-slot {
     width: 100%;
     min-width: 0;
@@ -1152,17 +1139,14 @@
     min-height: 1px;
   }
 
-  .mobile-products-panel {
-    display: block;
+  /* The hosted slot is fixed at z-index 60 (app.css), above the crop
+     modal (z-index 50): hide the preview while the crop dialog is open. */
+  body:has(.crop-modal.open) .mobile-products-slot[data-hosted='true'] {
+    visibility: hidden;
   }
 
-  .mobile-products-panel:not([data-mode='settings'])
-    .mobile-products-sample.is-settings-active
-    .mobile-products-ribbon-sample,
-  .mobile-products-panel:not([data-mode='settings'])
-    .mobile-products-sample.is-settings-active
-    .mobile-products-sticker-sample {
-    outline: 0;
+  .mobile-products-panel {
+    display: block;
   }
 
   .mobile-products-panel[data-mode='settings']
