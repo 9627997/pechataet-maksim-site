@@ -601,6 +601,8 @@ Playwright-конфигурация:
 - сценарии: `tests/site.smoke.spec.js`, `tests/studio-content.spec.js`,
   `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js` и
   `tests/studio-production.spec.js`.
+- Устаревшие проверки удалённых mobile dock и дублирующих product-switch
+  интерфейсов удалены; regression-набор проверяет только актуальную UI-модель.
 
 Полный regression остаётся достаточно быстрым для итоговой проверки, но почти
 все продуктовые правила сейчас проверяются через браузер. При выделении чистого
