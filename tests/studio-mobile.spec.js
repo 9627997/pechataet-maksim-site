@@ -901,7 +901,7 @@ test('full preview stays fixed without compact floating mode', async ({
   expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
 });
 
-test('ribbon preview keeps a stable three-repeat scene across zoom levels', async ({
+test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
@@ -914,7 +914,13 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   );
   const minus = page.locator('[data-preview-zoom="out"]');
 
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  // The cycle count is dynamic: the track carries enough odd cells to cover
+  // the surface plus one full pitch of pan margin on each side.
+  const cycleCount = Number(
+    await ribbon.getAttribute('data-ribbon-preview-cycle-count'),
+  );
+  expect(cycleCount).toBeGreaterThanOrEqual(3);
+  expect(cycleCount % 2).toBe(1);
   await expect(ribbon).toHaveAttribute('data-ribbon-logo-text-gap-px', /\d/);
   await expect(ribbon).toHaveAttribute('data-ribbon-repeat-gap-px', /\d/);
   await expect(ribbon).toHaveAttribute('data-ribbon-scene-centered', 'true');
@@ -976,15 +982,24 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '90');
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await expect(ribbon).toHaveAttribute(
+    'data-ribbon-preview-cycle-count',
+    String(cycleCount),
+  );
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '80');
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await expect(ribbon).toHaveAttribute(
+    'data-ribbon-preview-cycle-count',
+    String(cycleCount),
+  );
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '70');
-  await expect(ribbon).toHaveAttribute('data-ribbon-preview-cycle-count', '3');
+  await expect(ribbon).toHaveAttribute(
+    'data-ribbon-preview-cycle-count',
+    String(cycleCount),
+  );
   await minus.click();
   await minus.click();
   await expect(stage).toHaveAttribute('data-preview-zoom', '50');
@@ -999,7 +1014,8 @@ test('ribbon preview keeps a stable three-repeat scene across zoom levels', asyn
         return rect.right > surface.left && rect.left < surface.right;
       }).length;
     });
-  expect(visibleRepeatCount).toBe(3);
+  expect(visibleRepeatCount).toBeGreaterThanOrEqual(3);
+  expect(visibleRepeatCount).toBeLessThanOrEqual(cycleCount);
 });
 
 test('mobile preview is frameless and ribbon base scales edge to edge', async ({
@@ -1202,6 +1218,66 @@ test('ribbon surface drag no longer changes the repeat step (moved to the slider
   expect(Number(await ribbon.getAttribute('data-ribbon-repeat-mm'))).toBe(
     before,
   );
+});
+
+test('ribbon pans horizontally by drag and wheel without touching geometry', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  const ribbon = page.locator('.mobile-products-ribbon-sample');
+  const track = ribbon.locator('.mobile-products-ribbon-repeat-track');
+
+  const readPan = async () => {
+    const offset = Number(
+      await ribbon.getAttribute('data-ribbon-pan-offset-px'),
+    );
+    const pitch = Number(
+      await ribbon.getAttribute('data-ribbon-repeat-pitch-px'),
+    );
+    const repeatMm = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+    return { offset, pitch, repeatMm };
+  };
+
+  const initial = await readPan();
+  expect(initial.pitch).toBeGreaterThan(0);
+  expect(initial.offset).toBe(0);
+  const transformBefore = await track.evaluate((node) => node.style.transform);
+
+  const box = await ribbon.boundingBox();
+  expect(box).not.toBeNull();
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX + 80, centerY, { steps: 8 });
+  await page.mouse.up();
+
+  const afterDrag = await readPan();
+  expect(afterDrag.offset).not.toBe(0);
+  // Pan wraps within one repeat pitch, so the strip is endless in both
+  // directions and never exposes an empty edge.
+  expect(Math.abs(afterDrag.offset)).toBeLessThan(afterDrag.pitch);
+  expect(afterDrag.repeatMm).toBe(initial.repeatMm);
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.wheel(0, 240);
+  const afterWheel = await readPan();
+  expect(afterWheel.offset).not.toBe(afterDrag.offset);
+  expect(Math.abs(afterWheel.offset)).toBeLessThan(afterWheel.pitch);
+  expect(afterWheel.repeatMm).toBe(initial.repeatMm);
+
+  // A long drag wraps the offset instead of running off the track.
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX - 4000, centerY, { steps: 20 });
+  await page.mouse.up();
+  const afterLongDrag = await readPan();
+  expect(Math.abs(afterLongDrag.offset)).toBeLessThan(afterLongDrag.pitch);
+  expect(afterLongDrag.repeatMm).toBe(initial.repeatMm);
+
+  const transformAfter = await track.evaluate((node) => node.style.transform);
+  expect(transformAfter).not.toBe(transformBefore);
 });
 
 test('preview content zones do not open editors on click', async ({ page }) => {
