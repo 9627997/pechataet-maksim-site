@@ -33,6 +33,20 @@ const selectRoundrect = async (page) => {
     .click();
 };
 
+const visibleProducts = async (page, selector) =>
+  page
+    .locator(selector)
+    .evaluateAll((items) =>
+      items
+        .filter(
+          (item) => !item.hidden && getComputedStyle(item).display !== 'none',
+        )
+        .map(
+          (item) =>
+            item.dataset.productType || item.dataset.mobileProductSample,
+        ),
+    );
+
 test('production SVG flattens vector logos without linked nested files @smoke', async ({
   page,
 }) => {
@@ -289,6 +303,63 @@ test('ribbon entry keeps sticker preview hidden on settings @smoke', async ({
         ),
       ),
   ).toBe(true);
+});
+
+test('product modes keep only the active preview until bundle order @smoke', async ({
+  page,
+}) => {
+  const expectOnly = async (product) => {
+    const showcase = await visibleProducts(
+      page,
+      '#productShowcase [data-product-type]',
+    );
+    const mobile = await visibleProducts(page, '[data-mobile-product-sample]');
+    expect(new Set(showcase)).toEqual(new Set([product]));
+    expect(new Set(mobile)).toEqual(new Set([product]));
+  };
+  const openFresh = async (product) => {
+    await page.goto(`/studio/?product=${product}`, {
+      waitUntil: 'networkidle',
+    });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle' });
+  };
+
+  await openFresh('ribbon');
+  await page.getByLabel('Надпись на ленте').fill('Лента');
+  await expectOnly('ribbon');
+  await page.locator('#continueUpload').click();
+  await expectOnly('ribbon');
+  await page.locator('#panel-settings .next-panel').click();
+  await expectOnly('ribbon');
+
+  await openFresh('sticker');
+  await page.getByLabel('Надпись на стикере').fill('Стикер');
+  await expectOnly('sticker');
+  await page.locator('#continueUpload').click();
+  await expectOnly('sticker');
+  await page.locator('#panel-settings .next-panel').click();
+  await expectOnly('sticker');
+
+  await openFresh('bundle');
+  await page.getByLabel('Надпись на ленте').fill('Комплект');
+  await page
+    .locator('#contentProductChoice [data-content-product="ribbon"]')
+    .click();
+  await expectOnly('ribbon');
+  await page
+    .locator('#contentProductChoice [data-content-product="sticker"]')
+    .click();
+  await expectOnly('sticker');
+  await page.locator('#continueUpload').click();
+  await page.locator('[data-mobile-product-sample="sticker"]').click();
+  await expectOnly('sticker');
+  await page.locator('#panel-settings .next-panel').click();
+  expect(
+    new Set(
+      await visibleProducts(page, '#productShowcase [data-product-type]'),
+    ),
+  ).toEqual(new Set(['ribbon', 'sticker']));
 });
 
 test('plain entry opens an isolated sticker editor with proportional text size @smoke', async ({
