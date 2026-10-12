@@ -267,6 +267,30 @@ test('roundrect traced logo and text fill printable height @smoke', async ({
   expect(metrics.viewBox?.[3]).toBeLessThan(48);
 });
 
+test('ribbon entry keeps sticker preview hidden on settings @smoke', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.getByLabel('Надпись на ленте').fill('Мой бренд');
+  await page.locator('#continueUpload').click();
+
+  await expect(page.locator('#scene-kit')).toHaveClass(/showcase-ribbons-only/);
+  expect(
+    await page
+      .locator('[data-product-type="sticker"]')
+      .evaluateAll((items) => items.every((item) => item.hidden)),
+  ).toBe(true);
+  expect(
+    await page
+      .locator('[data-product-type="ribbon"]')
+      .evaluateAll((items) =>
+        items.some(
+          (item) => !item.hidden && getComputedStyle(item).display !== 'none',
+        ),
+      ),
+  ).toBe(true);
+});
+
 test('plain entry opens an isolated sticker editor with proportional text size @smoke', async ({
   page,
 }) => {

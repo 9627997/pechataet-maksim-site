@@ -16,6 +16,7 @@ const outputRoot = resolve(repositoryRoot, '_site');
 const publicEntries = [
   '.htaccess',
   'index.html',
+  'privacy.html',
   'robots.txt',
   'sitemap.xml',
   'css',
@@ -34,6 +35,7 @@ const requiredOutput = [
   '.htaccess',
   'constructor.html',
   'index.html',
+  'privacy.html',
   'robots.txt',
   'ribbon-studio-design-system-v1.html',
   'sitemap.xml',

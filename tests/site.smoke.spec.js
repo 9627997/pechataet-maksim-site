@@ -125,6 +125,26 @@ test('public pages expose canonical SEO metadata and valid structured data @smok
   expect(sitemap).toContain(
     '<loc>https://xn--80aaarctnodv3agc9d.xn--p1ai/studio/</loc>',
   );
+  expect(sitemap).toContain(
+    '<loc>https://xn--80aaarctnodv3agc9d.xn--p1ai/privacy.html</loc>',
+  );
+});
+
+test('privacy page explains feedback-only data processing @smoke', async ({
+  page,
+}) => {
+  await page.goto('/privacy.html', { waitUntil: 'networkidle' });
+
+  await expect(page).toHaveTitle('Политика обработки данных — Печатает Максим');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    'https://xn--80aaarctnodv3agc9d.xn--p1ai/privacy.html',
+  );
+  await expect(page.locator('h1')).toHaveText('Политика обработки данных');
+  await expect(page.locator('main')).toContainText(
+    'только для обратной связи по вашей заявке',
+  );
+  await expectNoHorizontalOverflow(page);
 });
 
 test('landing page exposes the verified project phone @smoke', async ({
