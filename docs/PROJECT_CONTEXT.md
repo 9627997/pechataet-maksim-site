@@ -604,6 +604,8 @@ Playwright-конфигурация:
 - сценарии: `tests/site.smoke.spec.js`, `tests/studio-content.spec.js`,
   `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js` и
   `tests/studio-production.spec.js`.
+- `studio-production.spec.js` также проверяет, что direct `product=ribbon`
+  не показывает sticker preview на шаге «Настроить».
 - Устаревшие проверки удалённых mobile dock и дублирующих product-switch
   интерфейсов удалены; regression-набор проверяет только актуальную UI-модель.
 

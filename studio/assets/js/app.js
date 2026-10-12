@@ -1188,6 +1188,7 @@ const bootStudio = () => {
          (stickersOnly && type !== 'sticker'));
 
       item.classList.toggle('is-hidden', hide);
+      item.hidden = hide;
     });
 
     const selectedRibbon = state.width === 20
