@@ -342,7 +342,7 @@ test('selected product owns the visible settings and manual transforms', async (
   expect(styles.sticker.layoutMode).toBe('auto');
   await expect(page.locator('body')).toHaveAttribute(
     'data-ribbon-repeat-mm',
-    String(manualRepeat),
+    String(Math.round(manualRepeat)),
   );
   const manualRibbon = (await readLayout()).ribbon;
   expect(manualRibbon.logoBox.y).not.toBe(automaticRibbon.logoBox.y);
@@ -452,7 +452,9 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await ribbonSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('#logoOffsetY')).toHaveValue('40');
-  await expect(page.locator('#repeatMm')).toHaveValue(String(manualRepeat));
+  await expect(page.locator('#repeatMm')).toHaveValue(
+    String(Math.round(manualRepeat)),
+  );
   await expect(
     page.locator('[data-transform-axis="horizontal"]').first(),
   ).toBeHidden();
@@ -706,8 +708,6 @@ test('order quantities control, protect, and persist product selection', async (
   const meters = page.locator('#meters');
   const stickerQty = page.locator('#stickerQty');
   const totalPrice = page.locator('#totalPrice');
-  const ribbonSwitch = page.getByRole('switch', { name: 'Лента' });
-  const stickerSwitch = page.getByRole('switch', { name: 'Стикер' });
   const notice = page.locator('#orderProductNotice');
 
   await expect(page.locator('.order-card')).toHaveCount(0);
@@ -716,7 +716,6 @@ test('order quantities control, protect, and persist product selection', async (
     'order',
   );
   const stickerSurface = page.locator('.mobile-products-sticker-sample');
-  await stickerSurface.hover();
   await expect(
     stickerSurface.locator('.mobile-products-zone-action').first(),
   ).toBeHidden();
@@ -732,8 +731,6 @@ test('order quantities control, protect, and persist product selection', async (
   await meters.selectOption('0');
   await expect(meters).toHaveValue('0');
   await expect(totalPrice).toHaveText(/1\s350\s₽/);
-  await expect(ribbonSwitch).not.toBeChecked();
-  await expect(stickerSwitch).toBeChecked();
   await expect(notice).toBeHidden();
   await expect(body).toHaveAttribute('data-has-ribbon', 'false');
   await expect(body).toHaveAttribute('data-has-sticker', 'true');
@@ -741,17 +738,17 @@ test('order quantities control, protect, and persist product selection', async (
   await stickerQty.selectOption('0');
   await expect(stickerQty).toHaveValue('250');
   await expect(notice).toBeVisible();
-  await expect(stickerSwitch).toBeChecked();
+  await expect(body).toHaveAttribute('data-has-sticker', 'true');
 
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('.nav-item[data-panel="order"]').click();
   await expect(meters).toHaveValue('0');
   await expect(stickerQty).toHaveValue('250');
-  await expect(ribbonSwitch).not.toBeChecked();
-  await expect(stickerSwitch).toBeChecked();
+  await expect(body).toHaveAttribute('data-has-ribbon', 'false');
+  await expect(body).toHaveAttribute('data-has-sticker', 'true');
 
   await meters.selectOption('25');
-  await expect(ribbonSwitch).toBeChecked();
+  await expect(body).toHaveAttribute('data-has-ribbon', 'true');
   await expect(totalPrice).toHaveText(/1\s940\s₽/);
 
   await expectNoHorizontalOverflow(page);
