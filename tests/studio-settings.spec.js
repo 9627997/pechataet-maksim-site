@@ -342,7 +342,7 @@ test('selected product owns the visible settings and manual transforms', async (
   expect(styles.sticker.layoutMode).toBe('auto');
   await expect(page.locator('body')).toHaveAttribute(
     'data-ribbon-repeat-mm',
-    String(manualRepeat),
+    String(Math.round(manualRepeat)),
   );
   const manualRibbon = (await readLayout()).ribbon;
   expect(manualRibbon.logoBox.y).not.toBe(automaticRibbon.logoBox.y);
@@ -452,7 +452,9 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await ribbonSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('#logoOffsetY')).toHaveValue('40');
-  await expect(page.locator('#repeatMm')).toHaveValue(String(manualRepeat));
+  await expect(page.locator('#repeatMm')).toHaveValue(
+    String(Math.round(manualRepeat)),
+  );
   await expect(
     page.locator('[data-transform-axis="horizontal"]').first(),
   ).toBeHidden();
