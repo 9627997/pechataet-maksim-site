@@ -608,20 +608,26 @@
       const textWidth = textBox
         ? Math.max(1, textBox.width * trueRepeatWidth)
         : 0;
-      const gap = inkLogoWidth * goldenGapRatio;
-      // With only one element present there is no logo<->text gap to
-      // measure, but the repeat-to-repeat gap still applies, sized off
-      // whichever single element is there.
-      const singleElementGap = (hasLogo ? inkLogoWidth : textWidth) * goldenGapRatio;
+      // The internal logo<->text gap inside a composition keeps its own
+      // rule (manual drag or logo ÷ 1.618) and is part of the content
+      // block; only the free repeat gap around the block follows the
+      // slider-driven pitch.
+      const internalGap = inkLogoWidth * goldenGapRatio;
       const contentWidth =
         hasLogo && hasText
-          ? inkLogoWidth + gap + textWidth
+          ? inkLogoWidth + internalGap + textWidth
           : Math.max(logoWidth, textWidth);
-      const repeatPitch =
-        hasLogo && hasText
-          ? contentWidth + gap
-          : contentWidth + singleElementGap;
-      const contentScale = Math.min(1, (repeatWidth * 0.92) / repeatPitch);
+      // state.repeatMm is the full repeat step: the production scene tiles
+      // its cells at exactly repeatMm × pxPerMm and centers the content
+      // inside, so the preview must tile at the same width — no more, no
+      // less. Without the slider floor the pitch froze at the natural
+      // content width (logo-only ignored the slider completely, text-only
+      // ignored any stretch past the natural step) while the print file
+      // used the step the user actually chose; with the content floor a
+      // logo wider than the chosen step still gets its full natural width
+      // here instead of overlapping the neighbouring repeat in print.
+      const targetPitch = Math.max(contentWidth, trueRepeatWidth);
+      const contentScale = Math.min(1, (repeatWidth * 0.92) / targetPitch);
       const placedLogoWidth = paintedLogoWidth * contentScale;
       const placedInkLogoWidth = inkLogoWidth * contentScale;
       const placedTextWidth = textWidth * contentScale;
@@ -636,14 +642,20 @@
           )
         : null;
       const manualGap = layoutGap;
-      const placedSingleElementGap =
-        (hasLogo ? placedInkLogoWidth : placedTextWidth) / 1.618;
-      const placedGap = hasLogo && hasText
-        ? manualGap ?? placedInkLogoWidth / 1.618
-        : placedSingleElementGap;
-      const placedPitch = hasLogo && hasText
-        ? placedInkLogoWidth + placedGap + placedTextWidth + placedGap
-        : Math.max(placedLogoWidth, placedTextWidth) + placedGap;
+      const placedInternalGap =
+        hasLogo && hasText
+          ? (manualGap ?? placedInkLogoWidth / 1.618)
+          : 0;
+      const placedContentWidth = hasLogo && hasText
+        ? placedInkLogoWidth + placedInternalGap + placedTextWidth
+        : Math.max(placedLogoWidth, placedTextWidth);
+      const placedPitch = targetPitch * contentScale;
+      // Whatever the pitch leaves beyond the centered content block is
+      // the free repeat gap: for a single element it pads both sides
+      // equally (visibleLogoStart = placedGap / 2 below centers it); for
+      // a composition it is the trailing gap, since the logo<->text gap
+      // is already part of the content block.
+      const placedGap = Math.max(0, placedPitch - placedContentWidth);
       // The track must cover the surface plus one full pitch on each side,
       // otherwise panning by nearly a whole pitch would expose empty ribbon
       // at the far edge. An odd cell count keeps the central repeat exactly
@@ -659,21 +671,20 @@
       ribbonTrack.style.width = `${sceneWidth}px`;
       ribbonTrack.style.height = `${repeatHeight}px`;
       // Each cell tiles at a `placedPitch` step inside a track that the CSS
-      // transform above already centers as a whole. placedPitch = content +
-      // one trailing gap, so nudging content forward by half that gap
-      // (rather than starting flush at 0, or centering against the full,
-      // much wider `repeatWidth`) puts the middle cell's content exactly on
-      // the scene's true center for any content size.
+      // transform above already centers as a whole. The content block sits
+      // centered inside each cell: half of the free gap before it, half
+      // after it (for a manual composition the user's own logo position
+      // wins instead, clamped so the block stays inside the cell).
       const visibleLogoStart = layout.manualLayout && hasLogo
         ? Math.max(
             0,
             Math.min(
-              placedPitch - (placedInkLogoWidth + placedGap + placedTextWidth),
+              placedPitch - (placedInkLogoWidth + placedInternalGap + placedTextWidth),
               layout.logoBox.x * trueRepeatWidth + placedLogoWidth * inkLeftRatio,
             ),
           )
         : placedGap / 2;
-      ribbonSurface.dataset.ribbonLogoTextGapPx = placedGap.toFixed(2);
+      ribbonSurface.dataset.ribbonLogoTextGapPx = placedInternalGap.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatGapPx = placedGap.toFixed(2);
       ribbonSurface.dataset.ribbonSceneWidthPx = sceneWidth.toFixed(2);
       ribbonSurface.dataset.ribbonRepeatPitchPx = placedPitch.toFixed(2);
@@ -709,7 +720,7 @@
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
           const textLeft = hasLogo
-            ? visibleLogoStart + placedInkLogoWidth + placedGap
+            ? visibleLogoStart + placedInkLogoWidth + placedInternalGap
             : visibleLogoStart;
           text.style.left = `${textLeft + placedTextWidth / 2}px`;
           text.style.top = `${repeatHeight / 2}px`;
