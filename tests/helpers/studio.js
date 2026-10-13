@@ -4,6 +4,13 @@ import { fileURLToPath } from 'node:url';
 export const fixturePath = (name) =>
   fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url));
 
+// Проекты конфигурации сгруппированы по движку: mobile/desktop и их
+// WebKit-варианты (mobile-webkit, desktop-webkit). Проверяем по префиксу,
+// чтобы условия тестов работали во всех движках.
+export const isMobileProject = (name) => name.startsWith('mobile');
+
+export const isDesktopProject = (name) => name.startsWith('desktop');
+
 export const watchRuntimeErrors = (page) => {
   const errors = [];
   page.on('console', (message) => {

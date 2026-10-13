@@ -625,11 +625,15 @@ Playwright-конфигурация:
 
 - mobile: `390 × 844`;
 - desktop: `1440 × 900`;
-- Chromium;
+- Chromium (основной полный набор) и WebKit (smoke-набор в проектах
+  `mobile-webkit`/`desktop-webkit`, чтобы ловить расхождения Safari);
+- axe (`@axe-core/playwright`) проверяет WCAG 2.1 A/AA на главной, Studio и
+  privacy в `tests/accessibility.spec.js`; `color-contrast` canvas-элементов
+  и известный `nested-interactive` мобильной карточки ленты пока исключены;
 - общие helpers: `tests/helpers/studio.js`;
 - сценарии: `tests/site.smoke.spec.js`, `tests/studio-content.spec.js`,
-  `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js` и
-  `tests/studio-production.spec.js`.
+  `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js`,
+  `tests/studio-production.spec.js` и `tests/accessibility.spec.js`.
 - `studio-production.spec.js` также проверяет, что direct `product=ribbon`
   не показывает sticker preview на шаге «Настроить».
 - Устаревшие проверки удалённых mobile dock и дублирующих product-switch

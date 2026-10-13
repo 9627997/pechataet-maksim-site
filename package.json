@@ -27,6 +27,7 @@
     "test:desktop": "playwright test --project=desktop"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "latest",
     "@playwright/test": "latest",
     "@visioncortex/vtracer": "1.0.0-alpha.3",

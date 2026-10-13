@@ -34,8 +34,8 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run full checks
         run: npm run check:full

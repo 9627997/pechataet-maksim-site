@@ -4900,7 +4900,10 @@ const bootStudio = () => {
     updateFirstStepAvailability();
   });
 
-  $('#textInput').addEventListener('change', (event) => {
+  // WebKit не диспатчит change при потере фокуса после ввода, поэтому
+  // трим дублируем на focusout — иначе в Safari хвостовые пробелы
+  // остаются в поле и попадают в макет.
+  const commitTextInput = (event) => {
     event.target.value = event.target.value.trim();
     if (activeTextTarget === 'common') {
       setCommonText(event.target.value);
@@ -4908,7 +4911,9 @@ const bootStudio = () => {
       setTextOverride(state.activeContentProduct, event.target.value);
     }
     returnToMobilePreview();
-  });
+  };
+  $('#textInput').addEventListener('change', commitTextInput);
+  $('#textInput').addEventListener('focusout', commitTextInput);
 
   $('#fontSelect').addEventListener('change', (event) => {
     const font = FONT_OPTIONS.includes(event.target.value)
@@ -5228,7 +5233,10 @@ const bootStudio = () => {
     $('#orderModal').classList.remove('open');
     $('#orderModal').setAttribute('aria-hidden', 'true');
     if (restoreFocus) {
-      orderModalOrigin?.focus({preventScroll: true});
+      // WebKit игнорирует синхронный focus() из keydown-обработчика
+      // (Escape), поэтому восстановление откладываем на следующий кадр.
+      const origin = orderModalOrigin;
+      requestAnimationFrame(() => origin?.focus({preventScroll: true}));
     }
     if (orderSubmissionSucceeded) {
       pendingOrderRequestId = null;
@@ -5440,7 +5448,7 @@ const bootStudio = () => {
     );
   }
 
-  $('#openOrder').addEventListener('click', () => {
+  $('#openOrder').addEventListener('click', (event) => {
     const price = calculatePrice();
     const artworkValid = document.body.dataset.artworkValid === 'true';
     $('#orderSummary').textContent = [
@@ -5456,7 +5464,9 @@ const bootStudio = () => {
     ]
       .filter(Boolean)
       .join(' · ');
-    orderModalOrigin = document.activeElement;
+    // WebKit не переводит фокус на кнопку по клику, поэтому
+    // document.activeElement здесь ненадёжен — берём кнопку напрямую.
+    orderModalOrigin = event.currentTarget;
     orderSubmissionSucceeded = false;
     acceptedOrderId = '';
     pendingOrderRequestId = null;
@@ -5483,8 +5493,11 @@ const bootStudio = () => {
     trapDialogFocus(event, $('#orderModal'));
   });
 
-  $('#downloadOrderCopy').addEventListener('click', () => {
+  $('#downloadOrderCopy').addEventListener('click', (event) => {
     downloadOrderCopy(acceptedOrderId);
+    // WebKit сбрасывает фокус на body после скачивания; без возврата фокуса
+    // Escape и ловушка фокуса диалога перестают работать в Safari.
+    event.currentTarget.focus({preventScroll: true});
   });
 
   function getPreferredContact() {
