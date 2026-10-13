@@ -1145,6 +1145,13 @@
     visibility: hidden;
   }
 
+  /* The order modal (z-index 20) sits below the hosted slot (z-index 60)
+     and the steps nav (z-index 40): hide both while the dialog is open. */
+  body:has(#orderModal.open) .mobile-products-slot[data-hosted='true'],
+  body:has(#orderModal.open) .main-nav {
+    visibility: hidden;
+  }
+
   .mobile-products-panel {
     display: block;
   }
