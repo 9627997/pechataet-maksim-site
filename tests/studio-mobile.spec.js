@@ -953,9 +953,6 @@ test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
   });
   expect(sceneGeometry.centerDelta).toBeLessThan(1);
   expect(sceneGeometry.sceneWidth).toBeGreaterThan(0);
-  expect(await ribbon.getAttribute('data-ribbon-logo-text-gap-px')).toBe(
-    await ribbon.getAttribute('data-ribbon-repeat-gap-px'),
-  );
   const visualGaps = await ribbon.evaluate((surface) => {
     const cells = [
       ...surface.querySelectorAll('.mobile-products-ribbon-repeat-cell'),
@@ -985,13 +982,21 @@ test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
       logoText: text.left - ink.right,
       repeat: nextInk.left - text.right,
       expected: (ink.right - ink.left) / 1.618,
+      // Each cell is exactly the content block plus the free repeat gap
+      // that follows it.
+      cellWidthPx: current.getBoundingClientRect().width,
+      contentWidthPx:
+        ink.right - ink.left + (text.left - ink.right) + text.width,
     };
   });
+  // The internal logo<->text gap keeps the golden-ratio rule…
   expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(
     0.75,
   );
-  expect(Math.abs(visualGaps.repeat - visualGaps.expected)).toBeLessThan(0.75);
-  expect(Math.abs(visualGaps.logoText - visualGaps.repeat)).toBeLessThan(0.75);
+  // …and the free repeat gap is whatever the pitch leaves beyond the
+  // content block inside each cell.
+  const expectedRepeatGap = visualGaps.cellWidthPx - visualGaps.contentWidthPx;
+  expect(Math.abs(visualGaps.repeat - expectedRepeatGap)).toBeLessThan(1.5);
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
@@ -1272,6 +1277,75 @@ test('ribbon surface drag no longer changes the repeat step (moved to the slider
   expect(Number(await ribbon.getAttribute('data-ribbon-repeat-mm'))).toBe(
     before,
   );
+});
+
+test('repeat slider moves the visible repeat pitch for single-element ribbons', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+
+  // Regression for issue #166: with only a logo (or only text) on the
+  // ribbon, the visible repeat pitch used to freeze at the natural
+  // content width — the slider relabelled the gap but the picture never
+  // changed, while the production scene (which tiles cells at repeatMm)
+  // would have printed the wider step the user chose.
+  const readScene = () =>
+    page.locator('.mobile-products-ribbon-sample').evaluate((surface) => {
+      const box = surface.getBoundingClientRect();
+      const ribbonWidthMm = Number(document.body.dataset.ribbonWidth) || 15;
+      return {
+        repeatMm: Number(surface.dataset.ribbonRepeatMm),
+        pitchPx: Number(surface.dataset.ribbonRepeatPitchPx),
+        pxPerMm: box.height / ribbonWidthMm,
+        surfaceWidthPx: box.width,
+      };
+    });
+
+  // The preview is mm-accurate: the pitch in px must equal the chosen
+  // repeat step × px-per-mm, unless the scene had to shrink to fit the
+  // screen (then everything, pitch included, saturates at 92% of the
+  // surface width).
+  const pitchError = async () => {
+    const scene = await readScene();
+    const fitsUnscaled =
+      scene.repeatMm * scene.pxPerMm <= scene.surfaceWidthPx * 0.92;
+    const expected = fitsUnscaled
+      ? scene.repeatMm * scene.pxPerMm
+      : scene.surfaceWidthPx * 0.92;
+    return Math.abs(scene.pitchPx - expected);
+  };
+
+  const setSlider = async (value) => {
+    await page.locator('#repeatMmPreview').evaluate((element, v) => {
+      element.value = String(v);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, String(value));
+    await expect
+      .poll(pitchError, { message: `pitch tracks slider=${value} mm` })
+      .toBeLessThan(1.5);
+  };
+
+  // Logo only: the pitch completely ignored the slider before the fix.
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
+  await expect(page.locator('#fileCardName')).toContainText('test-logo.svg');
+  await expect
+    .poll(pitchError, { message: 'logo-only auto pitch' })
+    .toBeLessThan(1.5);
+  const autoLogo = await readScene();
+  await setSlider(Math.round(autoLogo.repeatMm) + 20);
+
+  // Text only: stretching the interval above the natural step used to be
+  // a no-op as well. Reset persisted state so the logo from the previous
+  // phase doesn't turn this into a composition.
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('печатает максим');
+  await expect
+    .poll(pitchError, { message: 'text-only auto pitch' })
+    .toBeLessThan(1.5);
+  const autoText = await readScene();
+  await setSlider(Math.round(autoText.repeatMm) + 20);
 });
 
 test('ribbon pans horizontally by drag and wheel without touching geometry', async ({

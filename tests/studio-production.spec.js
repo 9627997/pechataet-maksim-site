@@ -928,11 +928,15 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   // На медленных CI-раннерах (Linux WebKit) layout может появиться позже
   // сетевого простоя; ждём, пока sticker-раскладка полностью не посчитается.
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const layouts = JSON.parse(document.body.dataset.studioLayout || '{}');
-        return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
-      }),
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const layouts = JSON.parse(
+            document.body.dataset.studioLayout || '{}',
+          );
+          return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
+        }),
+      { timeout: 15_000 },
     )
     .toBe(true);
 
@@ -978,7 +982,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   expect(result.textInside).toBe(true);
 });
 
-test('automatic golden repeat follows composition and logo-only artwork', async ({
+test('automatic repeat gap equals the ribbon width for every artwork kind', async ({
   page,
 }, testInfo) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -990,34 +994,31 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       mode: document.body.dataset.ribbonRepeatMode,
       contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
       logoWidthMm: Number(document.body.dataset.ribbonLogoWidthMm),
-      goldenGapMm: Number(document.body.dataset.ribbonGoldenGapMm),
+      autoGapMm: Number(document.body.dataset.ribbonAutoGapMm),
       ribbonWidthMm: Number(document.body.dataset.ribbonWidth),
     }));
   const expectGoldenRepeat = async (source) => {
     const result = await readRepeat();
-    // The gap between repeats is logoWidth / 1.618 whenever a logo is
-    // present (logo-only or logo+text). Text-only ribbons use a fixed gap
-    // equal to the ribbon's own physical width (15 or 20mm) instead —
-    // scaling the gap off the text's own width would make it balloon for
-    // a long line of text, so it stays constant regardless of text length.
-    const expectedGoldenGapMm =
-      source === 'text' ? result.ribbonWidthMm : result.logoWidthMm / 1.618;
+    // The free interval between repeats is always the ribbon's own
+    // physical width (15 or 20 mm), whatever the content — one simple
+    // rule instead of scaling the gap off the logo or text size.
+    const expectedGapMm = result.ribbonWidthMm;
     // Auto mode no longer rounds up to a 5mm print grid: the repeat step
-    // is exactly content width + the golden gap, so the repeat-to-repeat
-    // gap matches the logo<->text gap instead of being inflated by
-    // rounding slop. contentWidthMm/goldenGapMm come from dataset strings
-    // rounded to 2 decimals for display, so compare with a tolerance
-    // rather than exact equality.
+    // is exactly content width + the ribbon-width gap, so the
+    // repeat-to-repeat gap is exactly the ribbon width instead of being
+    // inflated by rounding slop. contentWidthMm/autoGapMm come from
+    // dataset strings rounded to 2 decimals for display, so compare with
+    // a tolerance rather than exact equality.
     const expected = Math.min(
       250,
-      Math.max(5, result.contentWidthMm + expectedGoldenGapMm),
+      Math.max(5, result.contentWidthMm + expectedGapMm),
     );
     expect(result.source).toBe(source);
     expect(result.mode).toBe('auto');
-    expect(result.goldenGapMm).toBeCloseTo(expectedGoldenGapMm, 1);
+    expect(result.autoGapMm).toBeCloseTo(expectedGapMm, 1);
     // desiredRepeatMm (= content width + gap) doesn't reserve room for the
-    // 2.5mm print margin on each side of the repeat; when the golden gap
-    // is smaller than that 5mm margin, the fitted layout genuinely doesn't
+    // 2.5mm print margin on each side of the repeat; when the gap is
+    // smaller than that 5mm margin, the fitted layout genuinely doesn't
     // fit at the naive repeat step, and the auto-repeat search bumps by
     // one 5mm rounding step to a value that does fit. That's a real,
     // correct need for more room (enforced now that the geometry fit
@@ -1060,17 +1061,20 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
       .evaluateAll(
         (elements, surface) => {
           const bounds = surface.getBoundingClientRect();
-          const texts = elements.map((element) => {
+          const intersecting = elements.filter((element) => {
             const textBounds = element.getBoundingClientRect();
             return (
               textBounds.right > bounds.left + 0.5 &&
               textBounds.left < bounds.right - 0.5
             );
-          });
+          }).length;
           const central =
             elements[Math.floor(elements.length / 2)]?.getBoundingClientRect();
           return {
-            everyRepeatIntersects: texts.every(Boolean),
+            // With a wide repeat step the outermost repeats legitimately
+            // sit fully outside the surface; what matters is that the
+            // scene still shows real repeats and the central one is whole.
+            intersectingCount: intersecting,
             centralIsWhole: Boolean(
               central &&
               central.left >= bounds.left - 0.5 &&
@@ -1080,7 +1084,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
         },
         await ribbon.elementHandle(),
       );
-    expect(repeatTextGeometry.everyRepeatIntersects).toBe(true);
+    expect(repeatTextGeometry.intersectingCount).toBeGreaterThan(0);
     expect(repeatTextGeometry.centralIsWhole).toBe(true);
     const repeatOffsets = await ribbon.evaluate((surface) => {
       const central = surface.querySelector(
