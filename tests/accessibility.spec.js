@@ -32,14 +32,9 @@ test('Studio сохраняет доступность после старта �
     .getByRole('textbox', { name: 'Надпись на ленте' })
     .fill('Макет для проверки доступности');
 
-  // Известная проблема: карточка ленты мобильного предпросмотра
-  // (role="button") содержит вложенные интерактивные элементы
-  // (кнопку «Изменить надпись» и слайдер интервала). Исправление
-  // разметки вынесено в отдельную задачу — после неё исключение
-  // нужно убрать.
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
-    .disableRules(['color-contrast', 'nested-interactive'])
+    .disableRules(['color-contrast'])
     .analyze();
 
   expect(results.violations).toEqual([]);

@@ -1257,6 +1257,46 @@
       dockFrame = requestAnimationFrame(updateFloatingDock);
     };
 
+    // Карточка в развёрнутом состоянии (is-settings-active/is-content-active)
+    // содержит вложенные интерактивные элементы — зону текста и слайдер
+    // повтора. Объявлять её кнопкой нельзя (нарушение nested-interactive,
+    // WCAG): развёрнутая карточка становится группой, кнопкой остаётся
+    // только свёрнутая.
+    const syncSampleRoles = () => {
+      const interactiveSamples = ['upload', 'settings'].includes(panelMode);
+      samples.forEach((sample) => {
+        const expanded =
+          sample.classList.contains('is-settings-active') ||
+          sample.classList.contains('is-content-active');
+        if (!interactiveSamples) {
+          sample.removeAttribute('role');
+          sample.removeAttribute('tabindex');
+          sample.removeAttribute('aria-pressed');
+          return;
+        }
+        if (expanded) {
+          // Развёрнутая карточка содержит вложенные интерактивные элементы
+          // (зону текста, слайдер повтора), поэтому это группа, а не кнопка.
+          sample.setAttribute('role', 'group');
+          sample.removeAttribute('tabindex');
+          sample.removeAttribute('aria-pressed');
+          return;
+        }
+        sample.setAttribute('role', 'button');
+        sample.setAttribute('tabindex', '0');
+      });
+    };
+
+    // Классы активности переключаются в app.js; наблюдатель синхронизирует
+    // роли карточек независимо от того, какой код изменил классы.
+    const sampleRoleObserver = new MutationObserver(syncSampleRoles);
+    samples.forEach((sample) => {
+      sampleRoleObserver.observe(sample, {
+        attributes: true,
+        attributeFilter: ['class'],
+      });
+    });
+
     const syncPanelMode = () => {
       const nextMode = ['upload', 'settings', 'order'].includes(
         document.body.dataset.activePanel,
@@ -1277,16 +1317,7 @@
       host.appendChild(panelSlot);
       panelSlot.dataset.hosted = 'true';
 
-      const interactiveSamples = ['upload', 'settings'].includes(panelMode);
-      samples.forEach((sample) => {
-        if (interactiveSamples) {
-          sample.setAttribute('role', 'button');
-          sample.setAttribute('tabindex', '0');
-        } else {
-          sample.removeAttribute('role');
-          sample.removeAttribute('tabindex');
-        }
-      });
+      syncSampleRoles();
       [ribbonLogo.zone, ribbonText.zone, stickerLogo.zone, stickerText.zone]
         .forEach((zone) => {
           zone.disabled = panelMode === 'order';

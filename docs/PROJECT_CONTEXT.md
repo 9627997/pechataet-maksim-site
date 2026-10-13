@@ -628,8 +628,11 @@ Playwright-конфигурация:
 - Chromium (основной полный набор) и WebKit (smoke-набор в проектах
   `mobile-webkit`/`desktop-webkit`, чтобы ловить расхождения Safari);
 - axe (`@axe-core/playwright`) проверяет WCAG 2.1 A/AA на главной, Studio и
-  privacy в `tests/accessibility.spec.js`; `color-contrast` canvas-элементов
-  и известный `nested-interactive` мобильной карточки ленты пока исключены;
+  privacy в `tests/accessibility.spec.js`; исключён только `color-contrast`
+  canvas-элементов Studio. Мобильная карточка в активном состоянии —
+  `role="group"` (не кнопка), чтобы не нарушать nested-interactive; роли
+  синхронизирует `syncSampleRoles` в `mobile-products.js` через
+  MutationObserver за классами `is-settings-active`/`is-content-active`;
 - общие helpers: `tests/helpers/studio.js`;
 - сценарии: `tests/site.smoke.spec.js`, `tests/studio-content.spec.js`,
   `tests/studio-settings.spec.js`, `tests/studio-mobile.spec.js`,

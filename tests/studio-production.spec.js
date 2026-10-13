@@ -930,9 +930,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const layouts = JSON.parse(
-          document.body.dataset.studioLayout || '{}',
-        );
+        const layouts = JSON.parse(document.body.dataset.studioLayout || '{}');
         return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
       }),
     )
