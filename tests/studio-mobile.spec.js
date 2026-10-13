@@ -658,6 +658,18 @@ test('PDF upload renders its first page and completes tracing', async ({
     expect(response.headers()['content-type']).toContain('javascript');
   }
 
+  // Локально обслуживается вендорная сборка pdf.js 6.1.200, а на проде
+  // срабатывает 302-редирект .htaccess на legacy 5.4.394 (DEC-031).
+  // В браузере без Map.prototype.getOrInsertComputed локальный рендер
+  // PDF невозможен — пропускаем его там.
+  const hasModernMapApi = await page.evaluate(
+    () => typeof Map.prototype.getOrInsertComputed === 'function',
+  );
+  test.skip(
+    !hasModernMapApi,
+    'Локальный pdf.js 6.1.200 требует Map.prototype.getOrInsertComputed; на проде действует редирект на legacy 5.4.394 (DEC-031)',
+  );
+
   await page.locator('#logoInput').setInputFiles(createPdfUpload());
   const cropDialog = page.getByRole('dialog', {
     name: 'Оставьте только нужную часть',

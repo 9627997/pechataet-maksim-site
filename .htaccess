@@ -8,3 +8,11 @@ RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !^https$ [NC]
 RewriteRule ^ https://xn--80aaarctnodv3agc9d.xn--p1ai%{REQUEST_URI} [R=301,L,NE]
+
+# pdf.js временно обслуживается с CDN: локальная сборка 6.1.200 требует
+# Map.prototype.getOrInsertComputed (Baseline 2025) и не работает в Safari до
+# iOS 26, Firefox и Chrome старше 137 (DEC-031). Редирект на закреплённую
+# legacy-сборку 5.4.394; убрать после замены вендорных файлов.
+RewriteRule ^studio/assets/vendor/pdfjs/pdf\.min\.m?js$ https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.394/legacy/build/pdf.min.mjs [R=302,L]
+RewriteRule ^studio/assets/vendor/pdfjs/pdf\.worker\.min\.m?js$ https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.394/legacy/build/pdf.worker.min.mjs [R=302,L]
+RewriteRule ^studio/assets/vendor/pdfjs/(standard_fonts|iccs|wasm)/(.*)$ https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.394/$1/$2 [R=302,L]
