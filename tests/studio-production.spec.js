@@ -3,6 +3,7 @@ import {
   completeFirstStepWithText,
   expectNoHorizontalOverflow,
   fixturePath,
+  isMobileProject,
   watchRuntimeErrors,
 } from './helpers/studio.js';
 
@@ -564,7 +565,7 @@ test('printable guides stay contextual and never enter the final preview', async
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
   const guide = page.locator(
-    testInfo.project.name === 'mobile'
+    isMobileProject(testInfo.project.name)
       ? '.mobile-products-printable-guide.ribbon-guide'
       : '#ribbonPrintableGuide',
   );
@@ -666,7 +667,7 @@ test('default logo and text fill and center the available print areas', async ({
 test('uploaded wide logo paints at the full ribbon safe height on mobile', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles({
@@ -924,6 +925,19 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
 
+  // На медленных CI-раннерах (Linux WebKit) layout может появиться позже
+  // сетевого простоя; ждём, пока sticker-раскладка полностью не посчитается.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const layouts = JSON.parse(
+          document.body.dataset.studioLayout || '{}',
+        );
+        return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
+      }),
+    )
+    .toBe(true);
+
   const result = await page.evaluate(() => {
     const layouts = JSON.parse(document.body.dataset.studioLayout);
     const mobileRibbon = JSON.parse(
@@ -1028,7 +1042,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
   await page.locator('#textInput').fill('МАКСИМ');
   const textRepeat = await expectGoldenRepeat('text');
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
     await expect
       .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-text').count())
@@ -1108,7 +1122,7 @@ test('automatic golden repeat follows composition and logo-only artwork', async 
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
   const logoRepeat = await expectGoldenRepeat('logo');
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
     await expect
       .poll(() => ribbon.locator('.mobile-products-ribbon-repeat-logo').count())

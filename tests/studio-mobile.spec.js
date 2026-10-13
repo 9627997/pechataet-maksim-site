@@ -8,6 +8,8 @@ import {
   expectMobilePreviewVisible,
   expectNoHorizontalOverflow,
   fixturePath,
+  isDesktopProject,
+  isMobileProject,
   jpegUpload,
   readContentSnapshot,
   readRibbonPreviewText,
@@ -17,7 +19,7 @@ import {
 test('mobile previews stay synchronized with Studio state', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = [];
   page.on('console', (message) => {
@@ -251,7 +253,7 @@ test('mobile previews stay synchronized with Studio state', async ({
 test('SVG upload updates both mobile product logos', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -285,7 +287,7 @@ test('SVG upload updates both mobile product logos', async ({
 test('successful mobile SVG and PNG uploads return to the combined preview', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -318,7 +320,7 @@ test('successful mobile SVG and PNG uploads return to the combined preview', asy
 test('transparent PNG is traced and updates both mobile product logos', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -356,7 +358,7 @@ test('transparent PNG is traced and updates both mobile product logos', async ({
 test('traced wide artwork is trimmed to its ink and fills the ribbon safe height @smoke', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   const bars = Array.from(
@@ -433,7 +435,7 @@ test('traced wide artwork is trimmed to its ink and fills the ribbon safe height
 test('white letters on a dark PNG plaque are traced as the printable sign', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   const sourceSvg = Buffer.from(`
@@ -561,7 +563,7 @@ test('smart crop finds artwork and declines a flat image', async ({ page }) => {
 test('opaque PNG crop triggers tracing and updates both mobile product logos', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -698,7 +700,7 @@ test('PDF upload renders its first page and completes tracing', async ({
 test('unified preview occupies the desktop preview column', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop');
+  test.skip(!isDesktopProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
@@ -720,7 +722,7 @@ test('unified preview occupies the desktop preview column', async ({
 test('switching from bundle to sticker keeps the mobile sticker preview visible', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=bundle');
   await page.locator('[data-order-mode="sticker"]').click();
@@ -740,7 +742,7 @@ test('switching from bundle to sticker keeps the mobile sticker preview visible'
 test('circle sticker stays square while the sticky preview is active', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   const sticker = page.locator('.mobile-products-sticker-sample');
@@ -771,7 +773,7 @@ test('circle sticker stays square while the sticky preview is active', async ({
 test('sticker mode starts with the 24 mm contrast demo and no entry banner', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=bundle', { waitUntil: 'networkidle' });
   await page.locator('[data-order-mode="sticker"]').click();
@@ -796,7 +798,7 @@ test('sticker mode starts with the 24 mm contrast demo and no entry banner', asy
 test('mobile top controls stay above the step navigation', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   const geometry = await page.evaluate(() => {
@@ -820,7 +822,7 @@ test('mobile top controls stay above the step navigation', async ({
 test('create step places content choice below preview and keeps sticker demo defaults', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page
@@ -854,7 +856,7 @@ test('create step places content choice below preview and keeps sticker demo def
 test('preview zoom controls flank the visualization and change only its scale', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const stage = page.locator('[data-preview-zoom-stage]');
@@ -891,7 +893,7 @@ test('preview zoom controls flank the visualization and change only its scale', 
 test('full preview stays fixed without compact floating mode', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const panel = page.locator('.mobile-products-panel');
@@ -916,7 +918,7 @@ test('full preview stays fixed without compact floating mode', async ({
 test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const stage = page.locator('[data-preview-zoom-stage]');
@@ -1033,7 +1035,7 @@ test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
 test('mobile preview is frameless and ribbon base scales edge to edge', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const panel = page.locator('.mobile-products-panel');
@@ -1075,7 +1077,7 @@ test('switching order modes preserves the ribbon default print color', async ({
 test('sticker zoom max uses available mobile viewport width', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   const stage = page.locator('[data-preview-zoom-stage]');
@@ -1092,7 +1094,7 @@ test('sticker zoom max uses available mobile viewport width', async ({
 test('ribbon preview reaches both mobile viewport edges at every zoom', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -1111,7 +1113,7 @@ test('ribbon preview reaches both mobile viewport edges at every zoom', async ({
 test('full-bleed ribbon is not clipped by its hosted slot', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -1125,7 +1127,7 @@ test('full-bleed ribbon is not clipped by its hosted slot', async ({
 test('ribbon preview stays full-bleed and frameless on every step', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   await page.locator('#textInput').fill('Привет');
@@ -1145,7 +1147,7 @@ test('ribbon preview stays full-bleed and frameless on every step', async ({
 test('crop dialog hides the hosted mobile preview slot', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const slot = page.locator('.mobile-products-slot[data-hosted="true"]');
@@ -1165,7 +1167,7 @@ test('crop dialog hides the hosted mobile preview slot', async ({
 test('mobile zoom controls use equal left and right insets', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const minus = page.locator('[data-preview-zoom="out"]');
@@ -1181,7 +1183,7 @@ test('mobile zoom controls use equal left and right insets', async ({
 test('standalone sticker zoom remains interactive while picker is open', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   const stage = page.locator('[data-preview-zoom-stage]');
@@ -1193,7 +1195,7 @@ test('standalone sticker zoom remains interactive while picker is open', async (
 test('demo sticker objects support drag positioning on create step', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=sticker', { waitUntil: 'networkidle' });
   const logo = page.locator('.mobile-products-sticker-logo-zone');
@@ -1215,7 +1217,7 @@ test('demo sticker objects support drag positioning on create step', async ({
 test('repeat slider under the ribbon preview changes the repeat step bidirectionally', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -1254,7 +1256,7 @@ test('repeat slider under the ribbon preview changes the repeat step bidirection
 test('ribbon surface drag no longer changes the repeat step (moved to the slider)', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   const ribbon = page.locator('.mobile-products-ribbon-sample');

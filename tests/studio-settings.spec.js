@@ -3,6 +3,8 @@ import {
   completeFirstStepWithText,
   expectNoHorizontalOverflow,
   fixturePath,
+  isDesktopProject,
+  isMobileProject,
   openSettings,
   watchRuntimeErrors,
 } from './helpers/studio.js';
@@ -149,7 +151,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
 
   await page.locator('#fontSelect').selectOption('PT Serif');
   await page.locator('#printColorSelect').selectOption('#c6c8cd');
-  await expect(stickerText).toHaveCSS('font-family', '"PT Serif"');
+  // WebKit сериализует font-family без кавычек ("PT Serif" → PT Serif),
+  // поэтому сравниваем регулярным выражением.
+  await expect(stickerText).toHaveCSS('font-family', /PT Serif/);
   await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
   await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
@@ -270,7 +274,7 @@ test('selected product owns the visible settings and manual transforms', async (
   await expect(panel).toHaveAttribute('data-mode', 'settings');
   await expect(
     page.locator(
-      `[data-products-host="${testInfo.project.name === 'desktop' ? 'desktop' : 'settings'}"] #mobileProductsSlot`,
+      `[data-products-host="${isDesktopProject(testInfo.project.name) ? 'desktop' : 'settings'}"] #mobileProductsSlot`,
     ),
   ).toHaveCount(1);
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
@@ -353,7 +357,7 @@ test('selected product owns the visible settings and manual transforms', async (
     manualRibbon.printable.y - 0.001,
   );
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     const mobileGeometry = await panel
       .locator('.mobile-products-ribbon-sample')
       .evaluate((surface) => {
@@ -459,7 +463,7 @@ test('selected product owns the visible settings and manual transforms', async (
     page.locator('[data-transform-axis="horizontal"]').first(),
   ).toBeHidden();
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     const isFloating = await panel.evaluate((element) =>
       element.classList.contains('is-floating'),
     );

@@ -29,5 +29,23 @@ export default defineConfig({
         viewport: { width: 1440, height: 900 },
       },
     },
+    // WebKit-прогон ограничен smoke-набором: полный suite на WebKit
+    // включается после разбора найденных расхождений (см. ROADMAP, P1).
+    {
+      name: 'mobile-webkit',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 390, height: 844 },
+      },
+      grep: /@smoke/,
+    },
+    {
+      name: 'desktop-webkit',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 1440, height: 900 },
+      },
+      grep: /@smoke/,
+    },
   ],
 });

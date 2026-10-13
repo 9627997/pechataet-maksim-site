@@ -3,6 +3,8 @@ import {
   expectNoHorizontalOverflow,
   expectSvgDataToContain,
   fixturePath,
+  isDesktopProject,
+  isMobileProject,
   openSettings,
   readContentSnapshot,
   readRibbonPreviewText,
@@ -27,7 +29,7 @@ test('Studio opens without console errors or horizontal scrolling @smoke', async
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     await expect(page.locator('main.studio')).toBeHidden();
     await expect(page.locator('.mobile-products-panel')).toBeVisible();
   } else {
@@ -88,7 +90,7 @@ test('homepage entry context selects the requested Studio product @smoke', async
   await expect(page.locator('#studioEntryContext')).toHaveCount(0);
   await expect(page.locator('#textInputLabel')).toHaveText('Надпись на ленте');
 
-  if (testInfo.project.name === 'desktop') {
+  if (isDesktopProject(testInfo.project.name)) {
     await expect(page.locator('main.studio')).toBeVisible();
   }
 });
@@ -96,7 +98,7 @@ test('homepage entry context selects the requested Studio product @smoke', async
 test('one preview component survives continuous viewport changes @smoke', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop');
+  test.skip(!isDesktopProject(testInfo.project.name));
 
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#mobileProductsSlot').evaluate((slot) => {
@@ -136,7 +138,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
     'data-preview-demo',
     'true',
   );
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     await expect(page.locator('#previewContextTitle')).toBeHidden();
     await expect(page.locator('#previewContextCopy')).toBeHidden();
   } else {
@@ -169,7 +171,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   await expect(
     page.locator('#contentProductEditor').locator('xpath=..'),
   ).toHaveAttribute('data-content-product-host', 'mobile');
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     await expect(
       page.locator('[data-products-host="upload"] #mobileProductsSlot'),
     ).toHaveCount(1);
@@ -261,7 +263,7 @@ test('fresh first step marks the demo and keeps customer content honest @smoke',
   const previewText = page.locator('.mobile-products-ribbon-text');
   await expect(previewText).toHaveCSS('font-family', /Comfortaa/);
 
-  if (testInfo.project.name === 'mobile') {
+  if (isMobileProject(testInfo.project.name)) {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
     await expect(ribbon).toHaveAttribute('data-layout-valid', 'true');
     const demoGeometry = await ribbon.evaluate((surface) => {
@@ -438,7 +440,7 @@ test('first content is shared and explicit edits stay with the selected product'
 test('legacy Studio content migrates to common content', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   const svgSource =
@@ -517,7 +519,7 @@ test('legacy Studio content migrates to common content', async ({
 test('content overrides normalize, resolve, persist, and reset', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   const svgSource =
@@ -610,7 +612,7 @@ test('content overrides normalize, resolve, persist, and reset', async ({
 test('resolved logo assets render independently across product scenes', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.addInitScript(() => {
@@ -790,7 +792,7 @@ test('resolved logo assets render independently across product scenes', async ({
 test('logo upload target persists through SVG callbacks and sequential uploads', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.addInitScript(() => {
@@ -856,7 +858,7 @@ test('logo upload target persists through SVG callbacks and sequential uploads',
 test('raster upload target survives tracing and crop cancellation', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -908,7 +910,7 @@ test('raster upload target survives tracing and crop cancellation', async ({
 test('resolved product text stays independent from common editing', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
+  test.skip(!isMobileProject(testInfo.project.name));
 
   const runtimeErrors = watchRuntimeErrors(page);
   await page.addInitScript(() => {
@@ -1136,7 +1138,8 @@ test('Create step validates input and manages the common logo @smoke', async ({
 
   await textInput.fill('  Мой    бренд   ');
   await expect(textInput).toHaveValue('Мой бренд ');
-  await textInput.blur();
+  // Уходим с поля кликом вне его: как реальный пользователь.
+  await page.mouse.click(5, 5);
   await expect(textInput).toHaveValue('Мой бренд');
   await textInput.fill('');
 
@@ -1156,6 +1159,9 @@ test('Create step validates input and manages the common logo @smoke', async ({
   await expect(logoStatus).toHaveClass(/is-complete/);
   await expect(page.locator('#fileCardActions')).toBeVisible();
 
+  // Нейтральный клик перед удалением: без него WebKit после программных
+  // fill()/setInputFiles() не синтезирует click по следующей кнопке.
+  await page.mouse.click(400, 5);
   await page.locator('#removeCommonLogo').click();
   await expect(page.locator('#fileCard')).toBeHidden();
   await expect(logoStatus).not.toHaveClass(/is-complete/);
