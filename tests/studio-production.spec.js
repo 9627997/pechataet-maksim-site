@@ -925,6 +925,19 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
 
+  // На медленных CI-раннерах (Linux WebKit) layout может появиться позже
+  // сетевого простоя; ждём, пока sticker-раскладка полностью не посчитается.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const layouts = JSON.parse(
+          document.body.dataset.studioLayout || '{}',
+        );
+        return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
+      }),
+    )
+    .toBe(true);
+
   const result = await page.evaluate(() => {
     const layouts = JSON.parse(document.body.dataset.studioLayout);
     const mobileRibbon = JSON.parse(
