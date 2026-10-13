@@ -577,7 +577,19 @@ const bootStudio = () => {
       const editingContent = state.panel === 'upload';
       sample.classList.toggle('is-content-active', editingContent && active);
       sample.classList.toggle('is-content-inactive', editingContent && !active);
-      if (editingContent) sample.setAttribute('aria-pressed', String(active));
+      // aria-pressed допустима только у карточки-кнопки; развёрнутая
+      // карточка (role=group) её не поддерживает. На панели настроек
+      // aria-pressed владеет setActiveSettingsProduct — здесь не трогаем.
+      if (editingContent) {
+        if (
+          !sample.classList.contains('is-settings-active') &&
+          !sample.classList.contains('is-content-active')
+        ) {
+          sample.setAttribute('aria-pressed', String(active));
+        } else {
+          sample.removeAttribute('aria-pressed');
+        }
+      }
     });
 
     if ($('#contentProductEditorHint')) {
@@ -4304,7 +4316,13 @@ const bootStudio = () => {
     $$('[data-mobile-product-sample]').forEach((sample) => {
       const active = sample.dataset.mobileProductSample === product;
       sample.classList.toggle('is-settings-active', active);
-      sample.setAttribute('aria-pressed', String(active));
+      // aria-pressed допустима только у карточки-кнопки; развёрнутая
+      // карточка (role=group) её не поддерживает.
+      if (active) {
+        sample.removeAttribute('aria-pressed');
+      } else {
+        sample.setAttribute('aria-pressed', 'false');
+      }
     });
     if ($('#activeSettingsTitle')) {
       $('#activeSettingsTitle').textContent =

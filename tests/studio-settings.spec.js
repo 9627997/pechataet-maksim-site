@@ -24,8 +24,12 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   const stickerText = page.locator('.mobile-products-sticker-text');
 
   await expect(panel).toBeVisible();
-  await expect(panel).toBeVisible();
-  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'true');
+  // Развёрнутая карточка — группа (вложенные контролы), aria-pressed у неё
+  // недопустима; свёрнутая карточка остаётся кнопкой с aria-pressed="false".
+  await expect(ribbonSample).toHaveAttribute('role', 'group');
+  await expect(ribbonSample).not.toHaveAttribute('aria-pressed');
+  await expect(stickerSample).toHaveAttribute('role', 'button');
+  await expect(stickerSample).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
   await expect(page.locator('[data-settings-product="sticker"]')).toBeHidden();
   await expect(ribbonSample).toBeVisible();
@@ -87,7 +91,11 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   );
 
   await stickerSample.click();
-  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  // Кликнутая карточка разворачивается в группу, свёрнутая — кнопку.
+  await expect(stickerSample).toHaveAttribute('role', 'group');
+  await expect(stickerSample).not.toHaveAttribute('aria-pressed');
+  await expect(ribbonSample).toHaveAttribute('role', 'button');
+  await expect(ribbonSample).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
   await expect(page.locator('#mobileTextEditor')).toBeHidden();
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
@@ -100,6 +108,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').hover();
   await expect(hoverAction).toBeHidden();
   await panel.locator('[data-mobile-products-safe-zone="ribbon-logo"]').click();
+  await expect(ribbonSample).toHaveAttribute('role', 'group');
+  await expect(ribbonSample).not.toHaveAttribute('aria-pressed');
+  await expect(stickerSample).toHaveAttribute('role', 'button');
   await expect(stickerSample).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Лента');
   await expect(page.locator('#mobileLogoEditor')).toBeHidden();
@@ -139,7 +150,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   );
 
   await stickerSample.click({ position: { x: 4, y: 4 } });
-  await expect(stickerSample).toHaveAttribute('aria-pressed', 'true');
+  await expect(stickerSample).toHaveAttribute('role', 'group');
+  await expect(stickerSample).not.toHaveAttribute('aria-pressed');
+  await expect(ribbonSample).toHaveAttribute('role', 'button');
   await expect(ribbonSample).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
   await expect(page.locator('[data-settings-product="ribbon"]')).toBeHidden();
