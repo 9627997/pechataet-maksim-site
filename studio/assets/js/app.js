@@ -28,6 +28,7 @@ const bootStudio = () => {
   const MIN_RIBBON_REPEAT_MM = REPEAT_ROUNDING_MM;
   const MAX_RIBBON_REPEAT_MM = 250;
   const RIBBON_REPEAT_PX_PER_MM = 6.2;
+  const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
   const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
   const STICKER_VARIANTS = Object.freeze({
@@ -1706,10 +1707,10 @@ const bootStudio = () => {
     const hasLogo = Boolean(resolvedLogo?.logo);
     const hasText = Boolean(text);
     const outerHeight = state.width === 15 ? 76 : 100;
-    // Ribbon content prints full-bleed across the ribbon width (the
-    // cross-width margin is 0 — see RIBBON_PRINT_MARGIN_MM), so the text may
-    // use the whole ribbon height, not a margin-inset printable band.
-    const printableHeightMm = state.width;
+    // The 2.5 mm cross-width margins are a hard printer constraint — the
+    // ribbon edges physically cannot take print — so content fitting stays
+    // inside the printable band.
+    const printableHeightMm = Math.max(0, state.width - PRINT_MARGIN_MM * 2);
     const printableHeightUnits =
       (printableHeightMm / state.width) * outerHeight;
     const preferredFontSize =
@@ -5252,15 +5253,17 @@ const bootStudio = () => {
     else state.activeContentProduct = product;
     enterManualLayout(product);
     const style = getProductStyle(product);
-    const outer = currentLayouts[product]?.outer;
-    if (!outer) return;
+    // Offsets are percents of the element's available travel (±100 = the
+    // full slider sweep): dragging across the whole preview surface moves
+    // the element through its whole allowed range, whatever the printable
+    // band currently leaves it.
     const clampOffset = (value) => Math.min(100, Math.max(-100, value));
     style[`${kind}OffsetX`] = clampOffset(
       style[`${kind}OffsetX`] +
-        Number(event.detail.dxRatio || 0) * outer.width,
+        Number(event.detail.dxRatio || 0) * 100,
     );
     style[`${kind}OffsetY`] = clampOffset(
-      style[`${kind}OffsetY`] + Number(event.detail.dyRatio || 0) * outer.height,
+      style[`${kind}OffsetY`] + Number(event.detail.dyRatio || 0) * 100,
     );
     syncControls();
     render();

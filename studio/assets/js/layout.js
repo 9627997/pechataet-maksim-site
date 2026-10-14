@@ -129,6 +129,19 @@
     const toWidthScale = (box) =>
       box && {...box, x: box.x * axisScale, width: box.width * axisScale};
 
+    // Offsets are percents of the element's available travel inside the
+    // clamp bounds (the sliders run ±100), not absolute units: whatever
+    // freedom the printable band actually leaves the element, the full
+    // slider sweep always moves it exactly edge-to-edge of that freedom.
+    // Travel is measured in the clamp bounds' own scale, so no axisScale
+    // conversion is needed for the raw percent values.
+    const travelX = (rect, clampBounds, percent) =>
+      (Math.min(100, Math.max(-100, percent)) / 100) *
+      Math.max(0, clampBounds.width - rect.width);
+    const travelY = (rect, clampBounds, percent) =>
+      (Math.min(100, Math.max(-100, percent)) / 100) *
+      Math.max(0, clampBounds.height - rect.height);
+
     if (hasLogo && hasText) {
       const minimumTextWidth = Math.max(
         1,
@@ -185,11 +198,12 @@
         ? {x: 0, y: 0, width: logo.ratio, height: 1}
         : {x: 0, y: 0, width: 1, height: 1 / logo.ratio};
       logoBox = geometry.fitRectToBounds(source, logoBounds, logoScale);
+      const logoClampBounds = manualLayout ? boundsX : logoBounds;
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
-        manualLayout ? boundsX : logoBounds,
-        manualLayout ? logoOffsetX / axisScale : 0,
-        manualLayout ? logoOffsetY : 0,
+        logoClampBounds,
+        manualLayout ? travelX(logoBox, logoClampBounds, logoOffsetX) : 0,
+        manualLayout ? travelY(logoBox, logoClampBounds, logoOffsetY) : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
       textResult = fitTextToArea({
@@ -225,8 +239,8 @@
       const clamped = geometry.clampRectOffsetToBounds(
         logoBox,
         boundsX,
-        manualLayout ? logoOffsetX / axisScale : 0,
-        manualLayout ? logoOffsetY : 0,
+        manualLayout ? travelX(logoBox, boundsX, logoOffsetX) : 0,
+        manualLayout ? travelY(logoBox, boundsX, logoOffsetY) : 0,
       );
       logoBox = {...logoBox, x: clamped.x, y: clamped.y};
     } else if (hasText) {
@@ -248,8 +262,8 @@
       const clamped = geometry.clampRectOffsetToBounds(
         textResult.bbox,
         boundsX,
-        textOffsetX / axisScale,
-        textOffsetY,
+        travelX(textResult.bbox, boundsX, textOffsetX),
+        travelY(textResult.bbox, boundsX, textOffsetY),
       );
       textResult.bbox = {
         ...textResult.bbox,
@@ -394,11 +408,20 @@
       textResult = fitText();
     }
 
+    // Offsets are percents of the available travel (sliders run ±100). A
+    // circle's travel is radial, so the attempted shift is a fraction of
+    // the printable radius; the clamp's binary search then keeps as much
+    // of it as keeps the box corners inside the circle.
+    const circleTravel = (percent) =>
+      isCircle
+        ? (Math.min(100, Math.max(-100, percent)) / 100) *
+          area.circle.radius
+        : percent;
     if (manualLayout && logoBox) {
-      logoBox = geometry.clampRectOffsetToSticker(logoBox, area, logoOffsetX, logoOffsetY);
+      logoBox = geometry.clampRectOffsetToSticker(logoBox, area, circleTravel(logoOffsetX), circleTravel(logoOffsetY));
     }
     if (manualLayout && textResult.bbox) {
-      textResult.bbox = geometry.clampRectOffsetToSticker(textResult.bbox, area, textOffsetX, textOffsetY);
+      textResult.bbox = geometry.clampRectOffsetToSticker(textResult.bbox, area, circleTravel(textOffsetX), circleTravel(textOffsetY));
     }
 
     const logoFits = !logoBox || geometry.areRectCornersInsideSticker(logoBox, area);
