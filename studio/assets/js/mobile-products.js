@@ -263,6 +263,30 @@
       let totalDx = 0;
       let totalDy = 0;
 
+      // iOS Safari before 16 ignores touch-action and starts native page
+      // scrolling on any vertical touch, killing the pointer stream with
+      // pointercancel. Blocking the touchstart default prevents that on
+      // every iOS version; zone taps intentionally do nothing (editors open
+      // from the inner action buttons), so suppressing the synthesized
+      // click here is harmless.
+      zone.addEventListener(
+        'touchstart',
+        (event) => {
+          // The inner action button (editor opener) keeps native behavior.
+          if (event.target.closest('.mobile-products-zone-action')) return;
+          const editableDock =
+            !panel.classList.contains('is-floating') ||
+            panel.classList.contains('is-expanded');
+          if (
+            (panelMode === 'settings' || panelMode === 'upload') &&
+            editableDock
+          ) {
+            event.preventDefault();
+          }
+        },
+        {passive: false},
+      );
+
       zone.addEventListener('pointerdown', (event) => {
         const editableDock =
           !panel.classList.contains('is-floating') ||

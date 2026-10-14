@@ -1531,6 +1531,41 @@ test('ribbon pans horizontally by drag and wheel without touching geometry', asy
   expect(transformAfter).not.toBe(transformBefore);
 });
 
+test('content zones opt out of native touch gestures so the vertical drag survives iOS', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('ПРИВЕТ');
+  const zone = page.locator('.mobile-products-ribbon-text-zone');
+  await expect(zone).toHaveCSS('touch-action', 'none');
+
+  // The non-passive touchstart listener blocks native scrolling (which
+  // otherwise kills the pointer stream with pointercancel on iOS Safari).
+  const zonePrevented = await zone.evaluate((element) => {
+    const event = new TouchEvent('touchstart', {
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(zonePrevented).toBe(true);
+
+  // The inner action button (editor opener) keeps native touch behavior.
+  const actionPrevented = await zone
+    .locator('.mobile-products-zone-action')
+    .evaluate((element) => {
+      const event = new TouchEvent('touchstart', {
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  expect(actionPrevented).toBe(false);
+});
+
 test('preview content zones do not open editors on click', async ({ page }) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const textInput = page.locator('#textInput');
