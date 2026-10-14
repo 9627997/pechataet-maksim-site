@@ -330,18 +330,27 @@ test('selected product owns the visible settings and manual transforms', async (
   const initialRepeat = Number(
     await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
   );
-  const manualRepeat = Math.min(250, initialRepeat + 30);
+  const manualGap = 60;
   await page.locator('#layoutModeChoice [data-value="manual"]').click();
   await expect(page.locator('#logoOffsetY')).toBeEnabled();
-  await setRange('#repeatMm', manualRepeat);
+  await setRange('#repeatMm', manualGap);
   const intervalRibbon = (await readLayout()).ribbon;
-  const automaticTextOffsetMm =
-    (automaticRibbon.textBox.x + automaticRibbon.textBox.width / 2 - 0.5) *
-    initialRepeat;
-  const intervalTextOffsetMm =
-    (intervalRibbon.textBox.x + intervalRibbon.textBox.width / 2 - 0.5) *
-    manualRepeat;
-  expect(intervalTextOffsetMm).toBeCloseTo(automaticTextOffsetMm, 1);
+  // The slider controls the interval g: the repeat step is re-derived as
+  // content + g, while the composition keeps its natural sizes — only the
+  // whitespace changes.
+  const intervalRepeat = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+  );
+  expect(intervalRepeat).toBeGreaterThan(initialRepeat);
+  const automaticTextWidthMm = automaticRibbon.textBox.width * initialRepeat;
+  const intervalTextWidthMm = intervalRibbon.textBox.width * intervalRepeat;
+  expect(intervalTextWidthMm).toBeCloseTo(automaticTextWidthMm, 1);
+  // The logo<->text gap inside the composition equals the chosen interval.
+  const intervalInternalGapMm =
+    (intervalRibbon.textBox.x -
+      (intervalRibbon.logoBox.x + intervalRibbon.logoBox.width)) *
+    intervalRepeat;
+  expect(intervalInternalGapMm).toBeCloseTo(manualGap, 1);
   await setRange('#logoScale', 60);
   await setRange('#logoOffsetY', 40);
   await setRange('#textOffsetY', -25);
@@ -357,9 +366,15 @@ test('selected product owns the visible settings and manual transforms', async (
     fontSize: 40,
   });
   expect(styles.sticker.layoutMode).toBe('auto');
+  // The chosen interval survives the manual style tweaks (the repeat step
+  // itself is re-derived from the resized content — only g is pinned).
+  const tweakedRepeat = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
+  );
+  expect(tweakedRepeat).toBeGreaterThan(initialRepeat);
   await expect(page.locator('body')).toHaveAttribute(
-    'data-ribbon-repeat-mm',
-    String(Math.round(manualRepeat)),
+    'data-ribbon-repeat-gap-mm',
+    `${manualGap.toFixed(2)}`,
   );
   const manualRibbon = (await readLayout()).ribbon;
   expect(manualRibbon.logoBox.y).not.toBe(automaticRibbon.logoBox.y);
@@ -469,9 +484,9 @@ test('selected product owns the visible settings and manual transforms', async (
 
   await ribbonSample.click({ position: { x: 4, y: 4 } });
   await expect(page.locator('#logoOffsetY')).toHaveValue('40');
-  await expect(page.locator('#repeatMm')).toHaveValue(
-    String(Math.round(manualRepeat)),
-  );
+  // Switching products and back leaves the manually chosen interval on the
+  // slider.
+  await expect(page.locator('#repeatMm')).toHaveValue(String(manualGap));
   await expect(
     page.locator('[data-transform-axis="horizontal"]').first(),
   ).toBeHidden();
@@ -500,12 +515,8 @@ test('selected product owns the visible settings and manual transforms', async (
       '[data-mobile-products-safe-zone="ribbon-logo"]',
     );
     await expect(logoZone).toBeVisible();
-    const dragBaseline = 120;
-    await setRange('#repeatMm', dragBaseline);
-    await expect(page.locator('body')).toHaveAttribute(
-      'data-ribbon-repeat-mm',
-      String(dragBaseline),
-    );
+    // Dragging the logo must not touch the interval: the repeat step is
+    // re-derived from the same g and content after the drag.
     const repeatBeforeDrag = Number(
       await page.locator('body').getAttribute('data-ribbon-repeat-mm'),
     );

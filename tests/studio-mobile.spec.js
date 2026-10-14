@@ -981,7 +981,8 @@ test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
     return {
       logoText: text.left - ink.right,
       repeat: nextInk.left - text.right,
-      expected: (ink.right - ink.left) / 1.618,
+      logoTextGapPx: Number(current.closest('.mobile-products-ribbon-sample')?.dataset.ribbonLogoTextGapPx),
+      repeatGapPx: Number(current.closest('.mobile-products-ribbon-sample')?.dataset.ribbonRepeatGapPx),
       // Each cell is exactly the content block plus the free repeat gap
       // that follows it.
       cellWidthPx: current.getBoundingClientRect().width,
@@ -989,14 +990,21 @@ test('ribbon preview keeps a stable repeat scene across zoom levels', async ({
         ink.right - ink.left + (text.left - ink.right) + text.width,
     };
   });
-  // The internal logo<->text gap keeps the golden-ratio rule…
-  expect(Math.abs(visualGaps.logoText - visualGaps.expected)).toBeLessThan(
+  // The logo<->text gap and the repeat-to-repeat gap are one unified
+  // interval: what the layout placed (datasets) matches what is on screen.
+  // Ink-to-ink the repeat gap can exceed the internal gap by the logo
+  // artwork's own interior whitespace (a padded viewBox shrinks the ink
+  // width, and the freed space lands in the free gap — the design step is
+  // content + g exactly either way).
+  expect(Math.abs(visualGaps.logoText - visualGaps.logoTextGapPx)).toBeLessThan(
     0.75,
   );
-  // …and the free repeat gap is whatever the pitch leaves beyond the
-  // content block inside each cell.
-  const expectedRepeatGap = visualGaps.cellWidthPx - visualGaps.contentWidthPx;
-  expect(Math.abs(visualGaps.repeat - expectedRepeatGap)).toBeLessThan(1.5);
+  expect(Math.abs(visualGaps.repeat - visualGaps.repeatGapPx)).toBeLessThan(
+    1.5,
+  );
+  expect(
+    Math.abs(visualGaps.logoTextGapPx - visualGaps.repeatGapPx),
+  ).toBeLessThan(4);
   await expect(interactionCell).toHaveCSS('visibility', 'visible');
   await expect(interactionCell).toHaveCSS('opacity', '0');
   await minus.click();
@@ -1228,31 +1236,42 @@ test('repeat slider under the ribbon preview changes the repeat step bidirection
   const ribbon = page.locator('.mobile-products-ribbon-sample');
   const slider = page.locator('#repeatMmPreview');
   await expect(slider).toHaveAttribute('type', 'range');
-  const before = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+  // In auto mode the slider shows the interval itself (the ribbon width,
+  // 15 or 20 mm), not the derived repeat step.
+  const interval = Number(await slider.inputValue());
+  const gapMm = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-gap-mm'),
+  );
+  expect(Math.abs(interval - gapMm)).toBeLessThanOrEqual(5);
 
-  await slider.evaluate((element, value) => {
-    element.value = String(value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-  }, before + 40);
-  await expect
-    .poll(async () =>
-      Number(await ribbon.getAttribute('data-ribbon-repeat-mm')),
-    )
-    .toBeGreaterThan(before);
-  const increased = Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+  const readStep = async () =>
+    Number(await ribbon.getAttribute('data-ribbon-repeat-mm'));
+  const setSlider = async (value) =>
+    slider.evaluate((element, v) => {
+      element.value = String(v);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
 
-  await slider.evaluate((element, value) => {
-    element.value = String(value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-  }, before);
+  // The slider stores the interval g; the repeat step is content + g, so
+  // it reacts in the same direction.
+  const before = await readStep();
+  await setSlider(interval + 40);
   await expect
-    .poll(async () =>
-      Number(await ribbon.getAttribute('data-ribbon-repeat-mm')),
-    )
-    .toBeLessThan(increased);
+    .poll(async () => (await readStep()) - before, {
+      message: 'step grows when the interval grows',
+    })
+    .toBeGreaterThan(30);
+  const increased = await readStep();
+
+  await setSlider(interval);
+  await expect
+    .poll(async () => increased - (await readStep()), {
+      message: 'step shrinks back when the interval shrinks',
+    })
+    .toBeGreaterThan(30);
 
   // The settings-panel slider (#repeatMm) stays in sync with the one
-  // under the preview, since both control the same state.repeatMm.
+  // under the preview, since both control the same interval.
   await expect(page.locator('#repeatMm')).toHaveValue(
     await slider.inputValue(),
   );
@@ -1300,6 +1319,8 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
         surfaceWidthPx: box.width,
       };
     });
+  const readContentWidthMm = () =>
+    page.evaluate(() => Number(document.body.dataset.ribbonContentWidthMm));
 
   // The preview is mm-accurate: the pitch in px must equal the chosen
   // repeat step × px-per-mm, unless the scene had to shrink to fit the
@@ -1321,19 +1342,22 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
       element.dispatchEvent(new Event('input', { bubbles: true }));
     }, String(value));
     await expect
-      .poll(pitchError, { message: `pitch tracks slider=${value} mm` })
+      .poll(pitchError, { message: `pitch tracks interval=${value} mm` })
       .toBeLessThan(1.5);
   };
 
   // Logo only: the pitch completely ignored the slider before the fix.
+  // The slider stores the interval g; the step is content + g.
   await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(page.locator('#fileCardName')).toContainText('test-logo.svg');
   await expect
     .poll(pitchError, { message: 'logo-only auto pitch' })
     .toBeLessThan(1.5);
-  const autoLogo = await readScene();
-  await setSlider(Math.round(autoLogo.repeatMm) + 20);
+  await setSlider(40);
+  const logoContent = await readContentWidthMm();
+  const logoScene = await readScene();
+  expect(Math.abs(logoScene.repeatMm - (logoContent + 40))).toBeLessThan(0.6);
 
   // Text only: stretching the interval above the natural step used to be
   // a no-op as well. Reset persisted state so the logo from the previous
@@ -1344,20 +1368,14 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
   await expect
     .poll(pitchError, { message: 'text-only auto pitch' })
     .toBeLessThan(1.5);
-  const autoText = await readScene();
-  await setSlider(Math.round(autoText.repeatMm) + 20);
 
-  // The slider's practical minimum is "back to back": dragging it below
-  // the natural content width floors the repeat at the narrowest step the
-  // whole artwork still fits in (content + print margins) — never a
-  // clipped repeat window narrower than the text ("Пр…" strips).
-  await setSlider(5);
-  const floored = await readScene();
-  const contentWidthMm = await page.evaluate(() =>
-    Number(document.body.dataset.ribbonContentWidthMm),
-  );
-  expect(floored.repeatMm).toBeGreaterThanOrEqual(contentWidthMm);
-  expect(floored.repeatMm).toBeLessThanOrEqual(contentWidthMm + 6);
+  // Interval 0 means back-to-back: the repeat step equals the content
+  // width exactly — whole artwork, never a clipped "Пр…" strip, whatever
+  // the slider says.
+  await setSlider(0);
+  const backToBack = await readScene();
+  const textContent = await readContentWidthMm();
+  expect(Math.abs(backToBack.repeatMm - textContent)).toBeLessThan(0.6);
   await expect(
     page
       .locator('.mobile-products-ribbon-repeat-text', {
@@ -1365,6 +1383,12 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
       })
       .first(),
   ).toBeVisible();
+
+  // And a wide manual interval still stretches the pitch past the
+  // natural content width.
+  await setSlider(60);
+  const stretched = await readScene();
+  expect(stretched.repeatMm).toBeGreaterThan(textContent + 55);
 });
 
 test('ribbon pans horizontally by drag and wheel without touching geometry', async ({

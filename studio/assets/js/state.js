@@ -57,6 +57,7 @@
     productFirstMode: false,
     repeatMm: 100,
     repeatMode: 'auto',
+    repeatGapMm: 15,
     bundle: 'bundle',
     stickerVariantId: 'circle-24',
     stickerSize: 24,

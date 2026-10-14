@@ -710,86 +710,62 @@ test('uploaded wide logo paints at the full ribbon safe height on mobile', async
   await expectNoHorizontalOverflow(page);
 });
 
-test('ribbon overflow shows a clipped fragment and applies a proportional full preview', async ({
+test('repeat interval 0 keeps the whole artwork and never clips the preview', async ({
   page,
 }) => {
   const fullText = 'Название бренда для упаковки';
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
+
+  // Empty state: the interval already defaults to the ribbon width (owner
+  // regression — the badge used to read "зазор 0.0 мм" with a broken demo
+  // preview before any content existed).
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-repeat-gap-mm',
+    /^\d+\.00$/,
+  );
+  const emptyGap = Number(
+    await page.locator('body').getAttribute('data-ribbon-repeat-gap-mm'),
+  );
+  const ribbonWidth = Number(
+    await page.locator('body').getAttribute('data-ribbon-width'),
+  );
+  expect(emptyGap).toBe(ribbonWidth);
+
+  // Interval 0 = repeats back-to-back. The repeat step is always derived
+  // as content + g, so the artwork can never end up clipped into a
+  // "Пр…" strip: the step simply follows the content width.
   await page.locator('#repeatMm').evaluate((element) => {
-    element.value = '40';
+    element.value = '0';
     element.dispatchEvent(new Event('input', { bubbles: true }));
   });
+  await expect(page.locator('#repeatMm')).toHaveValue('0');
   await page.locator('#textInput').fill(fullText);
 
-  const card = page.locator('.ribbon-overflow-card-mobile');
-  await expect(card).toBeVisible();
-  await expect(page.locator('body')).toHaveAttribute(
-    'data-ribbon-overflow',
-    'true',
-  );
-
-  const before = await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
-    const surface = [
-      ...document.querySelectorAll('[data-ribbon-overflow-full]'),
-    ]
-      .find((element) => element.getBoundingClientRect().width > 0)
-      .getBoundingClientRect();
-    const fullPreviewText = [
-      ...document.querySelectorAll('[data-ribbon-overflow-text]'),
-    ].find((element) => element.getBoundingClientRect().width > 0);
     return {
       layout,
-      surfaceRatio: surface.width / surface.height,
-      fullTextFits:
-        fullPreviewText.scrollWidth <= fullPreviewText.clientWidth + 1,
+      repeatMm: Number(document.body.dataset.ribbonRepeatMm),
+      contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
+      gapMm: Number(document.body.dataset.ribbonRepeatGapMm),
       production: window.RibbonStudioProduction.serialize('ribbon'),
     };
   });
-  expect(before.layout.valid).toBe(false);
-  expect(before.layout.previewText).toMatch(/…$/);
-  expect(before.layout.previewText.length).toBeLessThan(fullText.length);
-  expect(before.layout.overflow.requiredRepeatMm).toBeGreaterThan(40);
-  expect(before.layout.overflow.requiredRepeatMm % 5).toBe(0);
-  expect(before.layout.overflow.canApply).toBe(true);
-  expect(
-    Math.abs(
-      before.surfaceRatio - before.layout.overflow.requiredRepeatMm / 15,
-    ),
-  ).toBeLessThan(0.01);
-  expect(before.fullTextFits).toBe(true);
-  expect(before.production).not.toContain(fullText);
-  expect(before.production).not.toContain('…');
+  expect(result.gapMm).toBe(0);
+  expect(result.layout.valid).toBe(true);
+  expect(result.layout.overflow).toBeUndefined();
+  // Step equals the content width exactly (interval 0).
+  expect(Math.abs(result.repeatMm - result.contentWidthMm)).toBeLessThan(0.6);
+  // No clipped fragment anywhere: the production file carries the full
+  // text even at the tightest interval.
+  expect(result.production).toContain(fullText);
+  expect(result.production).not.toContain('…');
 
-  await expect(card.locator('[data-ribbon-overflow-text]')).toHaveText(
+  await expect(page.locator('.ribbon-overflow-card-mobile')).toBeHidden();
+  await expect(page.locator('.mobile-products-ribbon-text')).toHaveText(
     fullText,
   );
-  await expect(card.locator('[data-apply-ribbon-repeat]')).toContainText(
-    `${before.layout.overflow.requiredRepeatMm} мм`,
-  );
-  const clippedPreview = page.locator('.mobile-products-ribbon-text');
-  await expect(clippedPreview).toHaveText(before.layout.previewText);
-  await expect(page.locator('#submitOrder')).toBeDisabled();
-
-  await card.locator('[data-apply-ribbon-repeat]').click();
-  await expect(page.locator('#repeatMm')).toHaveValue(
-    String(before.layout.overflow.requiredRepeatMm),
-  );
-  await expect(page.locator('body')).toHaveAttribute(
-    'data-ribbon-overflow',
-    'false',
-  );
-  await expect(card).toBeHidden();
-  await expect(page.locator('body')).toHaveAttribute(
-    'data-artwork-valid',
-    'true',
-  );
-  const production = await page.evaluate(() =>
-    window.RibbonStudioProduction.serialize('ribbon'),
-  );
-  expect(production).toContain(fullText);
-  expect(production).not.toContain('…');
   await expect(page.locator('#submitOrder')).toBeEnabled();
   await expectNoHorizontalOverflow(page);
 });
@@ -982,7 +958,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   expect(result.textInside).toBe(true);
 });
 
-test('automatic repeat gap equals the ribbon width for every artwork kind', async ({
+test('automatic repeat interval equals the ribbon width for every artwork kind', async ({
   page,
 }, testInfo) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -995,20 +971,19 @@ test('automatic repeat gap equals the ribbon width for every artwork kind', asyn
       contentWidthMm: Number(document.body.dataset.ribbonContentWidthMm),
       logoWidthMm: Number(document.body.dataset.ribbonLogoWidthMm),
       autoGapMm: Number(document.body.dataset.ribbonAutoGapMm),
+      repeatGapMm: Number(document.body.dataset.ribbonRepeatGapMm),
       ribbonWidthMm: Number(document.body.dataset.ribbonWidth),
     }));
-  const expectGoldenRepeat = async (source) => {
+  const expectAutoRepeat = async (source) => {
     const result = await readRepeat();
-    // The free interval between repeats is always the ribbon's own
-    // physical width (15 or 20 mm), whatever the content — one simple
-    // rule instead of scaling the gap off the logo or text size.
+    // The interval between repeats is always the ribbon's own physical
+    // width (15 or 20 mm), whatever the content — and the same interval
+    // separates logo from text inside a composition.
     const expectedGapMm = result.ribbonWidthMm;
-    // Auto mode no longer rounds up to a 5mm print grid: the repeat step
-    // is exactly content width + the ribbon-width gap, so the
-    // repeat-to-repeat gap is exactly the ribbon width instead of being
-    // inflated by rounding slop. contentWidthMm/autoGapMm come from
-    // dataset strings rounded to 2 decimals for display, so compare with
-    // a tolerance rather than exact equality.
+    // Auto mode keeps the exact desired distance instead of rounding up to
+    // a 5 mm print grid, so the repeat step is exactly content width + the
+    // interval. contentWidthMm/autoGapMm come from dataset strings rounded
+    // to 2 decimals for display, so compare with a small tolerance.
     const expected = Math.min(
       250,
       Math.max(5, result.contentWidthMm + expectedGapMm),
@@ -1016,30 +991,22 @@ test('automatic repeat gap equals the ribbon width for every artwork kind', asyn
     expect(result.source).toBe(source);
     expect(result.mode).toBe('auto');
     expect(result.autoGapMm).toBeCloseTo(expectedGapMm, 1);
-    // desiredRepeatMm (= content width + gap) doesn't reserve room for the
-    // 2.5mm print margin on each side of the repeat; when the gap is
-    // smaller than that 5mm margin, the fitted layout genuinely doesn't
-    // fit at the naive repeat step, and the auto-repeat search bumps by
-    // one 5mm rounding step to a value that does fit. That's a real,
-    // correct need for more room (enforced now that the geometry fit
-    // check is accurate — see the axisScale fix), not an error, so allow
-    // for at most one such bump rather than requiring exact equality.
-    expect(result.repeatMm).toBeGreaterThanOrEqual(expected - 0.5);
-    expect(result.repeatMm).toBeLessThanOrEqual(expected + 5.5);
-    // The slider itself has step="5" for comfortable manual dragging, so
-    // the browser's own value-sanitization snaps whatever exact value we
-    // assign to the nearest 5mm tick — that snap is native <input
-    // type="range"> behavior, not something this fix controls. Geometry
-    // always uses the precise state.repeatMm checked above; the slider
-    // only needs to land within one tick of it.
+    expect(result.repeatGapMm).toBeCloseTo(expectedGapMm, 1);
+    expect(Math.abs(result.repeatMm - expected)).toBeLessThanOrEqual(0.6);
+    // The slider shows the interval itself. It has step="5" for
+    // comfortable manual dragging, so the browser's own value-sanitization
+    // snaps whatever exact value we assign to the nearest 5mm tick — that
+    // snap is native <input type="range"> behavior. The interval is a
+    // whole number of mm already; geometry always uses the precise value
+    // checked above.
     const sliderValue = Number(await page.locator('#repeatMm').inputValue());
-    expect(Math.abs(sliderValue - result.repeatMm)).toBeLessThanOrEqual(5);
+    expect(Math.abs(sliderValue - result.repeatGapMm)).toBeLessThanOrEqual(5);
     return result;
   };
 
   await expect(page.locator('#repeatMm')).toHaveAttribute('type', 'range');
   await page.locator('#textInput').fill('МАКСИМ');
-  const textRepeat = await expectGoldenRepeat('text');
+  const textRepeat = await expectAutoRepeat('text');
 
   if (isMobileProject(testInfo.project.name)) {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -1122,7 +1089,7 @@ test('automatic repeat gap equals the ribbon width for every artwork kind', asyn
   await page.locator('#textInput').fill('');
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await expect(page.locator('#fileCardName')).toHaveText('test-logo.svg');
-  const logoRepeat = await expectGoldenRepeat('logo');
+  const logoRepeat = await expectAutoRepeat('logo');
 
   if (isMobileProject(testInfo.project.name)) {
     const ribbon = page.locator('.mobile-products-ribbon-sample');
@@ -1181,14 +1148,17 @@ test('automatic repeat gap equals the ribbon width for every artwork kind', asyn
   }
 
   await page.locator('#textInput').fill('МАКСИМ');
-  await expectGoldenRepeat('composition');
+  await expectAutoRepeat('composition');
 
   await expectNoHorizontalOverflow(page);
 });
 
-test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
+test('repeat guides are length-wise free and keep 2.5 mm width margins for 40, 100, and 250 mm', async ({
   page,
 }) => {
+  // The ribbon prints continuously along its length, so the printable
+  // guide spans each repeat from edge to edge (0 mm length-wise margins)
+  // and only insets the guide across the ribbon width (2.5 mm selvage).
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   for (const repeatMm of [40, 100, 250]) {
     await page.locator('#repeatMm').evaluate((element, repeat) => {
@@ -1197,17 +1167,22 @@ test('repeat guides preserve 2.5 mm margins for 40, 100, and 250 mm', async ({
     }, repeatMm);
     const result = await page.evaluate((repeat) => {
       const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+      const guide = document.querySelector(
+        '.mobile-products-printable-guide.ribbon-guide',
+      );
+      const ribbonWidth = Number(document.body.dataset.ribbonWidth);
       return {
         leftMm: layout.printable.x * repeat,
         rightMm: (1 - layout.printable.x - layout.printable.width) * repeat,
-        guideLeft: document.querySelector(
-          '.mobile-products-printable-guide.ribbon-guide',
-        ).style.left,
+        guideLeft: guide.style.left,
+        guideTop: parseFloat(guide.style.top),
+        expectedTopPercent: (2.5 / ribbonWidth) * 100,
       };
     }, repeatMm);
-    expect(result.leftMm).toBeCloseTo(2.5, 7);
-    expect(result.rightMm).toBeCloseTo(2.5, 7);
-    expect(parseFloat(result.guideLeft)).toBeCloseTo((2.5 / repeatMm) * 100, 5);
+    expect(result.leftMm).toBeCloseTo(0, 7);
+    expect(result.rightMm).toBeCloseTo(0, 7);
+    expect(parseFloat(result.guideLeft)).toBeCloseTo(0, 5);
+    expect(result.guideTop).toBeCloseTo(result.expectedTopPercent, 3);
   }
 });
 

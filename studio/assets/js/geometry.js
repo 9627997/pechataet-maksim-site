@@ -14,7 +14,14 @@
   }) {
     const unitsPerMmX = width / repeatMm;
     const unitsPerMmY = height / widthMm;
-    const marginX = PRINT_MARGIN_MM * unitsPerMmX;
+    // The ribbon is printed continuously along its length: the end of one
+    // repeat and the start of the next are adjacent printable area, with no
+    // unprintable seam between them (the roll is cut to the ordered meters,
+    // not at every repeat). Only the ribbon width edges need the printer's
+    // safety margin, so there is deliberately no length-wise margin here —
+    // it used to fight the user-controlled repeat interval and made a 0 mm
+    // gap physically impossible ("встык" repeats).
+    const marginX = 0;
     const marginY = PRINT_MARGIN_MM * unitsPerMmY;
     return {
       widthMm,
