@@ -28,7 +28,6 @@ const bootStudio = () => {
   const MIN_RIBBON_REPEAT_MM = REPEAT_ROUNDING_MM;
   const MAX_RIBBON_REPEAT_MM = 250;
   const RIBBON_REPEAT_PX_PER_MM = 6.2;
-  const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
   const ENABLE_ADDITIONAL_STICKER_SHAPES = true;
   const STICKER_VARIANTS = Object.freeze({
@@ -1707,7 +1706,10 @@ const bootStudio = () => {
     const hasLogo = Boolean(resolvedLogo?.logo);
     const hasText = Boolean(text);
     const outerHeight = state.width === 15 ? 76 : 100;
-    const printableHeightMm = Math.max(0, state.width - PRINT_MARGIN_MM * 2);
+    // Ribbon content prints full-bleed across the ribbon width (the
+    // cross-width margin is 0 — see RIBBON_PRINT_MARGIN_MM), so the text may
+    // use the whole ribbon height, not a margin-inset printable band.
+    const printableHeightMm = state.width;
     const printableHeightUnits =
       (printableHeightMm / state.width) * outerHeight;
     const preferredFontSize =
@@ -4342,6 +4344,14 @@ const bootStudio = () => {
       $('#activeSettingsTitle').textContent =
         product === 'ribbon' ? 'Лента' : 'Стикер';
     }
+    $$('#settingsProductSwitch [data-settings-product-choice]').forEach(
+      (button) => {
+        button.classList.toggle(
+          'active',
+          button.dataset.settingsProductChoice === product,
+        );
+      },
+    );
     const productLabel = product === 'ribbon' ? 'ленте' : 'стикере';
     if ($('#fontSelectLabel')) {
       $('#fontSelectLabel').textContent = `Шрифт надписи на ${productLabel}`;
@@ -4480,6 +4490,17 @@ const bootStudio = () => {
       setActiveContentProduct(product);
     });
   });
+
+  // The settings step gets the same explicit ribbon/sticker switch the
+  // create step has: in «Комплект» mode the shopper tunes each product
+  // separately and must not hunt for the tiny preview sample to switch.
+  $$('#settingsProductSwitch [data-settings-product-choice]').forEach(
+    (button) => {
+      button.addEventListener('click', () => {
+        setActiveSettingsProduct(button.dataset.settingsProductChoice);
+      });
+    },
+  );
 
   document.addEventListener('studio:content-edit-request', (event) => {
     const kind = event.detail?.kind;

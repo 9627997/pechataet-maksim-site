@@ -327,6 +327,11 @@ body:not([data-active-panel="upload"]) .content-product-editor-host{
 .repeat-hint{display:block;margin-top:6px;color:var(--muted);font-size:10px;line-height:1.45}
 .settings-context-head span{font-size:10px;color:#d6d0c8}
 .settings-context-head strong{font-size:13px}
+/* The settings-step ribbon/sticker switch only makes sense while both
+   products are in the order («Комплект»); single-product modes force the
+   active product anyway. */
+body:not([data-order-mode="bundle"]) .settings-product-switch{display:none}
+.settings-product-switch{margin:-6px 0 14px}
 .settings-select{min-height:44px;cursor:pointer}
 .settings-field-label{display:block;font-size:12px;font-weight:700;margin:13px 0 6px}
 .font-picker{position:relative}
