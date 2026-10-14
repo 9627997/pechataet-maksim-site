@@ -993,14 +993,12 @@ test('automatic repeat interval equals the ribbon width for every artwork kind',
     expect(result.autoGapMm).toBeCloseTo(expectedGapMm, 1);
     expect(result.repeatGapMm).toBeCloseTo(expectedGapMm, 1);
     expect(Math.abs(result.repeatMm - expected)).toBeLessThanOrEqual(0.6);
-    // The slider shows the interval itself. It has step="5" for
-    // comfortable manual dragging, so the browser's own value-sanitization
-    // snaps whatever exact value we assign to the nearest 5mm tick — that
-    // snap is native <input type="range"> behavior. The interval is a
-    // whole number of mm already; geometry always uses the precise value
-    // checked above.
+    // The slider shows the interval itself and drags smoothly (step="any");
+    // the auto interval is a whole number of mm, so the slider value
+    // matches it exactly. Geometry always uses the precise value checked
+    // above, not the slider's string.
     const sliderValue = Number(await page.locator('#repeatMm').inputValue());
-    expect(Math.abs(sliderValue - result.repeatGapMm)).toBeLessThanOrEqual(5);
+    expect(Math.abs(sliderValue - result.repeatGapMm)).toBeLessThanOrEqual(0.75);
     return result;
   };
 
@@ -1184,6 +1182,32 @@ test('repeat guides are length-wise free and keep 2.5 mm width margins for 40, 1
     expect(parseFloat(result.guideLeft)).toBeCloseTo(0, 5);
     expect(result.guideTop).toBeCloseTo(result.expectedTopPercent, 3);
   }
+});
+
+test('order step hides the repeat interval controls in the sidebar', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('МАКСИМ');
+
+  // The sidebar slider lives on the tuning step «02 Настроить».
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-panel',
+    'settings',
+  );
+  await expect(page.locator('#repeatMm')).toBeVisible();
+
+  // Step «03 Получить» is the read-only order summary: the interval was
+  // tuned on the previous steps.
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-panel',
+    'order',
+  );
+  await expect(page.locator('#repeatMm')).toBeHidden();
+  await expect(page.locator('#repeatHint')).toBeHidden();
+  await expect(page.locator('.repeat-control-head')).toBeHidden();
 });
 
 test('sticker create step keeps one active model and compact future shape picker @smoke', async ({

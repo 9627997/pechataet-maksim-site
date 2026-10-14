@@ -748,11 +748,20 @@
 
     const syncStudioState = () => {
       // All layout measurements below must use the unscaled scene. Measuring
-      // a transformed stage feeds scaled dimensions back into logo/text
+      // a transformed sample feeds scaled dimensions back into logo/text
       // placement and causes the scene to collapse after every zoom click.
-      const previousStageTransition = zoomStage?.style.transition || '';
+      const zoomTargets = [
+        ...panel.querySelectorAll(
+          '.mobile-products-ribbon-sample, .mobile-products-sticker-sample',
+        ),
+      ];
+      const previousTransitions = zoomTargets.map(
+        (target) => target.style.transition,
+      );
       if (zoomStage) {
-        zoomStage.style.transition = 'none';
+        zoomTargets.forEach((target) => {
+          target.style.transition = 'none';
+        });
         zoomStage.style.setProperty('--preview-zoom', '1');
         // Force the browser to commit scale 1 before any getBoundingClientRect
         // call below; otherwise the old CSS transition is still measurable.
@@ -804,10 +813,9 @@
       const stickerHeightMm = Number(document.body.dataset.stickerHeightMm) || stickerWidthMm;
       const stickerDisplaySize = document.body.dataset.stickerDisplaySize || `Ø${stickerWidthMm} мм`;
       const stickerSize = stickerWidthMm;
-      // Read the precise value app.js publishes rather than the #repeatMm
-      // slider's own .value: <input type="range" step="5"> silently snaps
-      // whatever is assigned to it to the nearest step, which would round
-      // away the exact (unrounded) auto-mode repeat distance.
+      // Read the precise value app.js publishes rather than the
+      // #repeatMm slider's own .value: the slider shows the interval g,
+      // not the repeat step, and geometry needs the exact step.
       const repeatMm = Number(document.body.dataset.ribbonRepeatMm) || 100;
       const ribbon =
         document.body.style.getPropertyValue('--ribbon-live-color').trim() || '#f3eadc';
@@ -1128,7 +1136,9 @@
               ? 'text-only'
               : 'empty';
       syncVisibility();
-      if (zoomStage) zoomStage.style.transition = previousStageTransition;
+      zoomTargets.forEach((target, index) => {
+        target.style.transition = previousTransitions[index];
+      });
       syncPreviewZoom();
       // In the mobile layout .main-nav and #mobileProductsSlot both float
       // (position:fixed) above the step content, so that content needs

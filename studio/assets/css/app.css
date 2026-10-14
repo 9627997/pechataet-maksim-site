@@ -82,6 +82,11 @@ body[data-active-panel="order"] .sidebar{
   box-shadow:0 16px 42px rgba(42,34,26,.1);
 }
 body[data-active-panel="order"] .studio{display:none}
+/* Step «03 Получить» is the read-only order summary: the repeat interval
+slider (and its label/hint) belongs to the tuning steps, not to checkout. */
+body[data-active-panel="order"] .repeat-control-head,
+body[data-active-panel="order"] #repeatMm,
+body[data-active-panel="order"] #repeatHint{display:none}
 .studio-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px}
 .eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--gold);font-weight:800;margin:0}
 .studio-head h1{font-size:clamp(28px,4vw,50px);letter-spacing:-.04em;margin:6px 0 0}
