@@ -262,6 +262,14 @@
       let distance = 0;
       let totalDx = 0;
       let totalDy = 0;
+      // Ribbon zones are vertical-only; the direction is locked once with
+      // hysteresis instead of being re-decided from cumulative totals on
+      // every move. A real finger "vertical" drag carries horizontal jitter:
+      // under the old per-move totals check a noisy start could keep
+      // |totalDx| ahead of |totalDy| for the whole gesture, so the zone
+      // never nudged and the ribbon just panned — exactly the "vertical
+      // move doesn't work on the ribbon" report from a real iPhone.
+      let axisLock = null;
 
       // iOS Safari before 16 ignores touch-action and starts native page
       // scrolling on any vertical touch, killing the pointer stream with
@@ -303,6 +311,7 @@
         distance = 0;
         totalDx = 0;
         totalDy = 0;
+        axisLock = null;
         zone.setPointerCapture(pointerId);
       });
 
@@ -318,10 +327,26 @@
         if (distance < 4) return;
         event.preventDefault();
         zone.dataset.dragging = 'true';
-        // Ribbon zones only nudge vertically; a horizontal-dominant gesture
-        // pans the strip via the surface handler (events bubble up), so the
-        // zone must not turn it into a vertical nudge.
-        if (axis === 'y' && Math.abs(totalDx) > Math.abs(totalDy)) return;
+        if (axis === 'y') {
+          // Lock the direction once, with a ±6 px hysteresis band so finger
+          // jitter near 45° doesn't decide the gesture. Until the lock
+          // resolves, neither pan nor nudge applies.
+          if (!axisLock) {
+            const absDx = Math.abs(totalDx);
+            const absDy = Math.abs(totalDy);
+            if (absDx > absDy + 6) axisLock = 'pan';
+            else if (absDy > absDx + 6) axisLock = 'vertical';
+          }
+          if (axisLock === 'vertical') {
+            // Ours: keep the bubbled move away from the ribbon surface
+            // handler so the strip doesn't pan while the text nudges.
+            event.stopPropagation();
+          } else {
+            // Horizontal-dominant (or still undecided): the ribbon surface
+            // handler owns the gesture — it pans the strip.
+            return;
+          }
+        }
         const bounds = surface.getBoundingClientRect();
         document.dispatchEvent(
           new CustomEvent('studio:transform-delta', {
@@ -335,6 +360,18 @@
         );
       });
 
+      // Backstop for real iOS Safari: even if the touchstart prevention was
+      // bypassed (old WebKit quirk with transformed ancestors), a non-passive
+      // touchmove default-prevention while a drag is active stops the native
+      // scroll from claiming the stream mid-gesture.
+      zone.addEventListener(
+        'touchmove',
+        (event) => {
+          if (pointerId !== null) event.preventDefault();
+        },
+        {passive: false},
+      );
+
       const finishDrag = (event) => {
         if (event.pointerId !== pointerId) return;
         zone.dataset.dragging = 'false';
@@ -342,6 +379,7 @@
           zone.releasePointerCapture(pointerId);
         } catch {}
         pointerId = null;
+        axisLock = null;
       };
       zone.addEventListener('pointerup', finishDrag);
       zone.addEventListener('pointercancel', finishDrag);
@@ -734,10 +772,18 @@
           image.dataset.inkLeftRatio = String(inkLeftRatio);
           image.dataset.inkRightRatio = String(inkRightRatio);
           const imageLeft = visibleLogoStart - placedLogoWidth * inkLeftRatio;
+          // style.top/left are the element CENTER (the repeat elements carry
+          // a translate(-50%,-50%) transform), so use the layout box center
+          // directly — it already carries the manual vertical offset, which
+          // plain centering in the cell ignored and the preview lied about
+          // the position to the shopper.
+          const imageHeight =
+            (paintedLogoRect?.height || logoHeight) * contentScale;
           image.style.left = `${imageLeft + placedLogoWidth / 2}px`;
-          image.style.top = `${repeatHeight / 2}px`;
+          image.style.top =
+            `${(layout.logoBox.y + layout.logoBox.height / 2) * repeatHeight}px`;
           image.style.width = `${placedLogoWidth}px`;
-          image.style.height = `${(paintedLogoRect?.height || logoHeight) * contentScale}px`;
+          image.style.height = `${imageHeight}px`;
           image.style.objectFit = 'contain';
           cell.appendChild(image);
         }
@@ -746,13 +792,27 @@
           const text = document.createElement('span');
           text.className = 'mobile-products-ribbon-repeat-text';
           text.textContent = visibleText;
-          const textLeft = hasLogo
+          // Text-only manual layout: the horizontal drag/slider position
+          // lives in the layout box; the composition chain (logo + gap)
+          // doesn't apply, so the block-centering fallback would stay put.
+          const textStart = hasLogo
             ? visibleLogoStart + placedInkLogoWidth + placedInternalGap
-            : visibleLogoStart;
-          text.style.left = `${textLeft + placedTextWidth / 2}px`;
-          text.style.top = `${repeatHeight / 2}px`;
+            : layout.manualLayout
+              ? Math.max(
+                  0,
+                  Math.min(
+                    placedPitch - placedTextWidth,
+                    textBox.x * trueRepeatWidth * contentScale,
+                  ),
+                )
+              : visibleLogoStart;
+          const textHeight = textBox.height * repeatHeight * contentScale;
+          text.style.left = `${textStart + placedTextWidth / 2}px`;
+          // Center coordinate, same as the logo above.
+          text.style.top =
+            `${(textBox.y + textBox.height / 2) * repeatHeight}px`;
           text.style.width = `${placedTextWidth}px`;
-          text.style.height = `${textBox.height * repeatHeight * contentScale}px`;
+          text.style.height = `${textHeight}px`;
           text.style.color = print;
           text.style.fontFamily = font;
           text.style.fontSize = `${fontSizeRatio * repeatHeight * contentScale}px`;
