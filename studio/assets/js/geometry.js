@@ -1,10 +1,5 @@
 (() => {
   const PRINT_MARGIN_MM = 2.5;
-  // The ribbon printer prints across the whole ribbon width: the owner wants
-  // the text/logo to be able to fill the entire ribbon height (full bleed),
-  // so the cross-width safety margin for ribbons is 0. Stickers keep the
-  // die-cut safety margin PRINT_MARGIN_MM.
-  const RIBBON_PRINT_MARGIN_MM = 0;
   const EPSILON = 1e-7;
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -27,11 +22,11 @@
     // it used to fight the user-controlled repeat interval and made a 0 mm
     // gap physically impossible ("встык" repeats).
     const marginX = 0;
-    const marginY = RIBBON_PRINT_MARGIN_MM * unitsPerMmY;
+    const marginY = PRINT_MARGIN_MM * unitsPerMmY;
     return {
       widthMm,
       repeatMm,
-      printableHeightMm: widthMm - 2 * RIBBON_PRINT_MARGIN_MM,
+      printableHeightMm: widthMm - 2 * PRINT_MARGIN_MM,
       bounds: {
         x: x + marginX,
         y: y + marginY,
@@ -381,7 +376,6 @@
 
   window.RibbonStudioGeometry = Object.freeze({
     PRINT_MARGIN_MM,
-    RIBBON_PRINT_MARGIN_MM,
     getRibbonPrintableGeometry,
     getStickerPrintableGeometry,
     getStickerGeometry,
