@@ -45,6 +45,21 @@
   gap: 18px;
   min-width: 0;
   overflow: visible;
+  /* The stage itself never scales: only the sample visualizations do (see
+  the transform on .mobile-products-ribbon-sample /
+  .mobile-products-sticker-sample). It stays a positioned containing block
+  because the full-bleed ribbon offsets below resolve percentages against
+  it. */
+  position: relative;
+}
+
+/* Zoom scales the sample artwork only — never the surrounding chrome
+(sample label, repeat interval slider, overflow card). The --preview-zoom
+custom property is set on the stage by mobile-products.js and inherited
+here; the measurement pass in syncStudioState resets it to 1, so layout
+math always sees the unscaled scene. */
+.mobile-products-ribbon-sample,
+.mobile-products-sticker-sample {
   transform: scale(var(--preview-zoom, 1));
   transform-origin: center;
   transition: transform 160ms ease;
@@ -759,6 +774,13 @@
     display: none;
   }
 
+  /* Step «03 Получить» is a read-only order summary: the repeat interval
+  was tuned on the previous steps, so the slider (and its badge) stays
+  out of the way there. */
+  .mobile-products-panel[data-mode='order'] .mobile-products-repeat-control {
+    display: none;
+  }
+
   .mobile-products-ribbon-logo,
   .mobile-products-sticker-logo {
     position: absolute;
@@ -950,8 +972,7 @@
     position: relative;
     left: calc(
       50% - 50vw - 12px +
-        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) +
-        ((var(--preview-zoom, 1) - 1) * 12px)
+        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1))
     );
     width: calc(100vw / var(--preview-zoom, 1));
     height: 46px;
@@ -1040,7 +1061,7 @@
     .mobile-products-panel:not(.is-floating)
     .mobile-products-ribbon-sample {
     position:relative;
-    left:calc(50% - 50vw - 12px + ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) + ((var(--preview-zoom, 1) - 1) * 12px));
+    left:calc(50% - 50vw - 12px + ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)));
     width:calc(100vw / var(--preview-zoom, 1));
     height:46px;
     min-height:28px;
@@ -1110,8 +1131,7 @@
     position: relative;
     left: calc(
       50% - 50vw - 12px +
-        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1)) +
-        ((var(--preview-zoom, 1) - 1) * 12px)
+        ((var(--preview-zoom, 1) - 1) * 50vw / var(--preview-zoom, 1))
     );
     width: calc(100vw / var(--preview-zoom, 1));
     height: 46px;

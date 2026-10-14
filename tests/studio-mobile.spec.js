@@ -1391,6 +1391,86 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
   expect(stretched.repeatMm).toBeGreaterThan(textContent + 55);
 });
 
+test('repeat slider is smooth and accepts fractional intervals', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Привет');
+
+  // No fixed 5 mm step: any value the pointer lands on is applied as-is.
+  await page.locator('#repeatMmPreview').evaluate((element) => {
+    element.value = '37.3';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ribbon-repeat-gap-mm',
+    '37.30',
+  );
+  const sliderValue = Number(
+    await page.locator('#repeatMmPreview').inputValue(),
+  );
+  expect(Math.abs(sliderValue - 37.3)).toBeLessThan(0.01);
+});
+
+test('zoom scales only the ribbon artwork, never the label or interval slider', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Привет');
+  const stage = page.locator('[data-preview-zoom-stage]');
+  const label = page.locator('.mobile-products-sample-label').first();
+  const slider = page.locator('#repeatMmPreview');
+  const strip = page.locator('.mobile-products-ribbon-sample');
+
+  const measure = async () => {
+    const [labelBox, sliderBox, stripBox] = await Promise.all([
+      label.boundingBox(),
+      slider.boundingBox(),
+      strip.boundingBox(),
+    ]);
+    return {labelBox, sliderBox, stripBox};
+  };
+  const before = await measure();
+  expect(before.stripBox.height).toBeGreaterThan(40);
+
+  await page.locator('[data-preview-zoom="in"]').click();
+  await page.locator('[data-preview-zoom="in"]').click();
+  await expect(stage).toHaveAttribute('data-preview-zoom', '120');
+  // let the 160 ms zoom transition settle before measuring
+  await page.waitForTimeout(250);
+
+  const after = await measure();
+  // The sample label and the interval control keep their size and position…
+  expect(Math.abs(after.labelBox.height - before.labelBox.height)).toBeLessThan(1);
+  expect(Math.abs(after.labelBox.width - before.labelBox.width)).toBeLessThan(1);
+  expect(Math.abs(after.sliderBox.height - before.sliderBox.height)).toBeLessThan(1);
+  expect(Math.abs(after.sliderBox.width - before.sliderBox.width)).toBeLessThan(1.5);
+  // …while the ribbon strip itself zooms.
+  expect(after.stripBox.height).toBeGreaterThan(before.stripBox.height * 1.15);
+  expect(after.stripBox.height).toBeCloseTo(before.stripBox.height * 1.2, 0);
+});
+
+test('order step hides the repeat interval slider', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('Привет');
+  const panel = page.locator('.mobile-products-panel');
+  const repeatControl = page.locator('.mobile-products-repeat-control');
+  await expect(panel).toHaveAttribute('data-mode', 'upload');
+  await expect(repeatControl).toBeVisible();
+
+  await page.locator('.nav-item[data-panel="order"]').click();
+  await expect(panel).toHaveAttribute('data-mode', 'order');
+  await expect(repeatControl).toBeHidden();
+});
+
 test('ribbon pans horizontally by drag and wheel without touching geometry', async ({
   page,
 }) => {
