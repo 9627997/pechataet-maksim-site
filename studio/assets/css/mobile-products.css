@@ -588,7 +588,13 @@ math always sees the unscaled scene. */
     font: inherit;
     padding: 0;
     cursor: grab;
-    touch-action: manipulation;
+    /* The zone drag is a custom pointer gesture (vertical nudge / free
+       move). On real iOS Safari an allowed pan makes the browser claim the
+       touch for scrolling and the pointer stream dies with pointercancel
+       before the nudge applies — the zones must opt out of native gestures
+       just like the ribbon surface below them (touch-action is NOT
+       inherited, so the surface's `none` does not cover the zones). */
+    touch-action: none;
   }
 
   .mobile-products-ribbon-logo-zone:active,
