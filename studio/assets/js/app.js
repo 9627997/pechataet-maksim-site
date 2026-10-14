@@ -24,10 +24,9 @@ const bootStudio = () => {
   const DEMO_FONT = 'Comfortaa';
   const REPEAT_ROUNDING_MM = 5;
   // The repeat step has no design-level minimum beyond the rounding step
-  // itself; it is driven purely by content size and the golden-ratio gap.
+  // itself; it is driven purely by content size plus the chosen interval.
   const MIN_RIBBON_REPEAT_MM = REPEAT_ROUNDING_MM;
   const MAX_RIBBON_REPEAT_MM = 250;
-  const GOLDEN_RATIO = 1.618;
   const RIBBON_REPEAT_PX_PER_MM = 6.2;
   const PRINT_MARGIN_MM = 2.5;
   const MAX_COMMON_TEXT_LENGTH = 60;
@@ -973,6 +972,10 @@ const bootStudio = () => {
         ),
       );
       state.repeatMode = restored.repeatMode === 'manual' ? 'manual' : 'auto';
+      const restoredGap = Number(state.repeatGapMm);
+      state.repeatGapMm = Number.isFinite(restoredGap)
+        ? Math.min(MAX_RIBBON_REPEAT_MM, Math.max(0, restoredGap))
+        : state.width;
 
       const legacyDemoTexts = [
         'привет',
@@ -1681,6 +1684,10 @@ const bootStudio = () => {
       preferredFontSize:
         (state.width === 20 ? 39 : 31) * (style.fontSize / 32),
       expandGap: preserveComposition,
+      // The unified interval g, converted into the layout's working scale:
+      // 1 mm along the repeat length is exactly unitsPerMmY of it (see the
+      // axisScale derivation above).
+      gapUnits: getRibbonRepeatGapMm() * contentPrintable.unitsPerMmY,
     });
     return {
       ...layout,
@@ -1694,6 +1701,7 @@ const bootStudio = () => {
     text,
     resolvedLogo,
     textMetrics = getTextMetrics(text, 'ribbon'),
+    gapMm = getRibbonRepeatGapMm(),
   ) {
     const style = getProductStyle('ribbon');
     const hasLogo = Boolean(resolvedLogo?.logo);
@@ -1720,7 +1728,9 @@ const bootStudio = () => {
     const logoWidthMm = hasLogo
       ? printableHeightMm * logoRatio * effectiveLogoScale
       : 0;
-    const internalGapMm = hasLogo && hasText ? logoWidthMm / GOLDEN_RATIO : 0;
+    // One interval everywhere: the whitespace inside the composition
+    // (logo<->text) is the same g the slider controls between repeats.
+    const internalGapMm = hasLogo && hasText ? Math.max(0, gapMm) : 0;
 
     return {
       widthMm: logoWidthMm + textWidthMm + internalGapMm,
@@ -1738,13 +1748,19 @@ const bootStudio = () => {
     };
   }
 
-  // One simple rule for the free interval between repeats (the whitespace
-  // before the next repeat starts): it is always the ribbon's own physical
-  // width (15 or 20 mm), whatever the content. Scaling the gap off the
-  // logo or text size made it balloon for wide artwork and shrink for
-  // narrow artwork, and the preview had to duplicate the whole ratio
-  // arithmetic to stay in sync with it.
+  // One simple rule for the interval the slider controls: it is the
+  // whitespace between repeats AND between logo and text — a single g.
+  // Automatic mode keeps it at the ribbon's own physical width (15/20 mm);
+  // manual mode stores the shopper's choice directly (0 mm = repeats
+  // back-to-back is allowed: the ribbon prints continuously along its
+  // length, so there is no print-margin floor on the interval).
   function getRibbonRepeatGapMm() {
+    if (state.repeatMode === 'manual') {
+      const gap = Number(state.repeatGapMm);
+      return Number.isFinite(gap)
+        ? Math.min(MAX_RIBBON_REPEAT_MM, Math.max(0, gap))
+        : state.width;
+    }
     return state.width;
   }
 
@@ -1764,9 +1780,9 @@ const bootStudio = () => {
     const repeatGapMm = getRibbonRepeatGapMm();
     const desiredRepeatMm = content.widthMm + repeatGapMm;
     // Auto mode keeps the exact desired distance instead of rounding up to
-    // a 5 mm print grid, so the repeat-to-repeat gap is exactly the ribbon
-    // width (rounding here used to inflate only the repeat gap, never the
-    // internal logo<->text one, making the two visibly different).
+    // a 5 mm print grid, so the repeat-to-repeat gap is exactly the chosen
+    // interval (rounding here used to inflate only the repeat gap, never
+    // the internal logo<->text one, making the two visibly different).
     let repeatMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
       Math.max(MIN_RIBBON_REPEAT_MM, desiredRepeatMm),
@@ -1792,20 +1808,31 @@ const bootStudio = () => {
 
   function updateRibbonRepeat() {
     const automatic = calculateAutomaticRibbonRepeat();
-    if (state.repeatMode === 'auto') state.repeatMm = automatic.repeatMm;
+    const gapMm = getRibbonRepeatGapMm();
+    if (state.repeatMode === 'auto') {
+      state.repeatMm = automatic.repeatMm;
+    } else {
+      // Manual mode: the slider stores the interval g itself, so editing
+      // the artwork re-derives the repeat step around it — the shopper
+      // tuned the whitespace, not the content, and it must survive text
+      // and logo changes.
+      state.repeatMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.max(
+          MIN_RIBBON_REPEAT_MM,
+          automatic.widthMm + gapMm,
+        ),
+      );
+    }
 
-    // The value shown next to the slider is the free gap itself (the
-    // whitespace the slider actually controls), not the raw repeat length:
-    // whatever the content, it is the repeat step minus the natural
-    // content block (which already includes the internal logo<->text gap
-    // for a composition).
-    const actualGapMm = Math.max(0, state.repeatMm - automatic.widthMm);
+    // The slider and the badge next to it show the interval g itself — the
+    // one thing this control owns — never the derived repeat step.
     document.body.dataset.ribbonRepeatMode = state.repeatMode;
     document.body.dataset.ribbonRepeatSource = automatic.source;
     document.body.dataset.ribbonContentWidthMm = automatic.widthMm.toFixed(2);
     document.body.dataset.ribbonLogoWidthMm = automatic.logoWidthMm.toFixed(2);
     document.body.dataset.ribbonAutoGapMm = automatic.repeatGapMm.toFixed(2);
-    document.body.dataset.ribbonRepeatGapMm = actualGapMm.toFixed(2);
+    document.body.dataset.ribbonRepeatGapMm = gapMm.toFixed(2);
     document.body.dataset.ribbonRepeatMm = String(state.repeatMm);
 
     const input = $('#repeatMm');
@@ -1813,21 +1840,21 @@ const bootStudio = () => {
     const mode = $('#repeatMode');
     const previewMode = $('#repeatModePreview');
     const hint = $('#repeatHint');
-    if (input) input.value = state.repeatMm;
-    if (previewInput) previewInput.value = state.repeatMm;
+    if (input) input.value = String(gapMm);
+    if (previewInput) previewInput.value = String(gapMm);
     if (mode || previewMode) {
       const modeText =
-        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · зазор ${actualGapMm.toFixed(1)} мм`;
+        `${state.repeatMode === 'auto' ? 'Автоматически' : 'Вручную'} · интервал ${gapMm.toFixed(1)} мм`;
       if (mode) mode.textContent = modeText;
       if (previewMode) previewMode.textContent = modeText;
     }
     if (hint) {
       hint.textContent =
         automatic.source === 'empty'
-          ? 'Минимальный шаг до добавления логотипа или надписи.'
+          ? 'Интервал появится после добавления логотипа или надписи.'
           : state.repeatMode === 'auto'
-            ? `Свободный интервал ${actualGapMm.toFixed(1)} мм: равен ширине ленты.`
-            : `Свободный интервал ${actualGapMm.toFixed(1)} мм: выбрано вручную.`;
+            ? `Интервал ${gapMm.toFixed(1)} мм — по умолчанию равен ширине ленты.`
+            : `Интервал ${gapMm.toFixed(1)} мм — выбран вручную.`;
     }
   }
 
@@ -4213,10 +4240,10 @@ const bootStudio = () => {
     if ($('#textOffsetX')) $('#textOffsetX').value = style.textOffsetX;
     if ($('#textOffsetY')) $('#textOffsetY').value = style.textOffsetY;
     if ($('#repeatMm')) {
-      $('#repeatMm').value = state.repeatMm;
+      $('#repeatMm').value = String(getRibbonRepeatGapMm());
     }
     if ($('#repeatMmPreview')) {
-      $('#repeatMmPreview').value = state.repeatMm;
+      $('#repeatMmPreview').value = String(getRibbonRepeatGapMm());
     }
     if ($('#meters')) $('#meters').value = state.meters;
     if ($('#stickerQty')) $('#stickerQty').value = state.stickerQty;
@@ -5065,40 +5092,16 @@ const bootStudio = () => {
   });
 
 
-  // The slider controls the free gap between repeats, so its practical
-  // minimum is "back to back" — the narrowest repeat step the artwork
-  // still fits in whole (gap 0 after the print margins). Anything narrower
-  // would clip the artwork to a window smaller than itself: the preview
-  // showed crammed "Пр…" strips and the production scene would have
-  // printed them. The floor uses only real user content — the demo
-  // placeholder stays fully draggable so the slider remains explorable
-  // before anything is added.
-  function getRibbonRepeatFloorMm() {
-    const text = getResolvedText('ribbon').trim();
-    const resolvedLogo = getResolvedLogo('ribbon');
-    if (!text && !resolvedLogo?.logo) return MIN_RIBBON_REPEAT_MM;
-    const textMetrics = getTextMetrics(text, 'ribbon');
-    let floor = Math.max(
-      MIN_RIBBON_REPEAT_MM,
-      getNaturalRibbonContentWidthMm(text, resolvedLogo, textMetrics).widthMm,
-    );
-    // The natural content width alone still violates the 2.5 mm print
-    // margin on each side of the repeat; bump until the layout is valid
-    // so the floor means "whole artwork, zero free gap", never "clipped".
-    while (
-      floor < MAX_RIBBON_REPEAT_MM &&
-      !calculateRibbonLayout(floor, text, resolvedLogo, textMetrics).valid
-    ) {
-      floor += 1;
-    }
-    return floor;
-  }
-
+  // The slider controls the interval g directly (0..250 mm, 0 = repeats
+  // back-to-back). The repeat step is always derived as content + g on the
+  // next render, so g can never produce a repeat window narrower than the
+  // artwork — no floor clamp is needed anymore.
   const handleRepeatMmInput = (rawValue) => {
     state.repeatMode = 'manual';
-    state.repeatMm = Math.min(
+    const value = Number(rawValue);
+    state.repeatGapMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
-      Math.max(getRibbonRepeatFloorMm(), +rawValue || 100),
+      Math.max(0, Number.isFinite(value) ? value : getRibbonRepeatGapMm()),
     );
     syncControls();
     render();
@@ -5118,8 +5121,14 @@ const bootStudio = () => {
         repeatMm < MIN_RIBBON_REPEAT_MM ||
         repeatMm > MAX_RIBBON_REPEAT_MM
       ) return;
+      // The button suggests a full repeat step; the slider owns the
+      // interval, so convert: g = suggested step − current content width.
+      const automatic = calculateAutomaticRibbonRepeat();
       state.repeatMode = 'manual';
-      state.repeatMm = repeatMm;
+      state.repeatGapMm = Math.min(
+        MAX_RIBBON_REPEAT_MM,
+        Math.max(0, repeatMm - automatic.widthMm),
+      );
       syncControls();
       render();
       requestAnimationFrame(() => {

@@ -554,7 +554,9 @@
 
       const repeatWidth = surfaceBounds.width;
       const repeatHeight = surfaceBounds.height;
-      const goldenGapRatio = 1 / 1.618;
+      // One interval everywhere: the same g the slider controls between
+      // repeats also separates logo from text inside a composition. app.js
+      // publishes it on <body data-ribbon-repeat-gap-mm> on every render.
       // repeatHeight is already print-accurate: it's set from the real
       // ribbon width in mm (--ribbon-base-height), independent of the
       // container's on-screen width. Deriving logo/text/gap sizes straight
@@ -566,6 +568,10 @@
       // final contentScale fit-to-screen step still depends on the actual
       // container width, applied uniformly to everything at once.
       const pxPerMm = repeatHeight / ribbonWidth;
+      const repeatGapMm = Math.max(
+        0,
+        Number(document.body.dataset.ribbonRepeatGapMm) || 0,
+      );
       const trueRepeatWidth = repeatMm * pxPerMm;
       const ink = logoSrc && logoInkCache.get(logoSrc);
       requestLogoInkBounds(logoSrc);
@@ -608,11 +614,11 @@
       const textWidth = textBox
         ? Math.max(1, textBox.width * trueRepeatWidth)
         : 0;
-      // The internal logo<->text gap inside a composition keeps its own
-      // rule (manual drag or logo ÷ 1.618) and is part of the content
-      // block; only the free repeat gap around the block follows the
-      // slider-driven pitch.
-      const internalGap = inkLogoWidth * goldenGapRatio;
+      // The internal logo<->text gap is the unified interval g (mm-accurate,
+      // straight from the published dataset); only a manual drag overrides
+      // it via layoutGap below. For a single element there is no internal
+      // gap — just the free repeat gap around the block.
+      const internalGap = hasLogo && hasText ? repeatGapMm * pxPerMm : 0;
       const contentWidth =
         hasLogo && hasText
           ? inkLogoWidth + internalGap + textWidth
@@ -620,12 +626,9 @@
       // state.repeatMm is the full repeat step: the production scene tiles
       // its cells at exactly repeatMm × pxPerMm and centers the content
       // inside, so the preview must tile at the same width — no more, no
-      // less. Without the slider floor the pitch froze at the natural
-      // content width (logo-only ignored the slider completely, text-only
-      // ignored any stretch past the natural step) while the print file
-      // used the step the user actually chose; with the content floor a
-      // logo wider than the chosen step still gets its full natural width
-      // here instead of overlapping the neighbouring repeat in print.
+      // less. The step is always derived as content + g, so it can never
+      // be narrower than the artwork and the slider stays meaningful for
+      // logo-only and text-only ribbons alike (0 = back-to-back).
       const targetPitch = Math.max(contentWidth, trueRepeatWidth);
       const contentScale = Math.min(1, (repeatWidth * 0.92) / targetPitch);
       const placedLogoWidth = paintedLogoWidth * contentScale;
@@ -644,7 +647,7 @@
       const manualGap = layoutGap;
       const placedInternalGap =
         hasLogo && hasText
-          ? (manualGap ?? placedInkLogoWidth / 1.618)
+          ? (manualGap ?? internalGap * contentScale)
           : 0;
       const placedContentWidth = hasLogo && hasText
         ? placedInkLogoWidth + placedInternalGap + placedTextWidth

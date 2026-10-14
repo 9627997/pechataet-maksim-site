@@ -157,8 +157,8 @@
           <div class="mobile-products-ribbon-sample" aria-hidden="true">печатает максим</div>
           <div class="mobile-products-repeat-control" data-mobile-products-repeat-control>
             <label class="visually-hidden" for="repeatMmPreview">Интервал между повторами</label>
-            <input class="settings-range" id="repeatMmPreview" type="range" min="5" max="250" step="5" value="100">
-            <span class="mobile-products-repeat-value" id="repeatModePreview" aria-hidden="true">Подберу сам · 100 мм</span>
+            <input class="settings-range" id="repeatMmPreview" type="range" min="0" max="250" step="5" value="15">
+            <span class="mobile-products-repeat-value" id="repeatModePreview" aria-hidden="true">Автоматически · интервал 15 мм</span>
           </div>
           <section class="ribbon-overflow-card ribbon-overflow-card-mobile" data-ribbon-overflow-card hidden>
             <div class="ribbon-overflow-head">
@@ -430,10 +430,10 @@
 
         <div class="repeat-control-head">
           <label for="repeatMm">Интервал между повторами</label>
-          <span id="repeatMode">Подберу сам · 100 мм</span>
+          <span id="repeatMode">Автоматически · интервал 15 мм</span>
         </div>
-        <input class="settings-range" id="repeatMm" type="range" min="5" max="250" step="5" value="100" aria-describedby="repeatHint">
-        <small class="repeat-hint" id="repeatHint">Я подберу удобный интервал между повторами.</small>
+        <input class="settings-range" id="repeatMm" type="range" min="0" max="250" step="5" value="15" aria-describedby="repeatHint">
+        <small class="repeat-hint" id="repeatHint">Интервал появится после добавления логотипа или надписи.</small>
       </div>
 
       <div class="layout-mode-card">
@@ -783,15 +783,15 @@
   </section>
 </div>
 
-<script src="assets/js/geometry.js?v=26792c2620e0"></script>
-<script src="assets/js/layout.js?v=56b308d0f868"></script>
+<script src="assets/js/geometry.js?v=8e6b5ec69a17"></script>
+<script src="assets/js/layout.js?v=c71e90554839"></script>
 <script src="assets/js/smart-crop.js?v=20260806.1"></script>
 <script src="assets/js/trace-mask.js?v=20260812.2"></script>
 <script src="assets/js/trace-engine.js?v=20260806.1"></script>
-<script src="assets/js/state.js?v=20261012.1"></script>
+<script src="assets/js/state.js?v=20261014.1"></script>
 <script src="assets/js/storage.js?v=20261012.1"></script>
 <script src="assets/js/migrations.js?v=20261012.1"></script>
-<script src="assets/js/app.js?v=721865261840"></script>
-<script src="assets/js/mobile-products.js?v=23bff3cfbdee"></script>
+<script src="assets/js/app.js?v=f31bd6c5c22a"></script>
+<script src="assets/js/mobile-products.js?v=4c7b227e8620"></script>
 </body>
 </html>
