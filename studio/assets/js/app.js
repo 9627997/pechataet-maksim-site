@@ -5065,11 +5065,32 @@ const bootStudio = () => {
   });
 
 
+  // The slider controls the free gap between repeats, so its practical
+  // minimum is "back to back" — a repeat step exactly as wide as the
+  // user's content itself (gap 0). Anything narrower would clip the
+  // artwork to a window smaller than itself: the preview showed crammed
+  // "Пр…" strips and the production scene would have printed them. The
+  // floor uses only real user content — the demo placeholder stays fully
+  // draggable so the slider remains explorable before anything is added.
+  function getRibbonRepeatFloorMm() {
+    const text = getResolvedText('ribbon').trim();
+    const resolvedLogo = getResolvedLogo('ribbon');
+    if (!text && !resolvedLogo?.logo) return MIN_RIBBON_REPEAT_MM;
+    return Math.max(
+      MIN_RIBBON_REPEAT_MM,
+      getNaturalRibbonContentWidthMm(
+        text,
+        resolvedLogo,
+        getTextMetrics(text, 'ribbon'),
+      ).widthMm,
+    );
+  }
+
   const handleRepeatMmInput = (rawValue) => {
     state.repeatMode = 'manual';
     state.repeatMm = Math.min(
       MAX_RIBBON_REPEAT_MM,
-      Math.max(MIN_RIBBON_REPEAT_MM, +rawValue || 100),
+      Math.max(getRibbonRepeatFloorMm(), +rawValue || 100),
     );
     syncControls();
     render();
