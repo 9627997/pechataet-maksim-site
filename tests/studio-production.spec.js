@@ -75,7 +75,7 @@ test('production SVG flattens vector logos without linked nested files @smoke', 
   expect(result.hasLogoPath).toBe(true);
 });
 
-test('production geometry enforces 2.5 mm printable margins and circular bounds @smoke', async ({
+test('production geometry: full-bleed ribbon height, 2.5 mm sticker margins, circular bounds @smoke', async ({
   page,
 }) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
@@ -99,6 +99,7 @@ test('production geometry enforces 2.5 mm printable margins and circular bounds 
     const side = 20 / Math.sqrt(2);
     return {
       margin: geometry.PRINT_MARGIN_MM,
+      ribbonMargin: geometry.RIBBON_PRINT_MARGIN_MM,
       ribbons: [ribbon(15).printableHeightMm, ribbon(20).printableHeightMm],
       stickers: [25, 30, 40, 50].map(
         (diameter) => sticker(diameter).printableDiameterMm,
@@ -139,7 +140,10 @@ test('production geometry enforces 2.5 mm printable margins and circular bounds 
   });
 
   expect(result.margin).toBe(2.5);
-  expect(result.ribbons).toEqual([10, 15]);
+  // The ribbon prints full-bleed across its width: the whole ribbon height
+  // is printable (margin 0), while die-cut stickers keep the 2.5 mm margin.
+  expect(result.ribbonMargin).toBe(0);
+  expect(result.ribbons).toEqual([15, 20]);
   expect(result.stickers).toEqual([20, 25, 35, 45]);
   expect(result.square20).toBe(false);
   expect(result.inscribedSquare).toBe(true);
@@ -1151,12 +1155,12 @@ test('automatic repeat interval equals the ribbon width for every artwork kind',
   await expectNoHorizontalOverflow(page);
 });
 
-test('repeat guides are length-wise free and keep 2.5 mm width margins for 40, 100, and 250 mm', async ({
+test('repeat guides are length-wise free and span the full ribbon width (full-bleed)', async ({
   page,
 }) => {
-  // The ribbon prints continuously along its length, so the printable
-  // guide spans each repeat from edge to edge (0 mm length-wise margins)
-  // and only insets the guide across the ribbon width (2.5 mm selvage).
+  // The ribbon prints continuously along its length AND full-bleed across
+  // its width: the printable guide spans each repeat from edge to edge on
+  // both axes (0 mm margins anywhere).
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   for (const repeatMm of [40, 100, 250]) {
     await page.locator('#repeatMm').evaluate((element, repeat) => {
@@ -1168,19 +1172,25 @@ test('repeat guides are length-wise free and keep 2.5 mm width margins for 40, 1
       const guide = document.querySelector(
         '.mobile-products-printable-guide.ribbon-guide',
       );
-      const ribbonWidth = Number(document.body.dataset.ribbonWidth);
       return {
         leftMm: layout.printable.x * repeat,
         rightMm: (1 - layout.printable.x - layout.printable.width) * repeat,
+        topMm: layout.printable.y * Number(document.body.dataset.ribbonWidth),
+        bottomMm:
+          (1 - layout.printable.y - layout.printable.height) *
+          Number(document.body.dataset.ribbonWidth),
         guideLeft: guide.style.left,
         guideTop: parseFloat(guide.style.top),
-        expectedTopPercent: (2.5 / ribbonWidth) * 100,
+        guideBottom: parseFloat(guide.style.bottom),
       };
     }, repeatMm);
     expect(result.leftMm).toBeCloseTo(0, 7);
     expect(result.rightMm).toBeCloseTo(0, 7);
+    expect(result.topMm).toBeCloseTo(0, 7);
+    expect(result.bottomMm).toBeCloseTo(0, 7);
     expect(parseFloat(result.guideLeft)).toBeCloseTo(0, 5);
-    expect(result.guideTop).toBeCloseTo(result.expectedTopPercent, 3);
+    expect(result.guideTop).toBeCloseTo(0, 5);
+    expect(result.guideBottom).toBeCloseTo(0, 5);
   }
 });
 
@@ -1208,6 +1218,112 @@ test('order step hides the repeat interval controls in the sidebar', async ({
   await expect(page.locator('#repeatMm')).toBeHidden();
   await expect(page.locator('#repeatHint')).toBeHidden();
   await expect(page.locator('.repeat-control-head')).toBeHidden();
+});
+
+test('settings step offers the ribbon/sticker switch in bundle mode and drives the active product', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('МАКСИМ');
+  await page.locator('.nav-item[data-panel="settings"]').click();
+
+  const switcher = page.locator('#settingsProductSwitch');
+  await expect(switcher).toBeVisible();
+  await expect(switcher.locator('[data-settings-product-choice="ribbon"]'))
+    .toHaveClass(/active/);
+
+  await switcher.locator('[data-settings-product-choice="sticker"]').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-settings-product',
+    'sticker',
+  );
+  await expect(page.locator('#activeSettingsTitle')).toHaveText('Стикер');
+  await expect(
+    switcher.locator('[data-settings-product-choice="sticker"]'),
+  ).toHaveClass(/active/);
+  await expect(
+    page.locator('[data-settings-product="ribbon"]'),
+  ).toBeHidden();
+
+  await switcher.locator('[data-settings-product-choice="ribbon"]').click();
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-active-settings-product',
+    'ribbon',
+  );
+  await expect(page.locator('[data-settings-product="ribbon"]')).toBeVisible();
+});
+
+test('settings step hides the ribbon/sticker switch for single-product orders', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('МАКСИМ');
+  await page.locator('.nav-item[data-panel="settings"]').click();
+  await expect(page.locator('#settingsProductSwitch')).toBeHidden();
+});
+
+test('ribbon text fills the full ribbon height at the top of the size slider', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('МАКСИМ');
+  await page.locator('.nav-item[data-panel="settings"]').click();
+
+  const readTextBox = () =>
+    page.evaluate(() => {
+      const layout = JSON.parse(document.body.dataset.studioLayout).ribbon;
+      return {
+        textBox: layout.textBox,
+        printable: layout.printable,
+      };
+    });
+
+  const before = await readTextBox();
+  // The printable band is the full ribbon now (0 mm cross-width margin).
+  expect(before.printable.y).toBeCloseTo(0, 5);
+  expect(before.printable.height).toBeCloseTo(1, 5);
+  expect(before.textBox.height).toBeLessThan(0.9);
+
+  await page.locator('#fontSize').evaluate((element) => {
+    element.value = element.max;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const after = await readTextBox();
+  // At the slider's top the text reaches the whole ribbon height, edge to
+  // edge — not a margin-inset band.
+  expect(after.textBox.height).toBeGreaterThan(0.95);
+});
+
+test('ribbon text and logo travel the full ribbon height vertically', async ({
+  page,
+}) => {
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('МАКСИМ');
+  await page.locator('.nav-item[data-panel="settings"]').click();
+
+  const readTextBox = () =>
+    page.evaluate(
+      () => JSON.parse(document.body.dataset.studioLayout).ribbon.textBox,
+    );
+  const centered = await readTextBox();
+  await page.locator('#textOffsetY').evaluate((element) => {
+    element.value = element.min;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const top = await readTextBox();
+  await page.locator('#textOffsetY').evaluate((element) => {
+    element.value = element.max;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const bottom = await readTextBox();
+
+  // The full-height travel range: top edge at the ribbon edge, bottom edge
+  // at the ribbon edge.
+  expect(top.y).toBeCloseTo(0, 1);
+  expect(bottom.y + bottom.height).toBeCloseTo(1, 1);
+  expect(top.y).toBeLessThan(centered.y);
+  expect(bottom.y).toBeGreaterThan(centered.y);
+  expect(centered.y + centered.height / 2).toBeCloseTo(0.5, 1);
 });
 
 test('sticker create step keeps one active model and compact future shape picker @smoke', async ({
