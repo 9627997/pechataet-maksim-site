@@ -1346,6 +1346,20 @@ test('repeat slider moves the visible repeat pitch for single-element ribbons', 
     .toBeLessThan(1.5);
   const autoText = await readScene();
   await setSlider(Math.round(autoText.repeatMm) + 20);
+
+  // The slider's practical minimum is "back to back": dragging it below
+  // the natural content width floors the repeat at the content itself
+  // (gap 0) instead of clipping the text into "Пр…" strips inside a
+  // repeat window narrower than the text.
+  await setSlider(5);
+  const floored = await readScene();
+  const contentWidthMm = await page.evaluate(() =>
+    Number(document.body.dataset.ribbonContentWidthMm),
+  );
+  expect(floored.repeatMm).toBeCloseTo(contentWidthMm, 0);
+  expect(
+    await page.locator('.mobile-products-ribbon-repeat-text').count(),
+  ).toBeGreaterThan(0);
 });
 
 test('ribbon pans horizontally by drag and wheel without touching geometry', async ({
