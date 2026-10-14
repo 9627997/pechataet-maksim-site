@@ -5066,24 +5066,32 @@ const bootStudio = () => {
 
 
   // The slider controls the free gap between repeats, so its practical
-  // minimum is "back to back" — a repeat step exactly as wide as the
-  // user's content itself (gap 0). Anything narrower would clip the
-  // artwork to a window smaller than itself: the preview showed crammed
-  // "Пр…" strips and the production scene would have printed them. The
-  // floor uses only real user content — the demo placeholder stays fully
-  // draggable so the slider remains explorable before anything is added.
+  // minimum is "back to back" — the narrowest repeat step the artwork
+  // still fits in whole (gap 0 after the print margins). Anything narrower
+  // would clip the artwork to a window smaller than itself: the preview
+  // showed crammed "Пр…" strips and the production scene would have
+  // printed them. The floor uses only real user content — the demo
+  // placeholder stays fully draggable so the slider remains explorable
+  // before anything is added.
   function getRibbonRepeatFloorMm() {
     const text = getResolvedText('ribbon').trim();
     const resolvedLogo = getResolvedLogo('ribbon');
     if (!text && !resolvedLogo?.logo) return MIN_RIBBON_REPEAT_MM;
-    return Math.max(
+    const textMetrics = getTextMetrics(text, 'ribbon');
+    let floor = Math.max(
       MIN_RIBBON_REPEAT_MM,
-      getNaturalRibbonContentWidthMm(
-        text,
-        resolvedLogo,
-        getTextMetrics(text, 'ribbon'),
-      ).widthMm,
+      getNaturalRibbonContentWidthMm(text, resolvedLogo, textMetrics).widthMm,
     );
+    // The natural content width alone still violates the 2.5 mm print
+    // margin on each side of the repeat; bump until the layout is valid
+    // so the floor means "whole artwork, zero free gap", never "clipped".
+    while (
+      floor < MAX_RIBBON_REPEAT_MM &&
+      !calculateRibbonLayout(floor, text, resolvedLogo, textMetrics).valid
+    ) {
+      floor += 1;
+    }
+    return floor;
   }
 
   const handleRepeatMmInput = (rawValue) => {

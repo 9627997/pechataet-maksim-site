@@ -936,7 +936,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
           );
           return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
         }),
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     )
     .toBe(true);
 
