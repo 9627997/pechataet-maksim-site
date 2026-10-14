@@ -1566,6 +1566,54 @@ test('content zones opt out of native touch gestures so the vertical drag surviv
   expect(actionPrevented).toBe(false);
 });
 
+test('ribbon repeat cells follow the text vertical offset instead of staying centered', async ({
+  page,
+}, testInfo) => {
+  test.skip(!isMobileProject(testInfo.project.name));
+  await page.goto('/studio/?product=ribbon', { waitUntil: 'networkidle' });
+  await page.locator('#textInput').fill('ПРИВЕТ');
+  // Smaller font leaves visible vertical travel.
+  await page.locator('#fontSize').evaluate((el) => {
+    el.value = '16';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const zoneText = page.locator(
+    '.mobile-products-ribbon-text-zone .mobile-products-ribbon-text',
+  );
+  const cellText = page.locator('.mobile-products-ribbon-repeat-text').first();
+
+  const topGap = async () => {
+    const zone = await zoneText.boundingBox();
+    const cell = await cellText.boundingBox();
+    if (!zone || !cell) return Number.POSITIVE_INFINITY;
+    return Math.abs(zone.y - cell.y);
+  };
+
+  await expect
+    .poll(topGap, {message: 'both text layers are laid out'})
+    .toBeLessThan(Number.POSITIVE_INFINITY);
+  // Auto layout: the painted repeats and the interaction zone show the
+  // same text box, so they must overlap exactly.
+  await expect.poll(topGap, {message: 'cells match the zone before any offset'}).toBeLessThan(0.5);
+
+  // Manual vertical offset: the painted text must travel with the zone —
+  // it used to stay centered in the cell no matter what the shopper did,
+  // which read as "vertical move doesn't work on the ribbon".
+  const before = (await cellText.boundingBox()).y;
+  await page.locator('#textOffsetY').evaluate((el) => {
+    el.value = '100';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect
+    .poll(async () => (await cellText.boundingBox())?.y ?? before, {
+      message: 'painted text moves down with the offset',
+    })
+    .toBeGreaterThan(before + 2);
+  await expect
+    .poll(topGap, {message: 'cells still match the zone after the offset'})
+    .toBeLessThan(0.5);
+});
+
 test('preview content zones do not open editors on click', async ({ page }) => {
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   const textInput = page.locator('#textInput');
