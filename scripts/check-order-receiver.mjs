@@ -84,12 +84,20 @@ assert.ok(
   'Order receiver must NOT run notifications inline — the cron worker owns delivery, inline runs hold the shopper connection past the client abort timeout',
 );
 assert.ok(
+  endpoint.includes('CURLINFO_REDIRECT_URL'),
+  'Endpoint HTTP helper must handle Apps Script POST->GET signed redirects (FOLLOWLOCATION+POSTREDIR gets a 405 from script.googleusercontent.com)',
+);
+assert.ok(
   worker.includes('pmq_process'),
   'Notification worker must process queued orders',
 );
 assert.ok(
   worker.includes('notification-queue.json'),
   'Notification worker must use the queue file',
+);
+assert.ok(
+  worker.includes('CURLINFO_REDIRECT_URL'),
+  'Worker HTTP helper must handle Apps Script POST->GET signed redirects too',
 );
 console.log(
   'Order receiver PHP syntax, logging contract, and fast-acceptance lifecycle are valid.',

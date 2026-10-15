@@ -520,13 +520,28 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_POSTREDIR => 3,
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 6,
         ]);
         $response = curl_exec($curl);
         $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        // Google Apps Script /exec answers POST with a signed redirect that
+        // must be fetched with GET — the POST body travels inside the signed
+        // URL, and re-POSTing the redirect (what FOLLOWLOCATION + POSTREDIR
+        // does) gets a 405, which kept the Drive-backup channel permanently
+        // failed.
+        $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
+        if ($status >= 300 && $status < 400 && $redirect !== '') {
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $redirect,
+                CURLOPT_HTTPGET => true,
+                CURLOPT_POST => false,
+                CURLOPT_POSTFIELDS => null,
+            ]);
+            $response = curl_exec($curl);
+            $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        }
         $error = curl_error($curl);
         curl_close($curl);
         $decoded = is_string($response) ? json_decode($response, true) : null;

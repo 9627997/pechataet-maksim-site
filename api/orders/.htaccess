@@ -3,3 +3,10 @@ Options -Indexes
 <FilesMatch "^\.">
   Require all denied
 </FilesMatch>
+
+# The notification worker runs from the cron (CLI), never from the web:
+# triggering it over HTTP would leak its source and let anyone re-fire
+# notification retries.
+<Files "notification-worker.php">
+  Require all denied
+</Files>
