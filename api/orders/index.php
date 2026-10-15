@@ -798,32 +798,18 @@ try
         }
     }
     try {
+        // Delivery is worker-owned: the endpoint must answer fast (the
+        // shopper's client aborts the fetch after 15 s), while the cron
+        // notification-worker.php picks the queued order up within a minute
+        // and retries Telegram/Google/MAX with backoff. Running the
+        // notifications inline here held the connection through every slow
+        // channel and produced "Fetch is aborted" on real orders even though
+        // the order was already stored.
         pm_enqueue_notifications($order);
         pm_write_technical_log($technicalStorage, 'notifications_queued', [
             'requestId' => $order['payload']['requestId'],
             'orderId' => $order['orderId'],
         ]);
-        if (!$order['duplicate']) {
-            pm_run_notifications($config, $order);
-            $notificationPath = $order['directory'] . '/notifications.json';
-            $notificationResult = is_file($notificationPath)
-                ? json_decode((string) file_get_contents($notificationPath), true)
-                : null;
-            if (is_array($notificationResult)) {
-                $status = ($notificationResult['status'] ?? '') === 'partial_failure'
-                    ? 'partial_failure'
-                    : 'sent';
-                pm_update_notification_queue(
-                    $order,
-                    $status,
-                    max(
-                        (int) ($notificationResult['telegram']['attempts'] ?? 0),
-                        (int) ($notificationResult['google']['attempts'] ?? 0),
-                        (int) ($notificationResult['max']['attempts'] ?? 0),
-                    ),
-                );
-            }
-        }
     } catch (Throwable $queueError) {
         pm_write_technical_log($technicalStorage, 'notification_queue_failed', [
             'requestId' => $order['payload']['requestId'],

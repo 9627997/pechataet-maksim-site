@@ -80,6 +80,10 @@ assert.ok(
   'Order receiver must enqueue notifications',
 );
 assert.ok(
+  !endpoint.includes('pm_run_notifications($config, $order)'),
+  'Order receiver must NOT run notifications inline — the cron worker owns delivery, inline runs hold the shopper connection past the client abort timeout',
+);
+assert.ok(
   worker.includes('pmq_process'),
   'Notification worker must process queued orders',
 );
