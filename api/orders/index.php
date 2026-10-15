@@ -233,7 +233,13 @@ function pm_normalize_payload(array $input): array
         // Rounded to 0.1mm for storage/notifications — the client sends a
         // long float from font-metrics math, but nothing downstream (print,
         // the summary text Maxim reads) needs more precision than that.
-        'repeatMm' => $ribbonEnabled ? round(pm_ranged_number($ribbonInput['repeatMm'] ?? null, 40, 250, 'шаг повтора'), 1) : 0,
+        // Bounds must cover everything the studio can legitimately produce:
+        // the step is content + interval, the interval slider runs 0..250 mm
+        // and the content itself can be a short word at the minimum font
+        // (a real order with «Пр» + logo and a 7.7 mm interval produced a
+        // ~33 mm step that the old 40..250 floor rejected with 422). 5 mm is
+        // below any printable repeat, 500 mm is above content + max interval.
+        'repeatMm' => $ribbonEnabled ? round(pm_ranged_number($ribbonInput['repeatMm'] ?? null, 5, 500, 'шаг повтора'), 1) : 0,
         'materialColor' => pm_clean_color($ribbonInput['materialColor'] ?? '', '#f3eadc'),
         'printColor' => pm_clean_color($ribbonInput['printColor'] ?? '', '#171717'),
     ];

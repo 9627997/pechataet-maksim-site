@@ -62,6 +62,12 @@ const responsePosition = endpoint.indexOf(
 const archivePosition = endpoint.indexOf("pm_create_zip($order['directory'])");
 assert.ok(responsePosition >= 0, 'Order receiver must send accepted response');
 assert.ok(
+  endpoint.includes(
+    "pm_ranged_number($ribbonInput['repeatMm'] ?? null, 5, 500, 'шаг повтора')",
+  ),
+  'Repeat step bounds must accept any studio-legitimate value (content + interval), not the old fixed-step presets',
+);
+assert.ok(
   archivePosition > responsePosition,
   'Archive creation must happen after accepted response',
 );
