@@ -26,13 +26,26 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
         CURLOPT_POSTFIELDS => $fields,
         CURLOPT_HTTPHEADER => $file === null ? array_merge(['Content-Type: application/json'], $headers) : $headers,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_POSTREDIR => 3,
+        CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_CONNECTTIMEOUT => 3,
         CURLOPT_TIMEOUT => $file === null ? 6 : 10,
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    // Google Apps Script /exec answers POST with a signed redirect that must
+    // be fetched with GET (the POST body travels inside the signed URL);
+    // re-POSTing the redirect 405s — see the same fix in the endpoint.
+    $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
+    if ($status >= 300 && $status < 400 && $redirect !== '') {
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $redirect,
+            CURLOPT_HTTPGET => true,
+            CURLOPT_POST => false,
+            CURLOPT_POSTFIELDS => null,
+        ]);
+        $body = curl_exec($curl);
+        $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    }
     $error = curl_error($curl);
     curl_close($curl);
     $decoded = is_string($body) ? json_decode($body, true) : null;
