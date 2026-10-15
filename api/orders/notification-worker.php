@@ -56,7 +56,9 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
     $error = curl_error($curl);
     curl_close($curl);
     $decoded = is_string($body) ? json_decode($body, true) : null;
-    return ['ok' => $body !== false && $status >= 200 && $status < 300 && (!is_array($decoded) || ($decoded['ok'] ?? true) !== false), 'status' => $status, 'error' => $error];
+    // Telegram объясняет отказ в description ответа — сохраняем для логов.
+    $description = is_array($decoded) && isset($decoded['description']) ? (string) $decoded['description'] : '';
+    return ['ok' => $body !== false && $status >= 200 && $status < 300 && (!is_array($decoded) || ($decoded['ok'] ?? true) !== false), 'status' => $status, 'error' => $error !== '' ? $error : $description];
 }
 
 function pmq_attempt(callable $callback, int $max, int $delay): array
@@ -116,17 +118,30 @@ function pmq_process(string $directory, array $config): void
         $messageSent = ($tgState['status'] ?? '') === 'sent' || ($tgState['messageSent'] ?? false) === true;
         $zip = $directory . '/order-package.zip';
         $documentSent = ($tgState['documentSent'] ?? false) === true || !is_file($zip);
+        $photosSent = ($tgState['photosSent'] ?? false) === true;
         if (!$messageSent) {
             $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendMessage', ['chat_id' => $chat, 'text' => $text]);
-            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => false, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
+            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => false, 'photosSent' => false, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
             $messageSent = true;
         }
+        // Визуализация макетов: то, что видел пользователь в Studio.
+        // Файлы передаются третьим аргументом (multipart) — CURLFile внутри
+        // JSON-пейлоада превращается в «{}» и Telegram отвечает 400.
+        if (!$photosSent) {
+            foreach (['ribbon-preview.png' => 'Макет ленты', 'sticker-preview.png' => 'Макет стикера'] as $photoName => $label) {
+                $photoPath = $directory . '/' . $photoName;
+                if (!is_file($photoPath)) continue;
+                $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendPhoto', [], ['chat_id' => $chat, 'caption' => $label . ' ' . ($order['orderId'] ?? ''), 'photo' => new CURLFile($photoPath, 'image/png', $photoName)]);
+                if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => true, 'photosSent' => false, 'documentSent' => $documentSent, 'httpStatus' => $result['status'] ?? 0] + $result;
+            }
+            $photosSent = true;
+        }
         if (!$documentSent) {
-            $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
-            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => true, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
+            $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', [], ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
+            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => true, 'photosSent' => true, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
             $documentSent = true;
         }
-        return $tgState = ['status' => 'sent', 'messageSent' => true, 'documentSent' => true, 'httpStatus' => 200, 'ok' => true, 'error' => ''];
+        return $tgState = ['status' => 'sent', 'messageSent' => true, 'photosSent' => true, 'documentSent' => true, 'httpStatus' => 200, 'ok' => true, 'error' => ''];
     }, $maxAttempts, $delay));
     $googleUrl = (string) ($config['google']['webhook_url'] ?? '');
     $google = ($previous['google']['status'] ?? '') === 'sent'

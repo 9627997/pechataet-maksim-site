@@ -625,7 +625,9 @@ function pm_telegram_send_file(string $token, string $chatId, string $method, st
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     $error = curl_error($curl);
     curl_close($curl);
-    return ['ok' => $response !== false && $status >= 200 && $status < 300, 'status' => $status, 'error' => $error];
+    $decoded = is_string($response) ? json_decode($response, true) : null;
+    $description = is_array($decoded) && isset($decoded['description']) ? (string) $decoded['description'] : '';
+    return ['ok' => $response !== false && $status >= 200 && $status < 300, 'status' => $status, 'error' => $error !== '' ? $error : $description];
 }
 
 function pm_notify_telegram(array $settings, array $order): array
