@@ -704,6 +704,29 @@ test('order dialog sends production files, retries safely and keeps a local copy
   expect(requests[1].artifacts.stickerSvg).toContain('<svg');
   expect(requests[1].customer.preferredContact).toBe('phone');
 
+  // Печатные SVG — автономные тайлы: полная высота ленты, чёрный, шрифты внутри.
+  for (const printSvg of [
+    requests[1].artifacts.ribbonPrintSvg,
+    requests[1].artifacts.stickerPrintSvg,
+  ]) {
+    expect(printSvg).toContain('data-file-purpose="print-black"');
+    expect(printSvg).toContain('@font-face');
+    expect(printSvg).not.toContain('data-preview-overlay');
+    expect(printSvg).toContain('#000000');
+  }
+  const ribbonTileViewBox = requests[1].artifacts.ribbonPrintSvg
+    .match(/viewBox="([^"]+)"/)[1]
+    .split(/\s+/)
+    .map(Number);
+  expect(ribbonTileViewBox[3]).toBe(76); // полная высота ленты 15 мм
+  // Визуализация того, что видел пользователь.
+  expect(requests[1].artifacts.ribbonPreviewPng).toMatch(
+    /^data:image\/png;base64,/,
+  );
+  expect(requests[1].artifacts.stickerPreviewPng).toMatch(
+    /^data:image\/png;base64,/,
+  );
+
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Скачать копию' }).click();
   const download = await downloadPromise;

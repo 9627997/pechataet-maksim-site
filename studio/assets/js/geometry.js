@@ -339,27 +339,28 @@
     return new XMLSerializer().serializeToString(clone);
   }
 
-  function serializePrintSvg(svg, {widthMm, heightMm} = {}) {
-    const parsed = new DOMParser().parseFromString(
-      serializeProductionSvg(svg),
-      'image/svg+xml',
-    );
-    const clone = parsed.documentElement;
-    clone.querySelectorAll('[data-preview-overlay]').forEach((node) => node.remove());
-    clone.querySelectorAll('#ribbonBase, #ribbonShine, #stickerBg').forEach((node) => node.remove());
-    clone.querySelectorAll('#ribbonPrintableGuide, #stickerPrintableGuide').forEach((node) => node.remove());
-    clone.querySelectorAll('[data-print-content] [stroke]').forEach((node) => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function printEl(tag, attrs = {}) {
+    const element = document.createElementNS(SVG_NS, tag);
+    Object.entries(attrs).forEach(([name, value]) => {
+      if (value !== undefined && value !== null) {
+        element.setAttribute(name, String(value));
+      }
+    });
+    return element;
+  }
+
+  function applyBlackOnly(root) {
+    root.querySelectorAll('[stroke]').forEach((node) => {
       if (node.getAttribute('stroke') !== 'none') node.setAttribute('stroke', '#000000');
     });
-    clone.querySelectorAll('[data-print-content] [fill]').forEach((node) => {
+    root.querySelectorAll('[fill]').forEach((node) => {
       if (node.getAttribute('fill') !== 'none') node.setAttribute('fill', '#000000');
     });
-    clone.querySelectorAll('[data-print-content]').forEach((node) => {
+    root.querySelectorAll('*').forEach((node) => {
       node.removeAttribute('filter');
-      node.style.removeProperty('filter');
-    });
-    clone.querySelectorAll('[data-print-content] style').forEach((node) => node.remove());
-    clone.querySelectorAll('[data-print-content] *').forEach((node) => {
+      if (node.style) node.style.removeProperty('filter');
       const style = node.getAttribute('style');
       if (style) {
         node.setAttribute('style', style.replace(/(fill|stroke)\s*:\s*(?!none)[^;]+/gi, '$1:#000000'));
@@ -367,11 +368,172 @@
       if (node.getAttribute('fill') === 'currentColor') node.setAttribute('fill', '#000000');
       if (node.getAttribute('stroke') === 'currentColor') node.setAttribute('stroke', '#000000');
     });
-    if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) clone.setAttribute('width', `${Number(widthMm)}mm`);
-    if (Number.isFinite(Number(heightMm)) && Number(heightMm) > 0) clone.setAttribute('height', `${Number(heightMm)}mm`);
-    clone.setAttribute('data-file-purpose', 'print-black');
-    clone.setAttribute('data-target-dpi', '300');
-    return new XMLSerializer().serializeToString(clone);
+  }
+
+  // Собирает автономный печатный SVG-документ ровно из одного периода печати
+  // (тайла): viewBox = тайл, width/height = реальные миллиметры, без фона и
+  // направляющих, всё содержимое чёрным, текст самодостаточен за счёт
+  // встроенных @font-face (fonts: {familyName: dataUrl}).
+  function buildPrintTile({viewBox, widthMm, heightMm, fonts = {}, draw}) {
+    const root = printEl('svg', {
+      xmlns: SVG_NS,
+      viewBox: viewBox.map((value) => Number(value.toFixed(4))).join(' '),
+    });
+    if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) {
+      root.setAttribute('width', `${Number(widthMm)}mm`);
+    }
+    if (Number.isFinite(Number(heightMm)) && Number(heightMm) > 0) {
+      root.setAttribute('height', `${Number(heightMm)}mm`);
+    }
+    root.setAttribute('data-file-purpose', 'print-black');
+    root.setAttribute('data-target-dpi', '300');
+
+    const defs = printEl('defs');
+    const clipId = 'printTileClip';
+    const clipPath = printEl('clipPath', {id: clipId});
+    clipPath.appendChild(
+      printEl('rect', {
+        x: viewBox[0],
+        y: viewBox[1],
+        width: viewBox[2],
+        height: viewBox[3],
+      }),
+    );
+    defs.appendChild(clipPath);
+    const fontFaces = Object.entries(fonts).flatMap(([family, sources]) =>
+      (Array.isArray(sources) ? sources : [sources])
+        .filter(Boolean)
+        .map((source) => {
+          const src = typeof source === 'string' ? source : source.src;
+          const unicodeRange = typeof source === 'string' ? '' : source.unicodeRange || '';
+          return `@font-face { font-family: "${family}"; src: url("${src}") format("woff2"); font-weight: 200 800; font-style: normal;${unicodeRange ? ` unicode-range: ${unicodeRange};` : ''} }`;
+        }),
+    );
+    if (fontFaces.length) {
+      const style = printEl('style');
+      style.textContent = fontFaces.join('\n');
+      defs.appendChild(style);
+    }
+    root.appendChild(defs);
+
+    const inner = printEl('g', {
+      transform: `translate(${-viewBox[0]} ${-viewBox[1]})`,
+      'clip-path': `url(#${clipId})`,
+    });
+    root.appendChild(inner);
+    draw(inner);
+    applyBlackOnly(inner);
+    return new XMLSerializer().serializeToString(root);
+  }
+
+  // Растеризует SVG-элемент в PNG data URL (визуализация для заявки).
+  function rasterizeSvgToPngDataUrl(svg, {maxWidthPx = 2600} = {}) {
+    const markup = new XMLSerializer().serializeToString(svg);
+    const source = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(markup)));
+    const viewBox = (svg.getAttribute('viewBox') || '')
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    const baseWidth = viewBox.length === 4 && viewBox.every(Number.isFinite)
+      ? viewBox[2]
+      : 0;
+    const baseHeight = viewBox.length === 4 && viewBox.every(Number.isFinite)
+      ? viewBox[3]
+      : 0;
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const intrinsicWidth = baseWidth || image.naturalWidth || 1200;
+        const intrinsicHeight = baseHeight || image.naturalHeight || 260;
+        const scale = Math.min(2, maxWidthPx / intrinsicWidth);
+        const width = Math.max(1, Math.round(intrinsicWidth * scale));
+        const height = Math.max(1, Math.round(intrinsicHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#f6f1ea';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      image.onerror = () => resolve('');
+      image.src = source;
+    });
+  }
+
+  function serializePrintSvg(svg, {widthMm, heightMm, fonts} = {}) {
+    const parsed = new DOMParser().parseFromString(
+      serializeProductionSvg(svg),
+      'image/svg+xml',
+    );
+    const source = parsed.documentElement;
+    const isRibbon = Boolean(source.querySelector('#ribbonClip'));
+    let viewBox = null;
+    let draw = null;
+    if (isRibbon) {
+      // Тайл = клип первой ячейки с текстом (иначе первой ячейки) во весь
+      // профиль ленты (#clipRect задаёт полную высоту, включая 2,5 мм поля).
+      const cells = [...source.querySelectorAll('g[data-production-content]')];
+      const cell = cells.find((node) => node.querySelector('text')) || cells[0];
+      const clipId = (cell?.getAttribute('clip-path') || '').match(/#([^)]+)\)/)?.[1];
+      const rect = clipId
+        ? source.querySelector(`clipPath[id="${clipId}"] rect`)
+        : null;
+      const band = source.querySelector('#clipRect');
+      if (cell && rect && band) {
+        viewBox = [
+          Number(rect.getAttribute('x')),
+          Number(band.getAttribute('y')),
+          Number(rect.getAttribute('width')),
+          Number(band.getAttribute('height')),
+        ];
+        draw = (target) => {
+          [...cell.childNodes].forEach((node) => {
+            target.appendChild(target.ownerDocument.importNode(node, true));
+          });
+        };
+      }
+    } else {
+      // Стикер: production-контент целиком, тайл = видимая форма стикера.
+      const content =
+        source.querySelector('#stickerContent [data-production-content]') ||
+        source.querySelector('[data-production-content]');
+      const bg = source.querySelector('#stickerBg');
+      if (content && bg) {
+        if (bg.tagName.toLowerCase() === 'circle') {
+          const r = Number(bg.getAttribute('r'));
+          const cx = Number(bg.getAttribute('cx'));
+          const cy = Number(bg.getAttribute('cy'));
+          viewBox = [cx - r, cy - r, r * 2, r * 2];
+        } else {
+          viewBox = [
+            Number(bg.getAttribute('x')),
+            Number(bg.getAttribute('y')),
+            Number(bg.getAttribute('width')),
+            Number(bg.getAttribute('height')),
+          ];
+        }
+        draw = (target) => {
+          [...content.childNodes].forEach((node) => {
+            target.appendChild(target.ownerDocument.importNode(node, true));
+          });
+        };
+      }
+    }
+    if (!viewBox || !draw || viewBox.some((value) => !Number.isFinite(value))) {
+      // Запасной вариант: весь холст, как раньше.
+      source.querySelectorAll('[data-preview-overlay]').forEach((node) => node.remove());
+      source.querySelectorAll('#ribbonBase, #ribbonShine, #stickerBg').forEach((node) => node.remove());
+      source.querySelectorAll('#ribbonPrintableGuide, #stickerPrintableGuide').forEach((node) => node.remove());
+      applyBlackOnly(source);
+      if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) source.setAttribute('width', `${Number(widthMm)}mm`);
+      if (Number.isFinite(Number(heightMm)) && Number(heightMm) > 0) source.setAttribute('height', `${Number(heightMm)}mm`);
+      source.setAttribute('data-file-purpose', 'print-black');
+      source.setAttribute('data-target-dpi', '300');
+      return new XMLSerializer().serializeToString(source);
+    }
+    return buildPrintTile({viewBox, widthMm, heightMm, fonts, draw});
   }
 
   window.RibbonStudioGeometry = Object.freeze({
@@ -389,5 +551,7 @@
     areRectCornersInsideSticker,
     serializeProductionSvg,
     serializePrintSvg,
+    buildPrintTile,
+    rasterizeSvgToPngDataUrl,
   });
 })();
