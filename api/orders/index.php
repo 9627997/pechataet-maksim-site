@@ -532,9 +532,9 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
         // does) gets a 405, which kept the Drive-backup channel permanently
         // failed.
         $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
-        if ($status >= 300 && $status < 400 && $redirect !== '') {
-            // CURLOPT_HTTPGET last on purpose: PHP's binding re-enters POST
-            // mode when POSTFIELDS is touched after it (405 from Google).
+        // Follow up to 4 redirect hops as plain GET (no POST leftovers, no
+        // JSON Content-Type — googleusercontent answers those with 405).
+        for ($hop = 0; $hop < 4 && $status >= 300 && $status < 400 && $redirect !== ''; $hop++) {
             curl_setopt_array($curl, [
                 CURLOPT_URL => $redirect,
                 CURLOPT_POSTFIELDS => null,
@@ -543,6 +543,7 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
             ]);
             $response = curl_exec($curl);
             $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+            $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
         }
         $error = curl_error($curl);
         curl_close($curl);
