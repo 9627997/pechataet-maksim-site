@@ -104,6 +104,11 @@ function pmq_process(string $directory, array $config): void
     foreach ([['ribbonSvg', 'ribbon.svg'], ['stickerSvg', 'sticker.svg'], ['ribbonPreviewSvg', 'ribbon-preview.svg'], ['ribbonPrintSvg', 'ribbon-print-black.svg'], ['stickerPreviewSvg', 'sticker-preview.svg'], ['stickerPrintSvg', 'sticker-print-black.svg']] as [$key, $file]) {
         if (is_file($directory . '/' . $file)) $order['artifacts'][$key] = file_get_contents($directory . '/' . $file);
     }
+    // PNG-превью передаются в Google webhook base64-полями (Apps Script
+    // декодирует в файл), поэтому из диска читаем и кодируем.
+    foreach ([['ribbonPreviewPng', 'ribbon-preview.png'], ['stickerPreviewPng', 'sticker-preview.png']] as [$key, $file]) {
+        if (is_file($directory . '/' . $file)) $order['artifacts'][$key] = base64_encode((string) file_get_contents($directory . '/' . $file));
+    }
     $maxAttempts = max(1, min(5, (int) ($config['notifications']['max_attempts'] ?? 3)));
     $delay = max(0, min(10, (int) ($config['notifications']['retry_delay_seconds'] ?? 1)));
     $token = (string) ($config['telegram']['bot_token'] ?? '');
