@@ -27,8 +27,11 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
         CURLOPT_HTTPHEADER => $file === null ? array_merge(['Content-Type: application/json'], $headers) : $headers,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_TIMEOUT => $file === null ? 6 : 10,
+        // REG.RU shared hosting has flaky egress: Google answers /exec POST
+        // in 6-15 s from here, so a 6 s budget can never succeed; 25 s covers
+        // slow answers while cron still bounds the overall run.
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => $file === null ? 25 : 30,
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
@@ -104,17 +107,17 @@ function pmq_process(string $directory, array $config): void
         ? $previous['telegram']
         : ((!$token || !$chat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($token, $chat, $text, $directory, $order): array {
         $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendMessage', ['chat_id' => $chat, 'text' => $text]);
-        if (!$result['ok']) return ['status' => 'failed'] + $result;
+        if (!$result['ok']) return ['status' => 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
         $zip = $directory . '/order-package.zip';
         if (is_file($zip)) $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
-        return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
+        return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
     }, $maxAttempts, $delay));
     $googleUrl = (string) ($config['google']['webhook_url'] ?? '');
     $google = ($previous['google']['status'] ?? '') === 'sent'
         ? $previous['google']
         : ($googleUrl === '' ? ['status' => 'disabled'] : pmq_attempt(function () use ($config, $order, $googleUrl): array {
         $result = pmq_request($googleUrl, ['secret' => $config['google']['shared_secret'], 'order' => $order]);
-        return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
+        return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
     }, $maxAttempts, $delay));
     $maxToken = (string) ($config['max']['access_token'] ?? '');
     $maxChat = (string) ($config['max']['chat_id'] ?? '');
@@ -122,7 +125,7 @@ function pmq_process(string $directory, array $config): void
         ? $previous['max']
         : ((!$maxToken || !$maxChat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($maxToken, $maxChat, $text): array {
         $result = pmq_request('https://platform-api.max.ru/messages?chat_id=' . rawurlencode($maxChat), ['text' => $text], null, ['Authorization: ' . $maxToken]);
-        return ['status' => $result['ok'] ? 'sent' : 'failed'] + $result;
+        return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
     }, $maxAttempts, $delay));
     $failed = array_filter([$telegram, $google, $max], static fn(array $result): bool => ($result['status'] ?? '') === 'failed');
     $status = $failed ? 'partial_failure' : 'completed';
