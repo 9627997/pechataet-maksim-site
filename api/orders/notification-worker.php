@@ -103,14 +103,26 @@ function pmq_process(string $directory, array $config): void
     $token = (string) ($config['telegram']['bot_token'] ?? '');
     $chat = (string) ($config['telegram']['chat_id'] ?? '');
     $text = pmq_text($order);
-    $telegram = ($previous['telegram']['status'] ?? '') === 'sent'
-        ? $previous['telegram']
-        : ((!$token || !$chat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($token, $chat, $text, $directory, $order): array {
-        $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendMessage', ['chat_id' => $chat, 'text' => $text]);
-        if (!$result['ok']) return ['status' => 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
+    // Telegram state is tracked per-part (messageSent / documentSent): the
+    // text may already be in the chat while the ZIP is still pending. Without
+    // this split a failed sendDocument made the whole channel 'failed' and
+    // every cron run re-sent the text — a message-per-minute spam loop.
+    $tgState = is_array($previous['telegram'] ?? null) ? $previous['telegram'] : [];
+    $telegram = ((!$token || !$chat) ? ['status' => 'disabled'] : pmq_attempt(function () use ($token, $chat, $text, $directory, $order, &$tgState): array {
+        $messageSent = ($tgState['status'] ?? '') === 'sent' || ($tgState['messageSent'] ?? false) === true;
         $zip = $directory . '/order-package.zip';
-        if (is_file($zip)) $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
-        return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
+        $documentSent = ($tgState['documentSent'] ?? false) === true || !is_file($zip);
+        if (!$messageSent) {
+            $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendMessage', ['chat_id' => $chat, 'text' => $text]);
+            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => false, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
+            $messageSent = true;
+        }
+        if (!$documentSent) {
+            $result = pmq_request('https://api.telegram.org/bot' . $token . '/sendDocument', ['chat_id' => $chat, 'caption' => 'Макеты ' . ($order['orderId'] ?? ''), 'document' => new CURLFile($zip, 'application/zip', basename($zip))]);
+            if (!$result['ok']) return $tgState = ['status' => 'failed', 'messageSent' => true, 'documentSent' => false, 'httpStatus' => $result['status'] ?? 0] + $result;
+            $documentSent = true;
+        }
+        return $tgState = ['status' => 'sent', 'messageSent' => true, 'documentSent' => true, 'httpStatus' => 200, 'ok' => true, 'error' => ''];
     }, $maxAttempts, $delay));
     $googleUrl = (string) ($config['google']['webhook_url'] ?? '');
     $google = ($previous['google']['status'] ?? '') === 'sent'
