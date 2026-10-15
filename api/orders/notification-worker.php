@@ -40,14 +40,15 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
     // re-POSTing the redirect 405s — see the same fix in the endpoint.
     $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
     if ($status >= 300 && $status < 400 && $redirect !== '') {
-        // GET must not carry the JSON Content-Type header: the googleusercontent
-        // frontend answers such requests with 405.
+        // The GET must not carry the JSON Content-Type header or any POST
+        // leftovers: googleusercontent answers such requests with 405.
+        // CURLOPT_HTTPGET is applied last on purpose — PHP's binding
+        // re-enters POST mode if POSTFIELDS is touched after it.
         curl_setopt_array($curl, [
             CURLOPT_URL => $redirect,
-            CURLOPT_HTTPGET => true,
-            CURLOPT_POST => false,
             CURLOPT_POSTFIELDS => null,
             CURLOPT_HTTPHEADER => [],
+            CURLOPT_HTTPGET => true,
         ]);
         $body = curl_exec($curl);
         $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);

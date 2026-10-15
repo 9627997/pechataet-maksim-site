@@ -533,12 +533,13 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
         // failed.
         $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
         if ($status >= 300 && $status < 400 && $redirect !== '') {
+            // CURLOPT_HTTPGET last on purpose: PHP's binding re-enters POST
+            // mode when POSTFIELDS is touched after it (405 from Google).
             curl_setopt_array($curl, [
                 CURLOPT_URL => $redirect,
-                CURLOPT_HTTPGET => true,
-                CURLOPT_POST => false,
                 CURLOPT_POSTFIELDS => null,
                 CURLOPT_HTTPHEADER => [],
+                CURLOPT_HTTPGET => true,
             ]);
             $response = curl_exec($curl);
             $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
