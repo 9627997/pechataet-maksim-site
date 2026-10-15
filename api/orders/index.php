@@ -119,6 +119,29 @@ function pm_clean_svg($value, string $field): string
     return $value;
 }
 
+// Принимает data:image/png;base64,..., проверяет сигнатуру PNG и отдаёт
+// чистый base64 без префикса (для файла, ZIP, Telegram и Google webhook).
+function pm_clean_png_data_url($value, string $field): string
+{
+    if (!is_string($value) || trim($value) === '') {
+        return '';
+    }
+    if (!preg_match('/^data:image\/png;base64,([A-Za-z0-9+\/=]+)$/', $value, $matches)) {
+        throw new InvalidArgumentException("Превью макета не является PNG data URL: {$field}.");
+    }
+    $binary = base64_decode($matches[1], true);
+    if ($binary === false) {
+        throw new InvalidArgumentException("Превью макета повреждено (base64): {$field}.");
+    }
+    if (strlen($binary) > 8 * 1024 * 1024) {
+        throw new InvalidArgumentException("Превью макета слишком большое: {$field}.");
+    }
+    if (substr($binary, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+        throw new InvalidArgumentException("Превью макета не является PNG: {$field}.");
+    }
+    return base64_encode($binary);
+}
+
 function pm_load_config(): array
 {
     $documentRoot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2)), '/');
@@ -290,8 +313,10 @@ function pm_normalize_payload(array $input): array
         'ribbonSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonSvg'] ?? '', 'лента') : '',
         'stickerSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerSvg'] ?? '', 'стикер') : '',
         'ribbonPreviewSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonPreviewSvg'] ?? $artifactsInput['ribbonSvg'] ?? '', 'лента preview') : '',
+        'ribbonPreviewPng' => $ribbonEnabled ? pm_clean_png_data_url($artifactsInput['ribbonPreviewPng'] ?? '', 'лента preview PNG') : '',
         'ribbonPrintSvg' => $ribbonEnabled ? pm_clean_svg($artifactsInput['ribbonPrintSvg'] ?? '', 'лента print') : '',
         'stickerPreviewSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerPreviewSvg'] ?? $artifactsInput['stickerSvg'] ?? '', 'стикер preview') : '',
+        'stickerPreviewPng' => $stickerEnabled ? pm_clean_png_data_url($artifactsInput['stickerPreviewPng'] ?? '', 'стикер preview PNG') : '',
         'stickerPrintSvg' => $stickerEnabled ? pm_clean_svg($artifactsInput['stickerPrintSvg'] ?? '', 'стикер print') : '',
         'printSpecification' => is_array($artifactsInput['printSpecification'] ?? null) ? $artifactsInput['printSpecification'] : [],
     ];
@@ -393,7 +418,7 @@ function pm_create_zip(string $directory): ?string
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         return null;
     }
-    foreach (['request.txt', 'order.json', 'ribbon.svg', 'sticker.svg', 'ribbon-preview.svg', 'ribbon-print-black.svg', 'sticker-preview.svg', 'sticker-print-black.svg'] as $filename) {
+    foreach (['request.txt', 'order.json', 'ribbon.svg', 'sticker.svg', 'ribbon-preview.svg', 'ribbon-preview.png', 'ribbon-print-black.svg', 'sticker-preview.svg', 'sticker-preview.png', 'sticker-print-black.svg'] as $filename) {
         $path = $directory . '/' . $filename;
         if (is_file($path)) {
             $zip->addFile($path, $filename);
@@ -473,11 +498,17 @@ function pm_store_order(string $storage, array $payload, array $config): array
             pm_write_private_file($temporary . '/ribbon.svg', $payload['artifacts']['ribbonSvg']);
             pm_write_private_file($temporary . '/ribbon-preview.svg', $payload['artifacts']['ribbonPreviewSvg']);
             pm_write_private_file($temporary . '/ribbon-print-black.svg', $payload['artifacts']['ribbonPrintSvg']);
+            if ($payload['artifacts']['ribbonPreviewPng'] !== '') {
+                pm_write_private_file($temporary . '/ribbon-preview.png', base64_decode($payload['artifacts']['ribbonPreviewPng']));
+            }
         }
         if ($payload['products']['sticker']['enabled']) {
             pm_write_private_file($temporary . '/sticker.svg', $payload['artifacts']['stickerSvg']);
             pm_write_private_file($temporary . '/sticker-preview.svg', $payload['artifacts']['stickerPreviewSvg']);
             pm_write_private_file($temporary . '/sticker-print-black.svg', $payload['artifacts']['stickerPrintSvg']);
+            if ($payload['artifacts']['stickerPreviewPng'] !== '') {
+                pm_write_private_file($temporary . '/sticker-preview.png', base64_decode($payload['artifacts']['stickerPreviewPng']));
+            }
         }
         pm_write_private_file(
             $temporary . '/notifications.json',
@@ -573,6 +604,30 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
     ];
 }
 
+function pm_telegram_send_file(string $token, string $chatId, string $method, string $path, string $mime, string $caption): array
+{
+    if (!function_exists('curl_init') || !is_file($path)) {
+        return ['ok' => false, 'status' => 0, 'error' => 'curl_unavailable'];
+    }
+    $curl = curl_init("https://api.telegram.org/bot{$token}/{$method}");
+    curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => [
+            'chat_id' => $chatId,
+            'caption' => $caption,
+            ($method === 'sendPhoto' ? 'photo' : 'document') => new CURLFile($path, $mime, basename($path)),
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 3,
+        CURLOPT_TIMEOUT => 15,
+    ]);
+    $response = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $error = curl_error($curl);
+    curl_close($curl);
+    return ['ok' => $response !== false && $status >= 200 && $status < 300, 'status' => $status, 'error' => $error];
+}
+
 function pm_notify_telegram(array $settings, array $order): array
 {
     $token = (string) ($settings['bot_token'] ?? '');
@@ -589,24 +644,27 @@ function pm_notify_telegram(array $settings, array $order): array
         ['chat_id' => $chatId, 'text' => $text]
     );
 
+    // Визуализация макетов: то, что видел пользователь в Studio.
+    if ($result['ok']) {
+        foreach ([
+            'ribbon-preview.png' => 'Макет ленты',
+            'sticker-preview.png' => 'Макет стикера',
+        ] as $filename => $label) {
+            $photoPath = $order['directory'] . '/' . $filename;
+            if (!is_file($photoPath)) {
+                continue;
+            }
+            $photo = pm_telegram_send_file($token, $chatId, 'sendPhoto', $photoPath, 'image/png', "{$label} {$order['orderId']}");
+            if (!$photo['ok']) {
+                $result = ['ok' => false, 'status' => $photo['status'], 'error' => $photo['error'] ?: 'photo_failed'];
+                break;
+            }
+        }
+    }
+
     $zipPath = $order['directory'] . '/order-package.zip';
-    if ($result['ok'] && is_file($zipPath) && function_exists('curl_init')) {
-        $curl = curl_init("https://api.telegram.org/bot{$token}/sendDocument");
-        curl_setopt_array($curl, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => [
-                'chat_id' => $chatId,
-                'caption' => "Макеты {$order['orderId']}",
-                'document' => new CURLFile($zipPath, 'application/zip', basename($zipPath)),
-            ],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT => 10,
-        ]);
-        $response = curl_exec($curl);
-        $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-        $result = ['ok' => $response !== false && $status >= 200 && $status < 300, 'status' => $status, 'error' => curl_error($curl)];
-        curl_close($curl);
+    if ($result['ok'] && is_file($zipPath)) {
+        $result = pm_telegram_send_file($token, $chatId, 'sendDocument', $zipPath, 'application/zip', "Файлы заявки {$order['orderId']}");
     }
     return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'], 'error' => $result['error']];
 }

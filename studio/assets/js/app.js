@@ -5371,7 +5371,63 @@ const bootStudio = () => {
       .join('');
   }
 
-  function buildOrderPayload() {
+  let printFontFacesPromise = null;
+  // Шрифты внедряются base64 в печатный SVG: файл должен рендериться
+  // корректно на машине типографии, где Manrope/Oswald не установлены.
+  function loadPrintFontFaces() {
+    if (!printFontFacesPromise) {
+      const toDataUrl = (url) =>
+        fetch(url)
+          .then((response) => (response.ok ? response.blob() : ''))
+          .then(
+            (blob) =>
+              blob &&
+              new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+              }),
+          )
+          .catch(() => '');
+      printFontFacesPromise = Promise.all([
+        toDataUrl('/fonts/manrope-variable.woff2'),
+        toDataUrl('/fonts/oswald-variable-cyrillic.woff2'),
+        toDataUrl('/fonts/oswald-variable-latin.woff2'),
+      ]).then(([manrope, oswaldCyrillic, oswaldLatin]) => ({
+        Manrope: manrope || '',
+        Oswald: [
+          oswaldCyrillic
+            ? {
+                src: oswaldCyrillic,
+                unicodeRange:
+                  'U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116',
+              }
+            : null,
+          oswaldLatin
+            ? {
+                src: oswaldLatin,
+                unicodeRange:
+                  'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+2215',
+              }
+            : null,
+        ].filter(Boolean),
+      }));
+    }
+    return printFontFacesPromise;
+  }
+
+  async function buildOrderPayload() {
+    const printFonts = await loadPrintFontFaces().catch(() => ({}));
+    const geometryApi = window.RibbonStudioGeometry;
+    const [ribbonPreviewPng, stickerPreviewPng] = await Promise.all([
+      $('#ribbonSvg')
+        ? geometryApi.rasterizeSvgToPngDataUrl($('#ribbonSvg'))
+        : Promise.resolve(''),
+      $('#stickerSvg')
+        ? geometryApi.rasterizeSvgToPngDataUrl($('#stickerSvg'))
+        : Promise.resolve(''),
+    ]);
     const price = calculatePrice();
     const ribbonStyle = getProductStyle('ribbon');
     const stickerStyle = getProductStyle('sticker');
@@ -5483,17 +5539,21 @@ const bootStudio = () => {
         ribbonSvg,
         stickerSvg,
         ribbonPreviewSvg: ribbonSvg,
+        ribbonPreviewPng: ribbonEnabled ? ribbonPreviewPng : '',
         ribbonPrintSvg: ribbonEnabled
           ? window.RibbonStudioGeometry.serializePrintSvg($('#ribbonSvg'), {
               widthMm: state.repeatMm,
               heightMm: state.width,
+              fonts: printFonts,
             })
           : '',
         stickerPreviewSvg: stickerSvg,
+        stickerPreviewPng: stickerEnabled ? stickerPreviewPng : '',
         stickerPrintSvg: stickerEnabled
           ? window.RibbonStudioGeometry.serializePrintSvg($('#stickerSvg'), {
               widthMm: stickerVariant.widthMm,
               heightMm: stickerVariant.heightMm,
+              fonts: printFonts,
             })
           : '',
         printSpecification: {
@@ -5658,7 +5718,7 @@ const bootStudio = () => {
       const response = await fetch('/api/orders/', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(buildOrderPayload()),
+        body: JSON.stringify(await buildOrderPayload()),
         signal: controller.signal,
       });
       const result = await response.json().catch(() => ({}));

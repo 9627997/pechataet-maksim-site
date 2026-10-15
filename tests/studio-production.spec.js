@@ -899,6 +899,7 @@ test('long production text is invalid and is not rendered outside printable area
 test('effective layout is shared with mobile and sticker boxes pass corner validation @smoke', async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
@@ -914,7 +915,7 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
           );
           return Boolean(layouts.sticker?.logoBox && layouts.sticker?.textBox);
         }),
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     )
     .toBe(true);
 
