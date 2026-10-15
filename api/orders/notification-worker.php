@@ -39,11 +39,10 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
     // be fetched with GET (the POST body travels inside the signed URL);
     // re-POSTing the redirect 405s — see the same fix in the endpoint.
     $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
-    if ($status >= 300 && $status < 400 && $redirect !== '') {
-        // The GET must not carry the JSON Content-Type header or any POST
-        // leftovers: googleusercontent answers such requests with 405.
-        // CURLOPT_HTTPGET is applied last on purpose — PHP's binding
-        // re-enters POST mode if POSTFIELDS is touched after it.
+    // Google occasionally chains redirects (a second 302 after the first GET);
+    // follow up to 4 hops. Each hop is a plain GET — no POST leftovers, no
+    // JSON Content-Type, otherwise googleusercontent answers 405.
+    for ($hop = 0; $hop < 4 && $status >= 300 && $status < 400 && $redirect !== ''; $hop++) {
         curl_setopt_array($curl, [
             CURLOPT_URL => $redirect,
             CURLOPT_POSTFIELDS => null,
@@ -52,6 +51,7 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
         ]);
         $body = curl_exec($curl);
         $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $redirect = (string) curl_getinfo($curl, CURLINFO_REDIRECT_URL);
     }
     $error = curl_error($curl);
     curl_close($curl);
