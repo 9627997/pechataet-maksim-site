@@ -538,6 +538,7 @@ function pm_post_json(string $url, array $payload, array $headers = []): array
                 CURLOPT_HTTPGET => true,
                 CURLOPT_POST => false,
                 CURLOPT_POSTFIELDS => null,
+                CURLOPT_HTTPHEADER => [],
             ]);
             $response = curl_exec($curl);
             $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
