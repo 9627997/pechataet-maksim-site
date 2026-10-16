@@ -400,18 +400,10 @@
       }),
     );
     defs.appendChild(clipPath);
-    const fontFaces = Object.entries(fonts).flatMap(([family, sources]) =>
-      (Array.isArray(sources) ? sources : [sources])
-        .filter(Boolean)
-        .map((source) => {
-          const src = typeof source === 'string' ? source : source.src;
-          const unicodeRange = typeof source === 'string' ? '' : source.unicodeRange || '';
-          return `@font-face { font-family: "${family}"; src: url("${src}") format("woff2"); font-weight: 200 800; font-style: normal;${unicodeRange ? ` unicode-range: ${unicodeRange};` : ''} }`;
-        }),
-    );
-    if (fontFaces.length) {
+    const fontFaces = buildFontFaceCss(fonts);
+    if (fontFaces) {
       const style = printEl('style');
-      style.textContent = fontFaces.join('\n');
+      style.textContent = fontFaces;
       defs.appendChild(style);
     }
     root.appendChild(defs);
@@ -426,9 +418,47 @@
     return new XMLSerializer().serializeToString(root);
   }
 
+  // CSS-правила @font-face для встраивания шрифтов в автономный SVG
+  // (растровое превью и печатные файлы рендерятся вне страницы студии,
+  // поэтому страничные стили и шрифты там недоступны).
+  function buildFontFaceCss(fonts) {
+    if (!fonts) return '';
+    return Object.entries(fonts)
+      .flatMap(([family, sources]) =>
+        (Array.isArray(sources) ? sources : [sources])
+          .filter(Boolean)
+          .map((source) => {
+            const src = typeof source === 'string' ? source : source.src;
+            const unicodeRange =
+              typeof source === 'string' ? '' : source.unicodeRange || '';
+            return `@font-face { font-family: "${family}"; src: url("${src}") format("woff2"); font-weight: 200 800; font-style: normal;${unicodeRange ? ` unicode-range: ${unicodeRange};` : ''} }`;
+          }),
+      )
+      .join('\n');
+  }
+
+  // Встраивает @font-face в сериализованный SVG, чтобы текст рендерился
+  // тем же шрифтом, что видит пользователь в студии.
+  function withEmbeddedFonts(markup, fonts) {
+    const css = buildFontFaceCss(fonts);
+    if (!css) return markup;
+    const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const root = parsed.documentElement;
+    if (!root || parsed.querySelector('parsererror')) return markup;
+    const style = document.createElementNS(SVG_NS, 'style');
+    style.textContent = css;
+    const defs = root.querySelector('defs');
+    if (defs) defs.appendChild(style);
+    else root.insertBefore(style, root.firstChild);
+    return new XMLSerializer().serializeToString(root);
+  }
+
   // Растеризует SVG-элемент в PNG data URL (визуализация для заявки).
-  function rasterizeSvgToPngDataUrl(svg, {maxWidthPx = 2600} = {}) {
-    const markup = new XMLSerializer().serializeToString(svg);
+  // Сериализуется production-версия SVG (без preview-оверлеев и гайдов —
+  // их стили живут на странице, и вне её они рисуются чёрными и закрывают
+  // текст), с встроенными шрифтами (fonts: {family: src|[{src,unicodeRange}]}).
+  function rasterizeSvgToPngDataUrl(svg, {maxWidthPx = 2600, fonts} = {}) {
+    const markup = withEmbeddedFonts(serializeProductionSvg(svg), fonts);
     const source = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(markup)));
     const viewBox = (svg.getAttribute('viewBox') || '')
       .trim()

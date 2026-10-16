@@ -2133,6 +2133,8 @@ const bootStudio = () => {
           ribbonLayout.fontSize,
           resolvedText,
           'ribbon',
+          'middle',
+          getProductStyle('ribbon').font,
           getTextMetrics(resolvedText, 'ribbon'),
         );
         text.dataset.effectiveFontSize = String(ribbonLayout.fontSize);
@@ -5422,10 +5424,10 @@ const bootStudio = () => {
     const geometryApi = window.RibbonStudioGeometry;
     const [ribbonPreviewPng, stickerPreviewPng] = await Promise.all([
       $('#ribbonSvg')
-        ? geometryApi.rasterizeSvgToPngDataUrl($('#ribbonSvg'))
+        ? geometryApi.rasterizeSvgToPngDataUrl($('#ribbonSvg'), {fonts: printFonts})
         : Promise.resolve(''),
       $('#stickerSvg')
-        ? geometryApi.rasterizeSvgToPngDataUrl($('#stickerSvg'))
+        ? geometryApi.rasterizeSvgToPngDataUrl($('#stickerSvg'), {fonts: printFonts})
         : Promise.resolve(''),
     ]);
     const price = calculatePrice();
