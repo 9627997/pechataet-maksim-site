@@ -143,7 +143,9 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(ribbonText).toHaveCSS('font-family', 'Pacifico');
   await expect(ribbonText).toHaveCSS('color', 'rgb(182, 146, 73)');
   await expect(stickerText).toHaveCSS('font-family', 'Manrope');
-  await expect(stickerText).toHaveCSS('color', 'rgb(23, 23, 23)');
+  // Дефолт печати стикера — серебро #c6c8cd: чёрная печать на чёрном
+  // фоне дала бы невидимую надпись (нулевой контраст).
+  await expect(stickerText).toHaveCSS('color', 'rgb(198, 200, 205)');
   await expect(page.locator('.mobile-products-ribbon-sample')).toHaveCSS(
     'background-color',
     'rgb(183, 32, 45)',
@@ -160,7 +162,7 @@ test('product samples reveal independent ribbon and sticker settings @smoke', as
   await expect(page.locator('#stickerVariantChoice')).toHaveCount(0);
   await expect(page.locator('#stickerSizeChoice')).toHaveCount(0);
   await expect(page.locator('#fontSelect')).toHaveValue('Manrope');
-  await expect(page.locator('#printColorSelect')).toHaveValue('#171717');
+  await expect(page.locator('#printColorSelect')).toHaveValue('#c6c8cd');
 
   await page.locator('#fontSelect').selectOption('PT Serif');
   await page.locator('#printColorSelect').selectOption('#c6c8cd');
