@@ -173,9 +173,17 @@ const bootStudio = () => {
     const font = FONT_OPTIONS.includes(value?.font)
       ? value.font
       : FONT_OPTIONS.includes(fallback.font) ? fallback.font : 'Manrope';
+    // Крайний дефолт печати зависит от изделия: для тёмного стикера
+    // (#171717 на #171717) чёрная печать даёт нулевой контраст — свежий
+    // заход без сохранённого черновика проходил через этот путь и получал
+    // невидимую надпись на стикере.
     const print = PRINT_OPTIONS.includes(value?.print)
       ? value.print
-      : PRINT_OPTIONS.includes(fallback.print) ? fallback.print : '#171717';
+      : PRINT_OPTIONS.includes(fallback.print)
+        ? fallback.print
+        : product === 'sticker'
+          ? '#c6c8cd'
+          : '#171717';
     const offsetLimit = product === 'sticker' ? 400 : 100;
     return {
       font,
