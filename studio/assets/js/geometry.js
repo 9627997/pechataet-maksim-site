@@ -371,13 +371,23 @@
   }
 
   // Собирает автономный печатный SVG-документ ровно из одного периода печати
-  // (тайла): viewBox = тайл, width/height = реальные миллиметры, без фона и
-  // направляющих, всё содержимое чёрным, текст самодостаточен за счёт
-  // встроенных @font-face (fonts: {familyName: dataUrl}).
+  // (тайла): width/height = реальные миллиметры, без фона и направляющих, всё
+  // содержимое чёрным, текст самодостаточен за счёт встроенных @font-face
+  // (fonts: {familyName: dataUrl}).
+  //
+  // ВАЖНО: входной viewBox приходит в canvas-координатах студии (content
+  // внутри уже смещён на свои абсолютные позиции). Корневой viewBox файла
+  // должен быть тайл-локальным «0 0 w h»: иначе при одновременном
+  // translate(-x -y) на inner-g контент уходит за пределы холста и файл
+  // уходит в печать пустым (или со сдвигом на величину тайла) — баг границ
+  // и интервалов из Drive/Telegram. Клип намеренно остаётся в canvas-
+  // координатах: clipPath userSpaceOnUse живёт в локальном пространстве
+  // inner-g, куда уже применён translate(-x -y), поэтому на холсте он
+  // покрывает ровно тайл.
   function buildPrintTile({viewBox, widthMm, heightMm, fonts = {}, draw}) {
     const root = printEl('svg', {
       xmlns: SVG_NS,
-      viewBox: viewBox.map((value) => Number(value.toFixed(4))).join(' '),
+      viewBox: `0 0 ${Number(viewBox[2].toFixed(4))} ${Number(viewBox[3].toFixed(4))}`,
     });
     if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) {
       root.setAttribute('width', `${Number(widthMm)}mm`);
@@ -395,8 +405,8 @@
       printEl('rect', {
         x: viewBox[0],
         y: viewBox[1],
-        width: viewBox[2],
-        height: viewBox[3],
+        width: Number(viewBox[2].toFixed(4)),
+        height: Number(viewBox[3].toFixed(4)),
       }),
     );
     defs.appendChild(clipPath);
