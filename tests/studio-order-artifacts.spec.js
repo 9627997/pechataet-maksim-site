@@ -148,3 +148,122 @@ test('sticker default print contrasts dark background @smoke', async ({
   await expect(page.locator('#printColorSelect')).toHaveValue('#c6c8cd');
   expect(runtimeErrors).toEqual([]);
 });
+
+// Печатные SVG (Drive/Telegram) собираются buildPrintTile: корневой viewBox
+// обязан быть тайл-локальным «0 0 w h». В canvas-координатах вместе с
+// translate(-x -y) на inner-g контент уходит за пределы холста: лента
+// уходила в печать пустой, стикер — со сдвигом на ~2,5 мм (октябрь 2026).
+test('print SVGs render inside their own viewBox @smoke', async ({ page }) => {
+  const runtimeErrors = watchRuntimeErrors(page);
+  await page.goto('/studio/?product=set', { waitUntil: 'networkidle' });
+  await completeFirstStepWithText(page);
+  await page.locator('#continueUpload').click();
+  await openSettings(page);
+
+  const result = await page.evaluate(async () => {
+    const toDataUrl = (url) =>
+      fetch(url)
+        .then((response) => (response.ok ? response.blob() : ''))
+        .then(
+          (blob) =>
+            blob &&
+            new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = () => resolve('');
+              reader.readAsDataURL(blob);
+            }),
+        )
+        .catch(() => '');
+    const manrope = await toDataUrl('/fonts/manrope-variable.woff2');
+    const geometry = window.RibbonStudioGeometry;
+    const repeatMm = Number(document.body.dataset.ribbonRepeatMm);
+    const ribbonWidthMm = Number(document.body.dataset.ribbonWidth);
+    const fonts = { Manrope: manrope || '' };
+    const ribbonPrint = geometry.serializePrintSvg(
+      document.querySelector('#ribbonSvg'),
+      { widthMm: repeatMm, heightMm: ribbonWidthMm, fonts },
+    );
+    const stickerPrint = geometry.serializePrintSvg(
+      document.querySelector('#stickerSvg'),
+      { widthMm: 40, heightMm: 40, fonts },
+    );
+
+    const rasterize = (markup) =>
+      new Promise((resolve) => {
+        const source =
+          'data:image/svg+xml;base64,' +
+          btoa(unescape(encodeURIComponent(markup)));
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 900;
+          canvas.height = Math.max(
+            1,
+            Math.round((900 * image.naturalHeight) / image.naturalWidth),
+          );
+          const context = canvas.getContext('2d');
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const { data } = context.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+          let dark = 0;
+          let sumX = 0;
+          let sumY = 0;
+          for (let y = 0; y < canvas.height; y += 1) {
+            for (let x = 0; x < canvas.width; x += 1) {
+              const index = (y * canvas.width + x) * 4;
+              if (
+                data[index] < 100 &&
+                data[index + 1] < 100 &&
+                data[index + 2] < 100
+              ) {
+                dark += 1;
+                sumX += x;
+                sumY += y;
+              }
+            }
+          }
+          resolve({
+            dark,
+            centroidX: dark ? sumX / dark / canvas.width : 0,
+            centroidY: dark ? sumY / dark / canvas.height : 0,
+          });
+        };
+        image.onerror = () => resolve(null);
+        image.src = source;
+      });
+
+    // WebKit can complete one concurrent data: SVG decode with an empty canvas.
+    // Keep this diagnostic render deterministic; production rasterization has
+    // its own queue in geometry.js as well.
+    const ribbon = await rasterize(ribbonPrint);
+    const sticker = await rasterize(stickerPrint);
+    return { ribbonPrint, stickerPrint, ribbon, sticker };
+  });
+
+  // Корневой viewBox печатных файлов — тайл-локальный, не canvas-координаты.
+  for (const markup of [result.ribbonPrint, result.stickerPrint]) {
+    expect(markup).toContain('viewBox="0 0 ');
+  }
+  // И файл реально рендерится: пустая лента / съехавший стикер ловятся здесь.
+  expect(result.ribbon).not.toBeNull();
+  expect(result.sticker).not.toBeNull();
+  expect(result.ribbon.dark).toBeGreaterThan(500);
+  expect(result.sticker.dark).toBeGreaterThan(500);
+  // Текст по умолчанию центрируется: центроид стикера близок к центру
+  // (сдвиг на 2,5 мм от окна viewBox давал centroidX/Y ≈ 0,44).
+  expect(result.sticker.centroidX).toBeGreaterThan(0.47);
+  expect(result.sticker.centroidX).toBeLessThan(0.53);
+  expect(result.sticker.centroidY).toBeGreaterThan(0.47);
+  expect(result.sticker.centroidY).toBeLessThan(0.53);
+  // У ленты тоже один сегмент печати по центру тайла (не у края холста).
+  expect(result.ribbon.centroidX).toBeGreaterThan(0.3);
+  expect(result.ribbon.centroidX).toBeLessThan(0.7);
+  expect(runtimeErrors).toEqual([]);
+});

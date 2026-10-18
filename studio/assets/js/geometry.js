@@ -371,13 +371,21 @@
   }
 
   // Собирает автономный печатный SVG-документ ровно из одного периода печати
-  // (тайла): viewBox = тайл, width/height = реальные миллиметры, без фона и
-  // направляющих, всё содержимое чёрным, текст самодостаточен за счёт
-  // встроенных @font-face (fonts: {familyName: dataUrl}).
+  // (тайла): width/height = реальные миллиметры, без фона и направляющих, всё
+  // содержимое чёрным, текст самодостаточен за счёт встроенных @font-face
+  // (fonts: {familyName: dataUrl}).
+  //
+  // ВАЖНО: входной viewBox приходит в canvas-координатах студии (content
+  // внутри уже смещён на свои абсолютные позиции). Корневой viewBox файла
+  // должен быть тайл-локальным «0 0 w h»: иначе при одновременном
+  // translate(-x -y) на inner-g контент уходит за пределы холста и файл
+  // уходит в печать пустым (или со сдвигом на величину тайла) — баг границ
+  // и интервалов из Drive/Telegram. Корневой viewBox сам ограничивает
+  // локальный холст, а inner-g только переводит исходный контент в него.
   function buildPrintTile({viewBox, widthMm, heightMm, fonts = {}, draw}) {
     const root = printEl('svg', {
       xmlns: SVG_NS,
-      viewBox: viewBox.map((value) => Number(value.toFixed(4))).join(' '),
+      viewBox: `0 0 ${Number(viewBox[2].toFixed(4))} ${Number(viewBox[3].toFixed(4))}`,
     });
     if (Number.isFinite(Number(widthMm)) && Number(widthMm) > 0) {
       root.setAttribute('width', `${Number(widthMm)}mm`);
@@ -389,17 +397,6 @@
     root.setAttribute('data-target-dpi', '300');
 
     const defs = printEl('defs');
-    const clipId = 'printTileClip';
-    const clipPath = printEl('clipPath', {id: clipId});
-    clipPath.appendChild(
-      printEl('rect', {
-        x: viewBox[0],
-        y: viewBox[1],
-        width: viewBox[2],
-        height: viewBox[3],
-      }),
-    );
-    defs.appendChild(clipPath);
     const fontFaces = buildFontFaceCss(fonts);
     if (fontFaces) {
       const style = printEl('style');
@@ -410,7 +407,6 @@
 
     const inner = printEl('g', {
       transform: `translate(${-viewBox[0]} ${-viewBox[1]})`,
-      'clip-path': `url(#${clipId})`,
     });
     root.appendChild(inner);
     draw(inner);
@@ -457,6 +453,10 @@
   // Сериализуется production-версия SVG (без preview-оверлеев и гайдов —
   // их стили живут на странице, и вне её они рисуются чёрными и закрывают
   // текст), с встроенными шрифтами (fonts: {family: src|[{src,unicodeRange}]}).
+  // WebKit нестабилен при одновременной декодировке двух data: SVG с
+  // одинаковыми embedded fonts, поэтому растеризация выполняется по очереди.
+  let rasterizeQueue = Promise.resolve();
+
   function rasterizeSvgToPngDataUrl(svg, {maxWidthPx = 2600, fonts} = {}) {
     const markup = withEmbeddedFonts(serializeProductionSvg(svg), fonts);
     const source = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(markup)));
@@ -470,7 +470,9 @@
     const baseHeight = viewBox.length === 4 && viewBox.every(Number.isFinite)
       ? viewBox[3]
       : 0;
-    return new Promise((resolve) => {
+    const task = rasterizeQueue.then(
+      () =>
+        new Promise((resolve) => {
       const image = new Image();
       image.onload = () => {
         const intrinsicWidth = baseWidth || image.naturalWidth || 1200;
@@ -489,7 +491,13 @@
       };
       image.onerror = () => resolve('');
       image.src = source;
-    });
+        }),
+    );
+    rasterizeQueue = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
   }
 
   function serializePrintSvg(svg, {widthMm, heightMm, fonts} = {}) {
