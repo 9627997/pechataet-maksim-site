@@ -847,6 +847,12 @@ base64 из `/fonts/`); в документе указывается `data-targe
 `интервал — лого`/`интервал — текст`): интервал между повторами и между лого
 и текстом — единое g из `getRibbonRepeatGapMm()`.
 
+Smoke-проверка print SVG в Chromium и WebKit растеризует ленту и стикер
+последовательно: WebKit может вернуть пустой canvas при одновременной
+декодировке двух `data:` SVG с одинаковым встроенным шрифтом. Production
+растеризация использует тот же последовательный принцип через очередь в
+`geometry.js`.
+
 Локальный архив и Google Drive сохраняют `ribbon-preview.svg`,
 `ribbon-preview.png`, `ribbon-print-black.svg`, `sticker-preview.svg`,
 `sticker-preview.png` и `sticker-print-black.svg`. Старые `ribbon.svg` и

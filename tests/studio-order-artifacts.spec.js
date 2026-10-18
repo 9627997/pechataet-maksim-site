@@ -239,10 +239,11 @@ test('print SVGs render inside their own viewBox @smoke', async ({ page }) => {
         image.src = source;
       });
 
-    const [ribbon, sticker] = await Promise.all([
-      rasterize(ribbonPrint),
-      rasterize(stickerPrint),
-    ]);
+    // WebKit can complete one concurrent data: SVG decode with an empty canvas.
+    // Keep this diagnostic render deterministic; production rasterization has
+    // its own queue in geometry.js as well.
+    const ribbon = await rasterize(ribbonPrint);
+    const sticker = await rasterize(stickerPrint);
     return { ribbonPrint, stickerPrint, ribbon, sticker };
   });
 
