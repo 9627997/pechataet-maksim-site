@@ -44,6 +44,13 @@ export const expectMobilePreviewVisible = async (page) => {
 };
 
 export const expectMobileLogosToMatch = async (page, expectedSrc) => {
+  const normalizeSvgPaint = (src) => {
+    if (!src?.startsWith('data:image/svg+xml;base64,')) return src;
+    const svg = Buffer.from(src.split(',')[1], 'base64').toString('utf8');
+    return svg.replace(/#[0-9a-f]{3,8}/gi, '#PRINT_COLOR');
+  };
+  const expectedArtwork = normalizeSvgPaint(expectedSrc);
+
   for (const [product, selector] of [
     ['ribbon', '.mobile-products-ribbon-logo'],
     ['sticker', '.mobile-products-sticker-logo'],
@@ -51,7 +58,9 @@ export const expectMobileLogosToMatch = async (page, expectedSrc) => {
     await ensureProductSettingsVisible(page, product);
     const logo = page.locator(selector);
     await expect(logo).toBeVisible();
-    await expect.poll(() => logo.getAttribute('src')).toBe(expectedSrc);
+    await expect
+      .poll(async () => normalizeSvgPaint(await logo.getAttribute('src')))
+      .toBe(expectedArtwork);
   }
 };
 
