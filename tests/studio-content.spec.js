@@ -723,7 +723,7 @@ test('resolved logo assets render independently across product scenes', async ({
       const src = await macroSticker.getAttribute('href');
       return src ? Buffer.from(src.split(',')[1], 'base64').toString() : '';
     })
-    .toContain('#171717');
+    .toContain('#c6c8cd');
 
   await page
     .locator('[data-mobile-product-sample="sticker"]')
