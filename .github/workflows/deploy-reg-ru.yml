@@ -58,6 +58,40 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HOST }}" >> ~/.ssh/known_hosts
 
+      - name: Validate private Pricing 2.0 release bundle
+        shell: bash
+        env:
+          PM_CALC_PRIVATE_BUNDLE_XZ_B64: ${{ secrets.PM_CALC_PRIVATE_BUNDLE_XZ_B64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          private_dir="${RUNNER_TEMP}/pm-calc-private-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          python3 scripts/check-private-pricing-bundle.py "${private_dir}"
+
+      - name: Install private Pricing 2.0 outside REG.RU document root
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_base='/var/www/u2767403/data/www/private'
+          remote_stage="${remote_base}/.pm-calc-stage-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          private_dir="${RUNNER_TEMP}/pm-calc-private-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          target='${{ secrets.USERNAME }}@${{ secrets.HOST }}'
+          ssh -i ~/.ssh/deploy_key "${target}" \
+            "set -eu; install -d -m 700 '${remote_base}'; \
+             if [ -e '${remote_stage}' ]; then exit 51; fi; \
+             install -d -m 700 '${remote_stage}'"
+          rsync -az --chmod=D700,F600 \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            "${private_dir}/" "${target}:${remote_stage}/"
+          ssh -i ~/.ssh/deploy_key "${target}" \
+            bash -s -- "${remote_stage}" < scripts/stage-private-pricing-remote.sh
+
+      - name: Remove private data from GitHub runner
+        if: always()
+        shell: bash
+        run: |
+          rm -rf -- "${RUNNER_TEMP}/pm-calc-private-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: Configure Telegram order notifications
         shell: bash
         env:
@@ -171,6 +205,17 @@ jobs:
           grep -q 'name="robots" content="index,follow,max-image-preview:large"' <<<"${homepage_html}"
           grep -q 'application/ld+json' <<<"${homepage_html}"
 
+          curl --fail --location --retry 3 "${PRODUCTION_URL}/calc/" >/dev/null
+          calc_api_status="$(
+            curl --silent --show-error --output /dev/null \
+              --write-out '%{http_code}' \
+              "${PRODUCTION_URL}/api/calc/"
+          )"
+          if [ "${calc_api_status}" != "503" ]; then
+            echo "Calculator quote gate must stay closed: HTTP ${calc_api_status}" >&2
+            exit 1
+          fi
+
           curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/sitemap.xml" >/dev/null
@@ -250,6 +295,7 @@ jobs:
           for private_path in \
             docs/PROJECT_CONTEXT.md \
             tests/studio-content.spec.js
+            private/pm-calc/SNAPSHOT_ASSORTMENT_PRIVATE.json
           do
             status="$(
               curl --location --silent --output /dev/null \
