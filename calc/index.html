@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Предварительная стоимость сатиновых лент и стикеров. Силиконовые ленты — отдельный материал, расчёт по согласованию.">
+  <meta name="theme-color" content="#f8f6f2">
+  <title>Калькулятор лент и стикеров — Печатает Максим</title>
+  <link rel="stylesheet" href="/calc/visual.css?v=pm-calc-ux212-1">
+</head>
+<body>
+<a class="skip-link" href="#configurator">Перейти к калькулятору</a>
+<main>
+  <header class="site-header">
+    <a href="/" class="brand-link" aria-label="Печатает Максим — главная"><img src="/studio/assets/images/печатаетмаксим.svg" alt="Печатает Максим"></a>
+    <nav aria-label="Навигация"><a class="studio-link" href="/studio/">Создать макет <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-content">
+      <div class="eyebrow">ЛЕНТЫ ПО ЛЮБВИ <span>·</span> КАЛЬКУЛЯТОР</div>
+      <h1 id="hero-title">Ваша упаковка.<br><em>Ваш характер.</em></h1>
+      <p class="lede">Ленты и стикеры с вашим логотипом. Мы уже собрали пример комплекта и сразу считаем его стоимость — измените всё под себя.</p>
+      <ul class="benefits"><li>Небольшие тиражи</li><li>Ленты и стикеры вместе</li><li>Срочные заказы по согласованию</li></ul>
+    </div>
+    <div class="hero-art" aria-hidden="true"><div class="art-box"><div class="art-lid"></div><div class="art-ribbon-h"></div><div class="art-ribbon-v"></div><div class="art-bow"><i></i><i></i></div><span class="art-sticker">ВАШ<br>БРЕНД</span></div><span class="art-caption">Ваша идея — наша работа</span></div>
+  </section>
+  <div class="workbench" id="workbench">
+  <section id="configurator" class="configurator" aria-labelledby="config-title">
+    <div class="section-topline"><span>01 / НАСТРОЙТЕ КОМПЛЕКТ</span><span>Одна страница · любой состав</span></div>
+    <div class="config-heading">
+      <div><h2 id="config-title">Ваш комплект</h2><p id="exampleIntro">Начальный пример: 25 м ленты и 250 стикеров. Меняйте материалы, количество и состав — стоимость пересчитается сама.</p></div>
+      <span class="item-count" id="itemCount" aria-live="polite">Загружаем…</span>
+    </div>
+    <form id="calc" novalidate>
+      <div class="add-section">
+        <h3>Добавить ещё изделие</h3>
+        <div class="actions add-cards" role="group" aria-label="Добавить изделие в расчёт">
+          <button type="button" id="ribbon" class="add-card" disabled>
+            <span class="add-card-art add-card-ribbon" aria-hidden="true"><i>ВАШ БРЕНД</i></span>
+            <span class="add-card-copy"><strong>＋ Ленту</strong><small>От 5 м · шаг 5 м</small></span>
+          </button>
+          <button type="button" id="sticker" class="add-card" disabled>
+            <span class="add-card-art add-card-sticker" aria-hidden="true"><i>ВАШ<br>БРЕНД</i></span>
+            <span class="add-card-copy"><strong>＋ Стикеры</strong><small>От 50 шт. · шаг 50 шт.</small></span>
+          </button>
+        </div>
+        <div class="material-announcement" aria-label="Другие материалы лент">
+          <div class="material-announcement-title"><strong>Силиконовые ленты</strong><span>Отдельная ценовая категория</span></div>
+          <p>Ширина 15 или 20 мм. Цена силиконовой ленты рассчитывается отдельно от сатина. Цвет, возможность печати и стоимость конкретного тиража подтверждаем персонально.</p>
+          <a href="/studio/?product=ribbon">Подготовить макет для согласования <span aria-hidden="true">↗</span></a>
+        </div>
+        <p id="catalogMessage" class="catalog-message" role="status" aria-live="polite">Загружаем доступные сочетания и стартовый пример…</p>
+      </div>
+      <div id="emptyCart" class="empty-cart" role="status"><span aria-hidden="true">♡</span><p>Вы удалили все изделия. Добавьте ленту или стикеры — расчёт появится здесь.</p></div>
+      <div id="lines"></div>
+      <button class="primary calculate-action" id="quote" disabled hidden>Обновить стоимость <span aria-hidden="true">↗</span></button>
+    </form>
+  </section>
+  <section class="quote-panel" id="quotePanel" aria-labelledby="quote-title" hidden>
+    <div class="section-topline"><span>02 / ВАШ РАСЧЁТ</span><span>Одна сумма за весь комплект</span></div>
+    <h2 id="quote-title">Предварительная стоимость</h2>
+    <div id="result" class="total" aria-live="polite">—</div>
+    <p class="quote-explainer">Цена выбранного комплекта. Окончательную сумму и сроки подтвердим при согласовании.</p>
+    <div class="volume-tip" id="volumeTip" hidden><span class="volume-tip-mark" aria-hidden="true">✦</span><div><p class="volume-tip-title">Тираж с дополнительной выгодой</p><p id="volumeTipText" class="volume-tip-text"></p><button type="button" id="volumeTipApply" class="volume-tip-apply">Выбрать больший тираж</button><p class="volume-tip-caveat">Сравниваются отдельные тиражи одного изделия. Общая стоимость комплекта пересчитается после изменения.</p></div></div>
+    <div id="clientComposition" class="composition" hidden><h3>Входит в расчёт</h3><ol id="clientCompositionList"></ol></div>
+    <p id="message" class="error" role="status" aria-live="polite"></p>
+    <div id="quoteActions" class="quote-actions" hidden>
+      <button type="button" class="primary share-primary" id="shareTelegram">Отправить расчёт через Telegram <span aria-hidden="true">↗</span></button>
+      <button type="button" class="secondary-action" id="copySpec">Скопировать состав и стоимость <span aria-hidden="true">⧉</span></button>
+      <a class="studio-next" id="studioNext" href="/studio/">Создать макет в Studio <span aria-hidden="true">↗</span></a>
+      <p class="cta-note">Telegram предложит выбрать чат. Отправьте расчёт нам для согласования заказа. Параметры пока не переносятся в редактор Studio автоматически.</p>
+      <p id="shareStatus" class="share-status" role="status" aria-live="polite"></p>
+    </div>
+    <p class="terms">Это ориентировочная стоимость, а не заказ или публичная оферта. Наличие материалов, возможность печати, сроки и окончательная цена подтверждаются при согласовании.</p>
+  </section>
+  </div>
+  <div id="mobileTotalBar" class="mobile-total-bar" hidden><div><small>ВАШ КОМПЛЕКТ · ИТОГО</small><strong id="mobileTotal">Считаем…</strong></div><a href="#quotePanel" id="mobileTotalLink" class="mobile-total-link">К расчёту <span aria-hidden="true">↑</span></a></div>
+  <footer class="footer"><span>ПЕЧАТАЕТ МАКСИМ · ЛЕНТЫ ПО ЛЮБВИ</span><a href="/">На главную</a></footer>
+</main>
+<script src="/calc/calc.js?v=pm-calc-ux212-1" defer></script>
+</body>
+</html>
