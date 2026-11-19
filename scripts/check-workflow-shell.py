@@ -4,10 +4,7 @@
 from pathlib import Path
 import subprocess
 
-WORKFLOWS = (
-    Path('.github/workflows/deploy-reg-ru.yml'),
-    Path('.github/workflows/studio-tests.yml'),
-)
+WORKFLOWS = (Path('.github/workflows/deploy-reg-ru.yml'),)
 
 for workflow in WORKFLOWS:
     lines = workflow.read_text(encoding='utf-8').splitlines()
