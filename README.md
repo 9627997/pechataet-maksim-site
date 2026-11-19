@@ -44,6 +44,7 @@ Studio отправляет заявку и production-SVG на серверны
 - [Журнал решений](docs/DECISIONS.md)
 - [Шаблон задачи](docs/TASK_TEMPLATE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
+- [PM CALCULATOR — актуальная архитектура, API, интеграция со Studio и план развития](docs/PM_CALCULATOR_INTEGRATION.md)
 - [Roadmap](docs/ROADMAP.md)
 - [UX-правила](docs/UX_RULES.md)
 - [Changelog](docs/CHANGELOG.md)
