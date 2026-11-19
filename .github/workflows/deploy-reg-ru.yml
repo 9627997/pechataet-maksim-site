@@ -84,7 +84,7 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key" \
             "${private_dir}/" "${target}:${remote_stage}/"
           ssh -i ~/.ssh/deploy_key "${target}" \
-            bash -s -- "${remote_stage}" < scripts/stage-private-pricing-remote.sh
+            bash -s -- "${remote_stage}" "preliminary" < scripts/stage-private-pricing-remote.sh
 
       - name: Remove private data from GitHub runner
         if: always()
@@ -206,15 +206,41 @@ jobs:
           grep -q 'application/ld+json' <<<"${homepage_html}"
 
           curl --fail --location --retry 3 "${PRODUCTION_URL}/calc/" >/dev/null
-          calc_api_status="$(
-            curl --silent --show-error --output /dev/null \
-              --write-out '%{http_code}' \
+          # Preliminary quote release: real public calculation, but NEVER an order.
+          # No commercial unit costs or internal row data are logged.
+          calc_catalog_json="$(
+            curl --fail --silent --show-error --retry 3 \
               "${PRODUCTION_URL}/api/calc/"
           )"
-          if [ "${calc_api_status}" != "503" ]; then
-            echo "Calculator quote gate must stay closed: HTTP ${calc_api_status}" >&2
-            exit 1
-          fi
+          CALC_CATALOG_JSON="${calc_catalog_json}" node <<'PM_CATALOG_SMOKE'
+          const response = JSON.parse(process.env.CALC_CATALOG_JSON);
+          if (response.status !== 'catalog' || !Array.isArray(response.offers)
+              || response.offers.length !== 124
+              || new Set(response.offers.map(x => x.type)).size !== 2
+              || !response.offers.every(x => Object.keys(x).sort().join(',') === 'base,geometry,print,type')
+              || response.offers.some(x => x.type !== 'ribbon' && x.type !== 'sticker')) {
+            throw new Error('Public preliminary catalog safety contract failed');
+          }
+          console.log('PASS: preliminary catalog exposed with public fields only');
+          PM_CATALOG_SMOKE
+
+          quote_json="$(
+            curl --fail --silent --show-error --retry 3 \
+              --header 'Content-Type: application/json' \
+              --data-raw '{"orderItems":[{"itemId":"release-smoke","productType":"ribbon","quantity":{"meters":"5"},"configuration":{"widthMm":15,"repeatMm":100,"materialColor":"#f3eadc","printColor":"#171717"}}]}' \
+              "${PRODUCTION_URL}/api/calc/"
+          )"
+          CALC_QUOTE_JSON="${quote_json}" node <<'PM_QUOTE_SMOKE'
+          const response = JSON.parse(process.env.CALC_QUOTE_JSON);
+          const number = Number(response.finalClientPrice);
+          if (Object.keys(response).sort().join(',') !== 'canSubmitOrder,currency,finalClientPrice,status'
+              || response.status !== 'estimate' || response.currency !== 'RUB'
+              || response.canSubmitOrder !== false
+              || !Number.isFinite(number) || number <= 0) {
+            throw new Error('Public preliminary quote safety contract failed');
+          }
+          console.log('PASS: preliminary pricing returns final client total only; no order');
+          PM_QUOTE_SMOKE
 
           curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
