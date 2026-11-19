@@ -38,6 +38,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
+      - name: Check deployment inline Bash syntax
+        run: python3 scripts/check-workflow-shell.py
+
       - name: Run pull request checks
         run: npm run check:pr
 
