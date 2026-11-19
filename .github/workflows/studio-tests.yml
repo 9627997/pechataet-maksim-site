@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check deployment inline Bash syntax
+        run: python3 scripts/check-workflow-shell.py
+
       - name: Set up Node.js LTS
         uses: actions/setup-node@v6
         with:
