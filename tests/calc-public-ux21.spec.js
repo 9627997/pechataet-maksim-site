@@ -29,6 +29,7 @@ test('UX 2.1.2 shows a real-time starter bundle, persistent total and editable l
   });
   await page.goto('/calc/');
   await expect(page.locator('#configurator')).toBeVisible();
+  await expect(page.locator('#catalogFallback')).toBeHidden();
   await expect(page.locator('#lines .line')).toHaveCount(2);
   await expect(
     page.locator('#lines .line[data-type="ribbon"] [data-key="quantity"]'),
@@ -140,7 +141,7 @@ test('UX 2.1.2 never invents a quantity discount when quote totals are equal @sm
   await expect(page.locator('#volumeTip')).toBeHidden();
 });
 
-test('UX 2.1.2 exposes a clear catalog-unavailable state @smoke', async ({
+test('UX 2.1.2 shows an honest contact fallback when production quote gate is closed @smoke', async ({
   page,
 }) => {
   await page.route('**/api/calc/', (route) =>
@@ -152,8 +153,18 @@ test('UX 2.1.2 exposes a clear catalog-unavailable state @smoke', async ({
   );
   await page.goto('/calc/');
   await expect(page.locator('#catalogMessage')).toContainText(
-    'Не удалось загрузить каталог',
+    'Онлайн-цены пока не опубликованы',
   );
+  await expect(page.locator('#catalogFallback')).toBeVisible();
+  await expect(page.locator('.catalog-fallback-call')).toHaveAttribute(
+    'href',
+    'tel:+79129008011',
+  );
+  await expect(page.locator('.catalog-fallback-studio')).toHaveAttribute(
+    'href',
+    '/studio/?product=bundle',
+  );
+  await expect(page.locator('#heroLead')).not.toContainText('сразу считаем');
   await expect(page.locator('#ribbon')).toBeDisabled();
   await expect(page.locator('#sticker')).toBeDisabled();
   await expect(page.locator('#lines .line')).toHaveCount(0);

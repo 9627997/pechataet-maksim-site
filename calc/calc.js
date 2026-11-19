@@ -488,6 +488,7 @@ $('calc').onsubmit = async e => {
 (async () => {
   try {
     const r = await fetch('/api/calc/');
+    if (r.status === 503) throw Error('RELEASE_PENDING');
     const j = await r.json();
     // The assortment changes as materials receive technical approval; never pin it to 124.
     if (!r.ok || j.status !== 'catalog' || !Array.isArray(j.offers) || !j.offers.length ||
@@ -496,6 +497,8 @@ $('calc').onsubmit = async e => {
       throw Error('CATALOG');
     }
     catalog = j.offers;
+    $('catalogFallback').hidden = true;
+    $('heroLead').textContent = 'Ленты и стикеры с вашим логотипом. Мы уже собрали пример комплекта и сразу считаем его стоимость — измените всё под себя.';
     $('ribbon').disabled = $('sticker').disabled = false;
     $('catalogMessage').textContent = 'Пример загружен. Можно изменить любой параметр или убрать изделие.';
     const hasRibbon = catalog.some(x => x.type === 'ribbon' && x.geometry === '15 mm' && x.base === '#f3eadc' && x.print === '#171717');
@@ -508,10 +511,16 @@ $('calc').onsubmit = async e => {
     if (!hasRibbon || !hasSticker) $('catalogMessage').textContent = 'Пример собран из доступных материалов. Любой параметр можно изменить.';
     syncAddButtons();
   } catch (e) {
+    const releasePending = e?.message === 'RELEASE_PENDING';
     setResult('—');
-    $('message').textContent = 'Каталог временно недоступен. Пожалуйста, зайдите позднее.';
-    $('catalogMessage').textContent = 'Не удалось загрузить каталог. Проверьте подключение и откройте страницу снова.';
-    $('catalogMessage').classList.add('is-error');
+    $('message').textContent = '';
+    $('catalogFallback').hidden = false;
+    $('heroLead').textContent = 'Мы готовим онлайн-расчёт. Пока он закрыт, вы можете подготовить макет и согласовать стоимость лично.';
+    $('exampleIntro').textContent = 'Автоматический расчёт ещё не открыт. Напишите или позвоните — поможем с подбором материалов и тиражом.';
+    $('catalogMessage').textContent = releasePending
+      ? 'Онлайн-цены пока не опубликованы: доступность материалов проверяется перед запуском.'
+      : 'Не удалось загрузить каталог. Попробуйте обновить страницу или свяжитесь с нами.';
+    $('catalogMessage').classList.toggle('is-error', !releasePending);
     $('itemCount').textContent = '0 позиций';
   }
 })();
