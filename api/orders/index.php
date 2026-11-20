@@ -460,6 +460,14 @@ function pm_request_text(array $order): string
         $linkedLines[] = '';
     }
 
+    if (!empty($order['lineArtworkManifest'])) {
+        $linkedLines[] = 'ОТДЕЛЬНЫЕ МАКЕТЫ (все требуют ручной проверки):';
+        foreach ($order['lineArtworkManifest'] as $line) {
+            $linkedLines[] = '- ' . $line['itemId'] . ': ' . $line['printSvg']
+                . ', ' . $line['previewSvg'] . ', ' . $line['previewPng'];
+        }
+    }
+
     return implode("\n", [
         'Заявка — Печатает Максим',
         "Номер заявки: {$order['orderId']}",
