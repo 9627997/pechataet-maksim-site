@@ -962,3 +962,10 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Решение: хранить все шесть канонических строк заказа и клиентскую предварительную цену только под проверенным на сервере `quoteId`, вручную согласуя макеты. Не заменять выбранные цены/тиражи на старые пресеты Studio и не считать один эскиз печатным файлом всех вариантов.
 - Безопасность: серверный контроль токена, версии ценовых файлов и фактического состава обязателен при `/api/orders/`; токен с чужим requestId блокируется. Без привязки сохранится ранее утверждённый режим ручной заявки. Новая клиентская Pricing 3.0 не включается автоматически.
 - Незакрыто: макеты каждой строки, срок жизни/обновление токена, уборка приватного хранилища, E2E, CI, реальный stage. Документ 00C остаётся источником статусов.
+
+## DEC-QUOTE-ARTWORK-TRANSPORT — Explicit item-bound files (20 November 2026)
+
+- Status: Implemented only in draft PR #203; no production activation.
+- Decision: Optional independently produced artwork attaches to a verified `itemId` of the canonical quote basket. Never duplicate one type-level Studio example as independent print-ready designs for different items. New files live in a private per-line archive and ZIP; `order.json` stores manifest, not SVG/PNG payloads.
+- Compatibility: legacy Studio files and manual confirmation stay unchanged; a missing or registered per-line file does not by itself authorize production.
+- Release blockers: independent editor per line, positive and adversarial runtime tests, true print/physical review and end-to-end notification checks. See Issue #201.
