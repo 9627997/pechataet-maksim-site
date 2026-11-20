@@ -906,3 +906,9 @@ A draft branch implements a self-contained `PmQuoteTokenStore.php`: opaque expir
 ## QuoteId: best-effort private garbage collection (20 ноября 2026 года)
 
 Хранилище токенов теперь само периодически (примерно одна из 16 выдач) проверяет до 256 приватных файлов на истечение TTL, удаляя соответствующую запись и, при наличии, привязку requestId. Активные токены не удаляются; повреждённым файлам даётся 2×TTL перед очисткой. Изменение полностью неактивно без `quote_tokens_enabled`, действующую Pricing 2.0 и состав заявки не затрагивает. Обязательны проверка поведения на реальном stage, мониторинг размера папки и тесты при включении флага; PR #203 остаётся draft.
+
+## Item-scoped artwork transport — draft PR #203 (20 November 2026)
+
+The optional quote-linked order path accepts `artifactsByItemId`, keyed strictly by the server-resolved canonical basket item IDs. Each entry has an explicitly produced preview SVG, physical print SVG in mm and PNG preview; the PHP receiver checks permitted keys, root print dimensions, SVG/PNG validity and the complete original quote basket. Private files use generated sequential names (`line-01-*`) rather than client-supplied paths. The private `order.json` stores a manifest only; binary/vector bodies remain separately archived and included in ZIP. The request text identifies the submitted files and requires manual review. Legacy ribbon/sticker previews and print files remain unchanged.
+
+The quote-handoff browser adapter exposes explicit `registerItemArtwork` / `clearItemArtwork` methods. No existing general Studio preview is silently reused for multiple SKUs. **This is a transport foundation, not a complete 3+3 editor:** no per-item editor currently calls the registration methods. The standard quote flow remains preliminary and production is gated. Validate with real PHP, ZIP/webhook/Telegram, cross-browser/physical production before enabling.
