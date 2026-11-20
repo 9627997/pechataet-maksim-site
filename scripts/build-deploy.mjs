@@ -36,7 +36,6 @@ const publicEntries = [
   'api/orders/PmOrderQuoteVerifier.php',
   'api/orders/notification-worker.php',
   'studio/index.html',
-  'studio/assets/js/quote-handoff.js',
   'studio/assets',
   'studio/data',
 ];

@@ -118,10 +118,19 @@ for (const marker of [
   "'amount' => null",
   "'requiresIndividualCalculation' => true",
 ]) {
-  assert.ok(endpoint.includes(marker), 'Missing linked quote order contract: ' + marker);
+  assert.ok(
+    endpoint.includes(marker),
+    'Missing linked quote order contract: ' + marker,
+  );
 }
-assert.ok(verifier.includes('verifyForOrder'), 'Order quote must be rechecked server-side');
-assert.ok(verifier.includes("'quote_tokens_enabled'"), 'Private flag is mandatory');
+assert.ok(
+  verifier.includes('verifyForOrder'),
+  'Order quote must be rechecked server-side',
+);
+assert.ok(
+  verifier.includes("'quote_tokens_enabled'"),
+  'Private flag is mandatory',
+);
 const php = spawnSync('php', ['-v'], { encoding: 'utf8' });
 if (!php.error) {
   for (const filename of [
@@ -134,7 +143,13 @@ if (!php.error) {
   }
   const run = spawnSync(
     'php',
-    ['-d', 'zend.assertions=1', '-d', 'assert.exception=1', 'tests/php/order-quote-verifier.php'],
+    [
+      '-d',
+      'zend.assertions=1',
+      '-d',
+      'assert.exception=1',
+      'tests/php/order-quote-verifier.php',
+    ],
     { encoding: 'utf8' },
   );
   assert.equal(run.status, 0, run.stderr || run.stdout);
