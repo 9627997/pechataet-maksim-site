@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Guard that public Pricing 2 remains authoritative.
-import {readFileSync} from 'node:fs';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const file = readFileSync('api/calc/index.php', 'utf8');
