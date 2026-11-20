@@ -3,11 +3,21 @@
 // An optional bearer-token handoff. The browser never reads private costs or
 // treats the calculator's preliminary amount as an approved order total.
 (() => {
-  const token = new URLSearchParams(location.hash.slice(1)).get('quote');
+  const fragmentToken = new URLSearchParams(location.hash.slice(1)).get('quote');
+  const previousState =
+    history.state && typeof history.state === 'object' ? history.state : {};
+  const rememberedToken =
+    typeof previousState.pmQuoteId === 'string' ? previousState.pmQuoteId : null;
+  const token = fragmentToken ?? rememberedToken;
   const fromQuoteLink = token !== null;
-  if (fromQuoteLink) {
-    // Keep the token out of navigation history, copied URLs, and analytics.
-    history.replaceState(history.state, '', location.pathname + location.search);
+  if (fragmentToken !== null) {
+    // Preserve only in this history entry to survive a Studio refresh. Never
+    // copy the bearer token into analytics, the address bar, or localStorage.
+    history.replaceState(
+      {...previousState, pmQuoteId: fragmentToken},
+      '',
+      location.pathname + location.search,
+    );
   }
   let status = fromQuoteLink ? 'loading' : 'none';
   let record = null;
