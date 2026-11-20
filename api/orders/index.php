@@ -357,7 +357,7 @@ function pm_normalize_line_artworks($raw, array $basket): array
     $allowed = [];
     foreach ($basket as $item) {
         $id = $item['itemId'] ?? null;
-        if (!is_string($id) || !preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $id) || isset($allowed[$id])) {
+        if (!is_string($id) || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/D', $id) || isset($allowed[$id])) {
             throw new InvalidArgumentException('Некорректный идентификатор позиции.');
         }
         $allowed[$id] = $item;
