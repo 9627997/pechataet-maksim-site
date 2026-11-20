@@ -144,7 +144,10 @@ for (const marker of [
   "'-print.svg'",
   "'-preview.png'",
 ]) {
-  assert.ok(endpoint.includes(marker), 'Per-line artwork contract missing: ' + marker);
+  assert.ok(
+    endpoint.includes(marker),
+    'Per-line artwork contract missing: ' + marker,
+  );
 }
 assert.ok(endpoint.includes("'ribbon-print-black.svg'"));
 assert.ok(endpoint.includes("'sticker-print-black.svg'"));
