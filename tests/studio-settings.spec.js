@@ -578,11 +578,11 @@ test('order quantities control, protect, and persist product selection', async (
 
   await meters.selectOption('25');
   await stickerQty.selectOption('250');
-  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(totalPrice).toHaveText('Требуется расчёт');
 
   await meters.selectOption('0');
   await expect(meters).toHaveValue('0');
-  await expect(totalPrice).toHaveText(/1\s350\s₽/);
+  await expect(totalPrice).toHaveText('Требуется расчёт');
   await expect(notice).toBeHidden();
   await expect(body).toHaveAttribute('data-has-ribbon', 'false');
   await expect(body).toHaveAttribute('data-has-sticker', 'true');
@@ -601,7 +601,7 @@ test('order quantities control, protect, and persist product selection', async (
 
   await meters.selectOption('25');
   await expect(body).toHaveAttribute('data-has-ribbon', 'true');
-  await expect(totalPrice).toHaveText(/1\s940\s₽/);
+  await expect(totalPrice).toHaveText('Требуется расчёт');
 
   await expectNoHorizontalOverflow(page);
   expect(runtimeErrors).toEqual([]);
@@ -705,6 +705,12 @@ test('order dialog sends production files, retries safely and keeps a local copy
   expect(requests[1].artifacts.ribbonSvg).toContain('<svg');
   expect(requests[1].artifacts.stickerSvg).toContain('<svg');
   expect(requests[1].customer.preferredContact).toBe('phone');
+  expect(requests[1].pricing).toEqual({
+    preliminary: true,
+    currency: 'RUB',
+    amount: null,
+    requiresIndividualCalculation: true,
+  });
 
   // Печатные SVG — автономные тайлы: полная высота ленты, чёрный, шрифты внутри.
   for (const printSvg of [

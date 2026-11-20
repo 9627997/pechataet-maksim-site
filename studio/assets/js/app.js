@@ -2343,20 +2343,6 @@ const bootStudio = () => {
     }
   }
 
-  function getStickerPricing() {
-    const variant = getStickerVariant(state.stickerVariantId);
-    if (variant.id === 'roundrect-80x20') {
-      return {requiresIndividualCalculation: true};
-    }
-    if (variant.id === 'circle-24' || variant.id === 'circle-25') {
-      return {requiresIndividualCalculation: true};
-    }
-    return {
-      requiresIndividualCalculation: false,
-      byQuantity: {50: 450, 100: 700, 250: 1350, 500: 2200},
-    };
-  }
-
   function getStickerDisplayLabel() {
     const variant = getStickerVariant(state.stickerVariantId);
     return variant.shape === 'roundrect'
@@ -2373,20 +2359,9 @@ const bootStudio = () => {
   }
 
   function calculatePrice() {
-    const ribbonBase = state.meters > 0
-      ? ({10: 390, 25: 590, 50: 790, 100: 1090, 200: 1590}[state.meters] || 0)
-      : 0;
-    const widthExtra = state.meters > 0 && state.width === 20 ? 180 : 0;
-    const stickerPricing = getStickerPricing();
-    const stickerPriceUnavailable =
-      state.stickerQty > 0 && stickerPricing.requiresIndividualCalculation;
-    const stickerBase = state.stickerQty > 0 && !stickerPriceUnavailable
-      ? (stickerPricing.byQuantity[state.stickerQty] || 0)
-      : 0;
-    return {
-      amount: ribbonBase + widthExtra + stickerBase,
-      unavailable: stickerPriceUnavailable,
-    };
+    // Studio product selections do not yet have a verified mapping to Pricing 2.0.
+    // Until the server-issued quoteId handoff exists, do not invent a browser price.
+    return {amount: null, unavailable: true};
   }
 
   function normalizeLayout(layout) {
@@ -5596,7 +5571,7 @@ const bootStudio = () => {
       !artworkValid
         ? 'Макет не готов: текст не помещается в печатную область'
         : price.unavailable
-        ? `Цена ${getStickerDisplayLabel()} требует индивидуального расчёта`
+        ? 'Стоимость подтвердим после проверки заказа'
         : `Итого: ${price.amount.toLocaleString('ru-RU')} ₽`,
     ]
       .filter(Boolean)
