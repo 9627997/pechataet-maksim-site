@@ -878,3 +878,9 @@ Smoke-проверка print SVG в Chromium и WebKit растеризует л
 ограничения DPI; для встроенных PNG/JPEG по-прежнему нужна проверка
 фактического разрешения по физическому размеру. Автоматическое зеркалирование
 не выполняется, поскольку это зависит от RIP и модели принтера.
+
+## Pricing 3.0: opt-in private shadow observer (20 November 2026)
+
+The public PHP gateway continues to return Pricing 2 preliminary customer totals, with `canSubmitOrder:false`. A protected server config flag can optionally invoke an additional private Pricing 3 adapter for the same validated order, without returning its output. Missing module, disabled flag or shadow errors must not alter the public price. Private engine, price sources, settings and calculations remain outside web-root and public Git.
+
+This observer is inert until a separately audited private release bundle is installed and the protected flag is enabled. The shadow work is tracked in GitHub Issue #200; the separate verified quote-id / Studio handoff is Issue #201. No physical print approval or live pricing switch is implied.

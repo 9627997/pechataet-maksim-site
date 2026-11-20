@@ -934,3 +934,10 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Telegram: текст → фото макетов → ZIP (общий воркер `pm_telegram_send_file`);
 - для повтора > ~185 мм превью-канва физически не показывает текст
   (ограничение существующего рендера, к печатному тайлу не относится).
+
+## DEC-P3-OBSERVE — Private shadow calculation without changing live prices (20 November 2026)
+
+- Status: Accepted for implementation only; not approval of new customer tariffs.
+- Decision: Public `/api/calc/` keeps using the current server Pricing 2 result; a protected opt-in observer may calculate a private candidate on the same basket. The observer is read-only, and its errors are isolated from the public response.
+- Reason: validate a candidate independently without revealing confidential pricing data or changing the site's working quote.
+- Consequences: private module and bundle are released through a separate secure process; any actual tariff change, order token integration, or physical production approval requires its own tested change. Ref: Issue #200.
