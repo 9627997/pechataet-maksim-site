@@ -343,6 +343,75 @@ function pm_normalize_payload(array $input): array
     ];
 }
 
+/**
+ * Optional, item-bound artwork for linked quotes. A legacy Studio request
+ * remains unchanged; missing per-line artwork is explicitly reference-only.
+ * Caller passes only the immutable basket verified by PmOrderQuoteVerifier.
+ */
+function pm_normalize_line_artworks($raw, array $basket): array
+{
+    if ($raw === null) return [];
+    if (!is_array($raw) || array_is_list($raw) || count($raw) > 6) {
+        throw new InvalidArgumentException('Некорректные макеты отдельных позиций.');
+    }
+    $allowed = [];
+    foreach ($basket as $item) {
+        $id = $item['itemId'] ?? null;
+        if (!is_string($id) || !preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $id) || isset($allowed[$id])) {
+            throw new InvalidArgumentException('Некорректный идентификатор позиции.');
+        }
+        $allowed[$id] = $item;
+    }
+    $result = [];
+    foreach ($raw as $id => $files) {
+        if (!is_string($id) || !isset($allowed[$id]) || !is_array($files)
+            || array_keys($files) !== ['previewSvg', 'printSvg', 'previewPng']) {
+            throw new InvalidArgumentException('Макет не соответствует позиции заказа.');
+        }
+        $item = $allowed[$id];
+        $preview = pm_clean_svg($files['previewSvg'], 'preview ' . $id);
+        $print = pm_clean_svg($files['printSvg'], 'print ' . $id);
+        $png = pm_clean_png_data_url($files['previewPng'], 'preview PNG ' . $id);
+        if ($png === '') throw new InvalidArgumentException('Отсутствует PNG-превью позиции.');
+        // Physical print dimensions are checked on the root SVG, not on a
+        // separately scaled screen preview. Width is the repeat period for
+        // ribbon; the physically critical ribbon dimension is its height.
+        if (!preg_match('/<svg\\b([^>]*)>/i', $print, $root)) {
+            throw new InvalidArgumentException('Нет размеров печатного SVG.');
+        }
+        $attrs = $root[1];
+        $dimension = static function (string $name) use ($attrs): ?float {
+            if (!preg_match('/\\b' . $name . '\\s*=\\s*["\\x27]([0-9]+(?:\\.[0-9]+)?)mm["\\x27]/i', $attrs, $m)) return null;
+            return (float) $m[1];
+        };
+        $height = $dimension('height');
+        $width = $dimension('width');
+        $config = $item['configuration'];
+        if ($height === null || $width === null || $height <= 0 || $width <= 0) {
+            throw new InvalidArgumentException('Не указаны физические размеры print SVG.');
+        }
+        if ($item['productType'] === 'ribbon') {
+            if (abs($height - (float) $config['widthMm']) > 0.05 || $width > 500) {
+                throw new InvalidArgumentException('Размер печатной ленты не совпадает с заказом.');
+            }
+        } else {
+            if (abs($width - (float) $config['widthMm']) > 0.05
+                || abs($height - (float) $config['heightMm']) > 0.05) {
+                throw new InvalidArgumentException('Размер печатного стикера не совпадает с заказом.');
+            }
+        }
+        // Never derive filenames from untrusted itemId: fixed sequential names.
+        $result[] = [
+            'itemId' => $id,
+            'prefix' => sprintf('line-%02d', count($result) + 1),
+            'previewSvg' => $preview,
+            'printSvg' => $print,
+            'previewPng' => $png,
+        ];
+    }
+    return $result;
+}
+
 function pm_write_private_file(string $path, string $contents): void
 {
     if (file_put_contents($path, $contents, LOCK_EX) === false) {
@@ -449,6 +518,9 @@ function pm_create_zip(string $directory): ?string
             $zip->addFile($path, $filename);
         }
     }
+    foreach (glob($directory . '/line-[0-9][0-9]-*') ?: [] as $file) {
+        if (is_file($file) && !is_link($file)) $zip->addFile($file, basename($file));
+    }
     $zip->close();
     @chmod($zipPath, 0600);
     return is_file($zipPath) ? $zipPath : null;
@@ -534,6 +606,12 @@ function pm_store_order(string $storage, array $payload, array $config): array
             if ($payload['artifacts']['stickerPreviewPng'] !== '') {
                 pm_write_private_file($temporary . '/sticker-preview.png', base64_decode($payload['artifacts']['stickerPreviewPng']));
             }
+        }
+        foreach ($payload['lineArtworks'] ?? [] as $line) {
+            $prefix = $line['prefix'];
+            pm_write_private_file($temporary . '/' . $prefix . '-preview.svg', $line['previewSvg']);
+            pm_write_private_file($temporary . '/' . $prefix . '-print.svg', $line['printSvg']);
+            pm_write_private_file($temporary . '/' . $prefix . '-preview.png', base64_decode($line['previewPng'], true));
         }
         pm_write_private_file(
             $temporary . '/notifications.json',
@@ -856,6 +934,7 @@ try
                 pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
             }
             $payload['linkedBasket'] = $linked;
+            $payload['lineArtworks'] = pm_normalize_line_artworks($input['artifactsByItemId'] ?? null, $linked['orderItems']);
         } catch (InvalidArgumentException $error) {
             $reason = $error->getMessage();
             if ($reason === 'QUOTE_EXPIRED') {
@@ -872,6 +951,9 @@ try
             }
             pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
         }
+    }
+    if (!array_key_exists('quoteId', $input) && array_key_exists('artifactsByItemId', $input)) {
+        pm_fail(422, 'artwork_without_quote', 'Позиционные макеты требуют подтверждённого состава корзины.');
     }
     $storage = pm_prepare_storage($config);
     $technicalStorage = $storage;
