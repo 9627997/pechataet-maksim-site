@@ -5551,6 +5551,61 @@ const bootStudio = () => {
     return window.PmQuoteHandoff?.augmentPayload(payload) || payload;
   }
 
+  // Linked quotes may contain three different designs of each product.
+  // Capture only the current, physically matching Studio artwork for the
+  // explicitly selected canonical line, never replicate a type-level sample.
+  document.addEventListener('studio:quote-capture-item', async (event) => {
+    const itemId = event.detail?.itemId;
+    const item = window.PmQuoteHandoff?.getItems().find(
+      (entry) => entry.itemId === itemId,
+    );
+    if (!item) return;
+    const type = item.productType;
+    const cfg = item.configuration;
+    const status = $('#linkedQuoteMessage');
+    const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+    try {
+      if (document.body.dataset.artworkValid !== 'true' ||
+          (!getResolvedText(type).trim() && !getResolvedLogo(type)?.logo)) {
+        throw new Error('Добавьте надпись или логотип и проверьте печатную область.');
+      }
+      if (type === 'ribbon') {
+        if (state.meters <= 0 || state.width !== cfg.widthMm ||
+            Math.abs(state.repeatMm - cfg.repeatMm) > 0.05 ||
+            !same(state.ribbon, cfg.materialColor) ||
+            !same(getProductStyle('ribbon').print, cfg.printColor)) {
+          throw new Error('Настройки ленты отличаются от этой позиции калькулятора. Совместите ширину, шаг, основу и нанесение.');
+        }
+      } else if (type === 'sticker') {
+        if (state.stickerQty <= 0 || state.stickerVariantId !== cfg.variantId ||
+            !same(state.stickerBg, cfg.backgroundColor) ||
+            !same(getProductStyle('sticker').print, cfg.printColor)) {
+          throw new Error('Настройки стикера отличаются от этой позиции калькулятора. Совместите форму, основу и нанесение.');
+        }
+      } else {
+        throw new Error('Неизвестный тип изделия.');
+      }
+      const draft = await buildOrderPayload();
+      const result = type === 'ribbon'
+        ? {
+            previewSvg: draft.artifacts.ribbonPreviewSvg,
+            printSvg: draft.artifacts.ribbonPrintSvg,
+            previewPng: draft.artifacts.ribbonPreviewPng,
+          }
+        : {
+            previewSvg: draft.artifacts.stickerPreviewSvg,
+            printSvg: draft.artifacts.stickerPrintSvg,
+            previewPng: draft.artifacts.stickerPreviewPng,
+          };
+      window.PmQuoteHandoff.registerItemArtwork(itemId, result);
+      if (status) status.textContent =
+        'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
+    } catch (error) {
+      if (status) status.textContent =
+        'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+    }
+  });
+
   function downloadOrderCopy(orderId = '') {
     downloadTextFile(
       orderId
