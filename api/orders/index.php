@@ -365,7 +365,8 @@ function pm_normalize_line_artworks($raw, array $basket): array
     $result = [];
     foreach ($raw as $id => $files) {
         if (!is_string($id) || !isset($allowed[$id]) || !is_array($files)
-            || array_keys($files) !== ['previewSvg', 'printSvg', 'previewPng']) {
+            || count($files) !== 3 || !array_key_exists('previewSvg', $files)
+            || !array_key_exists('printSvg', $files) || !array_key_exists('previewPng', $files)) {
             throw new InvalidArgumentException('Макет не соответствует позиции заказа.');
         }
         $item = $allowed[$id];
