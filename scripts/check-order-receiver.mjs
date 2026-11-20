@@ -154,6 +154,22 @@ for (const marker of [
 assert.ok(endpoint.includes("'ribbon-print-black.svg'"));
 assert.ok(endpoint.includes("'sticker-print-black.svg'"));
 
+const quoteHandoff = await readFile(
+  resolve(repositoryRoot, 'studio/assets/js/quote-handoff.js'),
+  'utf8',
+);
+for (const marker of [
+  'function registerItemArtwork(itemId, artwork)',
+  'function clearItemArtwork(itemId)',
+  'artifactsByItemId: Object.fromEntries(lineArtworks)',
+  'record.orderItems.some((item) => item.itemId === itemId)',
+]) {
+  assert.ok(
+    quoteHandoff.includes(marker),
+    'Linked item artwork handoff missing: ' + marker,
+  );
+}
+
 const php = spawnSync('php', ['-v'], { encoding: 'utf8' });
 if (!php.error) {
   for (const filename of [
