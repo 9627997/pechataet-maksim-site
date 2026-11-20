@@ -82,6 +82,17 @@ final class PmQuoteTokenStore
      * Active quotes are never removed; a malformed record must age for at
      * least twice the TTL before it is eligible for deletion.
      */
+    private function removeExpiredRecord(string $recordPath, string $hash): bool
+    {
+        if (!preg_match('/^[a-f0-9]{64}$/D', $hash) || !@unlink($recordPath)) return false;
+        $claims = dirname($this->directory) . '/quote-claims';
+        if (is_dir($claims) && !is_link($claims)) {
+            $claim = $claims . '/' . $hash . '.txt';
+            if (is_file($claim) && !is_link($claim)) @unlink($claim);
+        }
+        return true;
+    }
+
     public function pruneExpired(int $maxScanned = 256): int
     {
         if ($maxScanned < 1 || $maxScanned > 1024) {
@@ -110,14 +121,8 @@ final class PmQuoteTokenStore
                 if (!(is_int($expiresAt) && $expiresAt <= $now) && !$oldMalformed) {
                     continue;
                 }
-                if (!@unlink($path)) continue;
+                if (!$this->removeExpiredRecord($path, substr($name, 0, -5))) continue;
                 $removed++;
-                // A claim has no authority after the corresponding token expires.
-                $claims = dirname($this->directory) . '/quote-claims';
-                if (is_dir($claims) && !is_link($claims)) {
-                    $claim = $claims . '/' . substr($name, 0, -5) . '.txt';
-                    if (is_file($claim) && !is_link($claim)) @unlink($claim);
-                }
             }
         } catch (Throwable $error) {
             // Garbage collection must never cause a valid quote to fail.
@@ -153,7 +158,7 @@ final class PmQuoteTokenStore
             throw new InvalidArgumentException('QUOTE_INVALID');
         }
         if ($data['expiresAt'] <= time()) {
-            @unlink($filename);
+            $this->removeExpiredRecord($filename, hash('sha256', $token));
             throw new InvalidArgumentException('QUOTE_EXPIRED');
         }
         if (!is_string($data['snapshotSha'] ?? null)

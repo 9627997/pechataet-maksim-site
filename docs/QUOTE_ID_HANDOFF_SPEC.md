@@ -56,3 +56,5 @@ Security gaps and release blockers: full 3+3 per-line editable artwork is **not 
 ## Bounded private token maintenance (20 Nov 2026)
 
 `PmQuoteTokenStore::pruneExpired()` removes only expired hashed quote records and their matching hashed claim files from the protected private storage. It scans at most 256 token records per pass (configurable 1–1024), never removes active tokens and grants malformed records a 2×TTL grace period. Successful token issuance samples maintenance approximately once per 16 issues, with no public endpoint or scheduled secret. A failed cleanup does not break issuance. CLI tests cover active/expired claims and malformed records. This is a best-effort capacity measure, not a substitute for production monitoring: verify actual directory growth and permission boundaries in staging before activating the private flag.
+
+Direct resolution of an expired token uses the same cleanup helper and removes its associated claim if one exists. This prevents orphan claim files when an expired token is presented before the periodic maintenance scan. The PHP regression test covers both cleanup paths.

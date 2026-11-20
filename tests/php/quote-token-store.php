@@ -62,6 +62,25 @@ try {
     assert($store->pruneExpired() === 1);
     assert(!file_exists($badPath));
     assert(is_file($liveClaim));
+    // Expiry during normal resolve must also clean the corresponding claim.
+    $onDemand = $store->issue($items, '490.00', $sha);
+    $onDemandHash = hash('sha256', $onDemand['quoteId']);
+    $onDemandPath = $dir . '/' . $onDemandHash . '.json';
+    $onDemandClaim = $claims . '/' . $onDemandHash . '.txt';
+    $onDemandData = json_decode(file_get_contents($onDemandPath), true, 32, JSON_THROW_ON_ERROR);
+    $onDemandData['issuedAt'] -= 4000;
+    $onDemandData['expiresAt'] -= 4000;
+    file_put_contents($onDemandPath, json_encode($onDemandData, JSON_THROW_ON_ERROR));
+    file_put_contents($onDemandClaim, 'request-expired-000002');
+    try {
+        $store->resolve($onDemand['quoteId'], $sha);
+        throw new RuntimeException('Expired token should be rejected');
+    } catch (InvalidArgumentException $error) {
+        assert($error->getMessage() === 'QUOTE_EXPIRED');
+    }
+    assert(!is_file($onDemandPath));
+    assert(!is_file($onDemandClaim));
+
     @unlink($liveClaim);
     @rmdir($claims);
     echo "PASS: opaque token, snapshot invalidation, expiration, private storage\n";
