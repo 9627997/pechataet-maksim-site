@@ -586,7 +586,17 @@ function pm_store_order(string $storage, array $payload, array $config): array
         $order = $payload;
         $order['orderId'] = $orderId;
         $order['acceptedAt'] = $acceptedAt;
-        unset($order['artifacts']);
+        $order['lineArtworkManifest'] = array_map(
+            static fn (array $line): array => [
+                'itemId' => $line['itemId'],
+                'previewSvg' => $line['prefix'] . '-preview.svg',
+                'printSvg' => $line['prefix'] . '-print.svg',
+                'previewPng' => $line['prefix'] . '-preview.png',
+                'status' => 'requires_manual_artwork_review',
+            ],
+            $payload['lineArtworks'] ?? []
+        );
+        unset($order['artifacts'], $order['lineArtworks']);
         pm_write_private_file(
             $temporary . '/order.json',
             json_encode($order, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"
