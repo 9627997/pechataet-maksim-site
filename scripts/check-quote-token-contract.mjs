@@ -74,10 +74,16 @@ for (const needle of [
   "$tokenApi->resolve($payload['quoteId'])",
   "'canSubmitOrder'=>false",
 ]) {
-  assert.ok(gateway.includes(needle), 'Missing gated gateway contract: ' + needle);
+  assert.ok(
+    gateway.includes(needle),
+    'Missing gated gateway contract: ' + needle,
+  );
 }
 for (const path of ['PmQuoteTokenStore.php', 'PmQuoteTokenApi.php']) {
-  const expression = new RegExp("'api/calc/" + path.replaceAll('.', '\\.') + "'", 'g');
+  const expression = new RegExp(
+    "'api/calc/" + path.replaceAll('.', '\\.') + "'",
+    'g',
+  );
   assert.equal(
     [...deploy.matchAll(expression)].length,
     2,
@@ -107,4 +113,6 @@ if (!php.error) {
   assert.equal(integration.status, 0, integration.stderr || integration.stdout);
   assert.ok(integration.stdout.includes('PASS: quote API issuance'));
 }
-console.log('PASS: gated token issuance and resolution, canonical basket, PHP contract');
+console.log(
+  'PASS: gated token issuance and resolution, canonical basket, PHP contract',
+);
