@@ -145,6 +145,9 @@ for (const marker of [
   "'/line-[0-9][0-9]-*'",
   "'-print.svg'",
   "'-preview.png'",
+  "'lineArtworkManifest'",
+  "unset($order['artifacts'], $order['lineArtworks'])",
+  "'requires_manual_artwork_review'",
 ]) {
   assert.ok(
     endpoint.includes(marker),
