@@ -21,6 +21,9 @@
   }
   let status = fromQuoteLink ? 'loading' : 'none';
   let record = null;
+  // Only explicit, independently prepared artwork may be attached to an item.
+  // Never clone the one-ribbon/one-sticker Studio samples across multiple SKU.
+  const lineArtworks = new Map();
   const root = document.getElementById('linkedQuoteSummary');
   const message = document.getElementById('linkedQuoteMessage');
   const list = document.getElementById('linkedQuoteLines');
@@ -94,6 +97,35 @@
     render();
   }
 
+  function registerItemArtwork(itemId, artwork) {
+    if (status !== 'ready' || record === null) {
+      throw new Error('Сначала необходимо подтвердить корзину калькулятора.');
+    }
+    if (typeof itemId !== 'string' ||
+        !record.orderItems.some((item) => item.itemId === itemId)) {
+      throw new Error('Неизвестная позиция заказа.');
+    }
+    if (!artwork || typeof artwork !== 'object' ||
+        Object.keys(artwork).sort().join('|') !== 'previewPng|previewSvg|printSvg' ||
+        typeof artwork.previewSvg !== 'string' ||
+        typeof artwork.printSvg !== 'string' ||
+        typeof artwork.previewPng !== 'string' ||
+        !artwork.previewSvg.includes('<svg') ||
+        !artwork.printSvg.includes('<svg') ||
+        !artwork.previewPng.startsWith('data:image/png;base64,')) {
+      throw new Error('Для позиции нужны отдельные SVG и PNG-превью.');
+    }
+    lineArtworks.set(itemId, {
+      previewSvg: artwork.previewSvg,
+      printSvg: artwork.printSvg,
+      previewPng: artwork.previewPng,
+    });
+  }
+
+  function clearItemArtwork(itemId) {
+    lineArtworks.delete(itemId);
+  }
+
   function augmentPayload(payload) {
     if (!fromQuoteLink) return payload;
     if (status !== 'ready' || record === null || record.expiresAt <= Date.now() / 1000) {
@@ -105,6 +137,9 @@
       ...payload,
       quoteId: token,
       orderItems: structuredClone(record.orderItems),
+      ...(lineArtworks.size > 0
+        ? {artifactsByItemId: Object.fromEntries(lineArtworks)}
+        : {}),
       pricing: {
         preliminary: true,
         currency: 'RUB',
@@ -117,6 +152,9 @@
   window.PmQuoteHandoff = Object.freeze({
     load,
     augmentPayload,
+    registerItemArtwork,
+    clearItemArtwork,
+    getArtworkCount: () => lineArtworks.size,
     getState: () => status,
     getItems: () => record === null ? [] : structuredClone(record.orderItems),
   });
