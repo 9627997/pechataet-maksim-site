@@ -816,10 +816,9 @@ const bootStudio = () => {
   function commitLogoAsset(asset, target, {returnToPreview = true} = {}) {
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
-      if (!state.commonTextAuthored) {
-        state.text = '';
-        state.content.text.common = '';
-      }
+      // SVG/raster processing completes asynchronously. A logo upload must not
+      // erase text entered while the file was being processed. Demo text is
+      // presentation-only; it never needs clearing from canonical state.
       state.content.logo.common = asset;
       hasCompletedCommonLogoUpload = true;
       state.commonLogoUploaded = true;
