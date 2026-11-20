@@ -70,7 +70,60 @@ final class PmQuoteTokenStore
         } finally {
             fclose($handle);
         }
+        // Spread bounded maintenance over successful issues; no cron needed.
+        // Failure to clean expired files must not affect a customer quote.
+        if (random_int(1, 16) === 1) $this->pruneExpired();
         return ['quoteId' => $token, 'expiresAt' => $record['expiresAt']];
+    }
+
+    /**
+     * Best-effort bounded cleanup of expired token files and linked claims.
+     * Only hashed filenames inside the private 0700 directory are visited.
+     * Active quotes are never removed; a malformed record must age for at
+     * least twice the TTL before it is eligible for deletion.
+     */
+    public function pruneExpired(int $maxScanned = 256): int
+    {
+        if ($maxScanned < 1 || $maxScanned > 1024) {
+            throw new InvalidArgumentException('QUOTE_INVALID');
+        }
+        $removed = 0;
+        $scanned = 0;
+        $now = time();
+        try {
+            $entries = new DirectoryIterator($this->directory);
+            foreach ($entries as $entry) {
+                if ($scanned >= $maxScanned) break;
+                if (!$entry->isFile() || $entry->isLink()) continue;
+                $name = $entry->getFilename();
+                if (!preg_match('/^[a-f0-9]{64}\\.json$/D', $name)) continue;
+                $scanned++;
+                $path = $this->directory . '/' . $name;
+                $raw = @file_get_contents($path, false, null, 0, self::MAX_BYTES + 1);
+                $data = is_string($raw) && strlen($raw) <= self::MAX_BYTES
+                    ? json_decode($raw, true)
+                    : null;
+                $expiresAt = is_array($data) ? ($data['expiresAt'] ?? null) : null;
+                // Broken/incomplete records are allowed a long grace period.
+                $oldMalformed = !is_int($expiresAt)
+                    && $entry->getMTime() + self::TTL_SECONDS * 2 <= $now;
+                if (!(is_int($expiresAt) && $expiresAt <= $now) && !$oldMalformed) {
+                    continue;
+                }
+                if (!@unlink($path)) continue;
+                $removed++;
+                // A claim has no authority after the corresponding token expires.
+                $claims = dirname($this->directory) . '/quote-claims';
+                if (is_dir($claims) && !is_link($claims)) {
+                    $claim = $claims . '/' . substr($name, 0, -5) . '.txt';
+                    if (is_file($claim) && !is_link($claim)) @unlink($claim);
+                }
+            }
+        } catch (Throwable $error) {
+            // Garbage collection must never cause a valid quote to fail.
+            return $removed;
+        }
+        return $removed;
     }
 
     public function resolve(string $token, string $currentSnapshotSha): array

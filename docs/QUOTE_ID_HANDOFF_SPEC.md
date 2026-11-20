@@ -52,3 +52,7 @@ Scope: feature-flagged implementation, NOT enabled in production.
 - The public deployment includes only the two safe QuoteToken classes and the safe OrderQuoteVerifier class, not the private catalog, pricing engine or token records.
 
 Security gaps and release blockers: full 3+3 per-line editable artwork is **not implemented**; token renewal after 30 min may require re-quoting in Calc; private token-file garbage collection, quote invalidation on PHP model update, cross-browser end-to-end tests, webhook/ZIP reconciliation and exact production V4 compatibility must be tested before enabling the feature flag. Do not merge or advertise phase 3 as a complete automated 3+3 print-production editor.
+
+## Bounded private token maintenance (20 Nov 2026)
+
+`PmQuoteTokenStore::pruneExpired()` removes only expired hashed quote records and their matching hashed claim files from the protected private storage. It scans at most 256 token records per pass (configurable 1–1024), never removes active tokens and grants malformed records a 2×TTL grace period. Successful token issuance samples maintenance approximately once per 16 issues, with no public endpoint or scheduled secret. A failed cleanup does not break issuance. CLI tests cover active/expired claims and malformed records. This is a best-effort capacity measure, not a substitute for production monitoring: verify actual directory growth and permission boundaries in staging before activating the private flag.

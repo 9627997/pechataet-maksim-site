@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/api/calc/PmQuoteTokenStore.php';
-$dir = sys_get_temp_dir() . '/pm-quote-test-' . bin2hex(random_bytes(6));
+$root = sys_get_temp_dir() . '/pm-quote-test-' . bin2hex(random_bytes(6));
+$dir = $root . '/quote-tokens';
 try {
     $store = new PmQuoteTokenStore($dir);
     $sha = str_repeat('a', 64);
@@ -34,8 +35,36 @@ try {
     } catch (InvalidArgumentException $error) {
         assert(in_array($error->getMessage(), ['QUOTE_INVALID', 'QUOTE_EXPIRED'], true));
     }
+    // Active token and its claim remain untouched; an expired token and its
+    // claim are pruned without clearing a different active token.
+    $live = $store->issue($items, '490.00', $sha);
+    $liveHash = hash('sha256', $live['quoteId']);
+    $claims = dirname($dir) . '/quote-claims';
+    @mkdir($claims, 0700, true);
+    $expiredClaim = $claims . '/' . hash('sha256', $issued['quoteId']) . '.txt';
+    $liveClaim = $claims . '/' . $liveHash . '.txt';
+    file_put_contents($expiredClaim, 'request-expired-000001');
+    file_put_contents($liveClaim, 'request-active-0000001');
+    assert($store->pruneExpired() === 1);
+    assert(!is_file($path));
+    assert(!is_file($expiredClaim));
+    assert(is_file($liveClaim));
+    assert($store->resolve($live['quoteId'], $sha)['finalClientPrice'] === '490.00');
+
+    // A fresh broken record is not deleted immediately; only old corrupted
+    // artifacts are eligible for cleanup after a 2*TTL grace period.
+    $badPath = $dir . '/' . str_repeat('c', 64) . '.json';
+    file_put_contents($badPath, '{broken');
+    assert($store->pruneExpired() === 0);
+    touch($badPath, time() - 4000);
+    assert($store->pruneExpired() === 1);
+    assert(!file_exists($badPath));
+    assert(is_file($liveClaim));
+    @unlink($liveClaim);
+    @rmdir($claims);
     echo "PASS: opaque token, snapshot invalidation, expiration, private storage\n";
 } finally {
     foreach (glob($dir . '/*') ?: [] as $path) @unlink($path);
     @rmdir($dir);
+    @rmdir($root);
 }
