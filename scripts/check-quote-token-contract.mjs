@@ -48,3 +48,63 @@ if (php.error?.code === 'ENOENT') {
   assert.ok(result.stdout.includes('PASS: opaque token'));
   console.log('PASS: quote token PHP syntax and runtime contract');
 }
+
+const api = readFileSync('api/calc/PmQuoteTokenApi.php', 'utf8');
+const apiTest = readFileSync('tests/php/quote-token-api.php', 'utf8');
+const gateway = readFileSync('api/calc/index.php', 'utf8');
+const deploy = readFileSync('scripts/build-deploy.mjs', 'utf8');
+
+assert.equal(engine.parseCode(api).kind, 'program');
+assert.equal(engine.parseCode(apiTest).kind, 'program');
+
+for (const needle of [
+  'PmQuoteTokenStore',
+  'canonicalItems',
+  "hash_file('sha256', $snapshot)",
+  "$this->engine->quote(['orderItems' => $canonical])",
+  "'canSubmitOrder' => false",
+]) {
+  assert.ok(api.includes(needle), 'Missing token API invariant: ' + needle);
+}
+
+for (const needle of [
+  "($config['quote_tokens_enabled'] ?? false) !== true",
+  "require_once __DIR__ . '/PmQuoteTokenApi.php'",
+  "$tokenApi->issue($payload['orderItems'])",
+  "$tokenApi->resolve($payload['quoteId'])",
+  "'canSubmitOrder'=>false",
+]) {
+  assert.ok(gateway.includes(needle), 'Missing gated gateway contract: ' + needle);
+}
+for (const path of ['PmQuoteTokenStore.php', 'PmQuoteTokenApi.php']) {
+  const expression = new RegExp("'api/calc/" + path.replaceAll('.', '\\.') + "'", 'g');
+  assert.equal(
+    [...deploy.matchAll(expression)].length,
+    2,
+    'Quote source must be in deploy allowlist and required files: ' + path,
+  );
+}
+if (!php.error) {
+  for (const filename of [
+    'api/calc/PmQuoteTokenApi.php',
+    'tests/php/quote-token-api.php',
+    'api/calc/index.php',
+  ]) {
+    const lint = spawnSync('php', ['-l', filename], { encoding: 'utf8' });
+    assert.equal(lint.status, 0, lint.stderr || lint.stdout);
+  }
+  const integration = spawnSync(
+    'php',
+    [
+      '-d',
+      'zend.assertions=1',
+      '-d',
+      'assert.exception=1',
+      'tests/php/quote-token-api.php',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(integration.status, 0, integration.stderr || integration.stdout);
+  assert.ok(integration.stdout.includes('PASS: quote API issuance'));
+}
+console.log('PASS: gated token issuance and resolution, canonical basket, PHP contract');

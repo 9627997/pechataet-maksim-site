@@ -947,3 +947,11 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Status: Proposed for staged development, not enabled in production.
 - Decision: A short-lived opaque token will reference the canonical basket and pricing snapshot on the private server, rather than transferring trusted prices or user-edited totals through the browser.
 - Consequences: Studio and order submission require explicit validated mappings of all cart lines. Current preliminary pricing and manual confirmation remain unchanged until this workflow passes end-to-end tests. Ref: Issue #201.
+
+ 
+## DEC-QUOTE-PHASE-2 — Изолированная выдача и проверка серверного quoteId (20 ноября 2026 года)
+
+- Статус: Предложено, реализовано в draft PR #203; не является разрешением к публикации полноценного заказа.
+- Решение: добавить отдельные операции `issue` и `resolve` в существующий API под **закрытым выключенным по умолчанию флагом**. Legacy-расчёт Pricing 2 остаётся неизменным; серверный quoteId с TTL и snapshot SHA никогда не принимает клиентскую цену как источник истины.
+- Причина: построить проверяемый по частям мост между Calc, Studio и серверной заявкой, исключив прежнюю подмену суммы из браузера.
+- Последствия: `canSubmitOrder:false` и ручное подтверждение сохраняются до полноценного согласования 3+3 строк и серверной сверки в `/api/orders/`. Функции сервера можно проверять изолированно; секретные нормативы не добавляются в репозиторий. Issue #201.

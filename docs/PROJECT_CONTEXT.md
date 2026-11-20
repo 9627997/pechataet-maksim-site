@@ -888,3 +888,12 @@ This observer is inert until a separately audited private release bundle is inst
 ## QuoteId contract stage (20 November 2026)
 
 A draft branch implements a self-contained `PmQuoteTokenStore.php`: opaque expiring quote tokens with snapshot binding and private file storage. It is not loaded by the live pricing API and is not shipped in the deployment allowlist. The executable contract test lives in `tests/php/quote-token-store.php` and the staged specification in `docs/QUOTE_ID_HANDOFF_SPEC.md`. Further work is required to issue/resolve tokens, preserve full 3+3 baskets in Studio, and validate final orders server-side. See GitHub Issue #201.
+
+ 
+## QuoteId Phase 2 — закрытый серверный контракт (20 ноября 2026 года)
+
+В draft PR #203 добавлена опциональная серверная выдача и проверка `quoteId`, но она НЕ включена в production: только защищённый `private/pm-calc/config.php` может выставить `quote_tokens_enabled=true`, по умолчанию флаг отсутствует и операции отвергаются. Обычные GET каталога и POST предварительной оценки остаются неизменными. Токен создаётся после независимой серверной валидации всей корзины (не более 3+3) и повторного расчёта цены Pricing 2, содержит только ссылку на закрытую запись за document-root. Срок 30 минут; проверка snapshot SHA исключает использование устаревшего расчёта.
+
+`api/calc/PmQuoteTokenStore.php` хранит запись, `api/calc/PmQuoteTokenApi.php` приводит запрос к каноническому формату, `api/calc/index.php` реализует `operation:issue|resolve` только по флагу. Оба новых класса без секретных цен включены в точный allowlist публичной сборки; сами записи — только в `private/pm-calc/quote-tokens/`. Тесты `tests/php/quote-token-api.php` и `scripts/check-quote-token-contract.mjs` предотвращают регрессии.
+
+**Не путать фазу 2 с полным заказом:** Studio ещё не умеет полностью переносить 3+3 и `/api/orders/` не сверяет токен. `canSubmitOrder:false` неизменен. Включение флага, перенос корзины и финальная проверка при отправке — отдельные закрывающие шаги Issue #201.
