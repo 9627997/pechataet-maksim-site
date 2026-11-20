@@ -15,7 +15,7 @@ assert.equal(engine.parseCode(test).kind, 'program');
 
 for (const needle of [
   'random_bytes(24)',
-  'hash(\'sha256\', $token)',
+  "hash('sha256', $token)",
   'hash_equals(',
   'expiresAt',
   'QUOTE_STALE',
