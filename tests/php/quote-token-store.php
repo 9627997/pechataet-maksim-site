@@ -35,6 +35,8 @@ try {
     } catch (InvalidArgumentException $error) {
         assert(in_array($error->getMessage(), ['QUOTE_INVALID', 'QUOTE_EXPIRED'], true));
     }
+    // resolve() already deletes expired records; recreate one to test GC.
+    file_put_contents($path, json_encode($data, JSON_THROW_ON_ERROR));
     // Active token and its claim remain untouched; an expired token and its
     // claim are pruned without clearing a different active token.
     $live = $store->issue($items, '490.00', $sha);
