@@ -54,7 +54,20 @@
         ' ₽. Ниже создаются макеты-образцы (по одному на тип), а каждый отдельный тираж и макет согласует Максим до производства.';
       for (const item of record.orderItems) {
         const li = document.createElement('li');
-        li.textContent = label(item);
+        const details = document.createElement('span');
+        details.textContent = label(item);
+        const capture = document.createElement('button');
+        capture.type = 'button';
+        capture.className = 'button ghost';
+        capture.textContent = lineArtworks.has(item.itemId)
+          ? 'Обновить макет позиции'
+          : 'Сохранить текущий макет для позиции';
+        capture.addEventListener('click', () => {
+          document.dispatchEvent(new CustomEvent('studio:quote-capture-item', {
+            detail: {itemId: item.itemId},
+          }));
+        });
+        li.append(details, capture);
         list.append(li);
       }
     } else {
@@ -120,10 +133,12 @@
       printSvg: artwork.printSvg,
       previewPng: artwork.previewPng,
     });
+    render();
   }
 
   function clearItemArtwork(itemId) {
     lineArtworks.delete(itemId);
+    render();
   }
 
   function augmentPayload(payload) {
