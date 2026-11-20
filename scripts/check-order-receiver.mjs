@@ -131,6 +131,24 @@ assert.ok(
   verifier.includes("'quote_tokens_enabled'"),
   'Private flag is mandatory',
 );
+// Optional 3+3 per-line artwork must bind to server-verified item IDs,
+// never write untrusted paths and never drop the legacy artwork archive.
+for (const marker of [
+  'function pm_normalize_line_artworks(',
+  "'artifactsByItemId'",
+  "'lineArtworks'",
+  "'previewSvg', 'printSvg', 'previewPng'",
+  "'artwork_without_quote'",
+  "abs($height - (float) $config['widthMm'])",
+  "'/line-[0-9][0-9]-*'",
+  "'-print.svg'",
+  "'-preview.png'",
+]) {
+  assert.ok(endpoint.includes(marker), 'Per-line artwork contract missing: ' + marker);
+}
+assert.ok(endpoint.includes("'ribbon-print-black.svg'"));
+assert.ok(endpoint.includes("'sticker-print-black.svg'"));
+
 const php = spawnSync('php', ['-v'], { encoding: 'utf8' });
 if (!php.error) {
   for (const filename of [
