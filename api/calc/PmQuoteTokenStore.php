@@ -17,9 +17,11 @@ final class PmQuoteTokenStore
             throw new RuntimeException('QUOTE_STORAGE_UNAVAILABLE');
         }
         $actual = realpath($directory);
-        $webRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $webRootInput = (string) ($_SERVER['DOCUMENT_ROOT'] ?? '');
+        $webRoot = $webRootInput !== '' ? realpath($webRootInput) : false;
+        $webPrefix = $webRoot !== false ? rtrim($webRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR : '';
         if ($actual === false
-            || ($webRoot !== false && ($actual === $webRoot || str_starts_with($actual, $webRoot . DIRECTORY_SEPARATOR)))
+            || ($webRoot !== false && ($actual === $webRoot || str_starts_with($actual, $webPrefix)))
             || ((fileperms($actual) & 0077) !== 0)) {
             throw new RuntimeException('QUOTE_STORAGE_UNSAFE');
         }
