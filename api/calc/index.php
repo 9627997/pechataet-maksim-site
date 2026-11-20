@@ -67,6 +67,24 @@ try {
     }
     require_once $private . '/PmCalcPreview.php';
     $engine = new PmCalcPreview($private.'/SNAPSHOT_ASSORTMENT_PRIVATE.json', $private.'/ASSORTMENT_PRIVATE.json');
+    // Private-only observer: this gateway NEVER switches the customer-facing
+    // Pricing 2 engine. Shadow mode is opt-in from protected config.php.
+    $pricing3Shadow = null;
+    if (($config['pricing3_shadow_enabled'] ?? false) === true) {
+        try {
+            if (!is_file($private . '/PmCalcPreviewV3.php')) {
+                throw new RuntimeException('SHADOW_PRIVATE_MODULE_MISSING');
+            }
+            require_once $private . '/PmCalcPreviewV3.php';
+            $pricing3Shadow = new PmCalcPreviewV3(
+                $private.'/SNAPSHOT_ASSORTMENT_PRIVATE.json',
+                $private.'/ASSORTMENT_PRIVATE.json'
+            );
+        } catch (Throwable $error) {
+            // Do not disclose private paths or the new financial result.
+            error_log('PM CALC: shadow initialization unavailable');
+        }
+    }
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $rawOffers = $engine->visibleCatalog();
         if (!is_array($rawOffers) || !array_is_list($rawOffers) || !$rawOffers) {
@@ -143,6 +161,15 @@ try {
         }
     }
     $price = $engine->quote($payload);
+    if ($pricing3Shadow !== null) {
+        try {
+            // The entire validated basket is evaluated a second time, only
+            // privately. Failure or manual-review requirement is non-fatal.
+            $pricing3Shadow->quote($payload);
+        } catch (Throwable $error) {
+            error_log('PM CALC: shadow observation unavailable');
+        }
+    }
     $amount = is_array($price) ? ($price['finalClientPrice'] ?? null) : null;
     $validMoney = (is_string($amount) && preg_match('/^(?:0|[1-9][0-9]{0,10})(?:\.[0-9]{1,2})?$/D', $amount) === 1)
         || (is_int($amount) && $amount > 0)
