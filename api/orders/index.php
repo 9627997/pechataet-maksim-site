@@ -307,6 +307,8 @@ function pm_normalize_payload(array $input): array
     if ($amount !== null && (!is_int($amount) || $amount < 0 || $amount > 10000000)) {
         throw new InvalidArgumentException('Некорректная предварительная стоимость.');
     }
+    // Browser-supplied amounts are never a trusted server Pricing 2.0 quote.
+    // Preserve the request but require confirmation until quoteId is verified.
 
     $artifactsInput = is_array($input['artifacts'] ?? null) ? $input['artifacts'] : [];
     $artifacts = [
@@ -334,8 +336,8 @@ function pm_normalize_payload(array $input): array
         'pricing' => [
             'preliminary' => true,
             'currency' => 'RUB',
-            'amount' => $amount,
-            'requiresIndividualCalculation' => ($pricingInput['requiresIndividualCalculation'] ?? false) === true,
+            'amount' => null,
+            'requiresIndividualCalculation' => true,
         ],
         'artifacts' => $artifacts,
     ];

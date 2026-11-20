@@ -38,6 +38,8 @@ for (const requiredContract of [
   'pm_store_order',
   'pm_run_notifications',
   "'preferredContact'",
+  "'amount' => null",
+  "'requiresIndividualCalculation' => true",
   "['phone', 'telegram']",
   '[24, 25, 30, 40, 50, 80]',
   "['circle', 'roundrect']",

@@ -904,6 +904,24 @@ test('effective layout is shared with mobile and sticker boxes pass corner valid
   await page.locator('#logoInput').setInputFiles(fixturePath('test-logo.svg'));
   await page.locator('#textInput').fill('коротко');
 
+  // The upload may finish after the user starts typing (especially WebKit).
+  // It must not clear the text, otherwise sticker layout never gets a textBox.
+  await expect(page.locator('#dropZone')).toHaveAttribute(
+    'data-upload-state',
+    'success',
+  );
+  await expect(page.locator('#textInput')).toHaveValue('коротко');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const content = JSON.parse(
+          document.body.dataset.studioContent || '{}',
+        );
+        return content.text?.common;
+      }),
+    )
+    .toBe('коротко');
+
   // На медленных CI-раннерах (Linux WebKit) layout может появиться позже
   // сетевого простоя; ждём, пока sticker-раскладка полностью не посчитается.
   await expect
