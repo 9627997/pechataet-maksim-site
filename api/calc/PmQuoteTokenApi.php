@@ -15,12 +15,29 @@ final class PmQuoteTokenApi
 
     public function __construct(string $privateRoot, object $engine)
     {
-        $snapshot = $privateRoot . '/SNAPSHOT_ASSORTMENT_PRIVATE.json';
-        $hash = is_file($snapshot) ? hash_file('sha256', $snapshot) : false;
-        if (!is_string($hash) || !preg_match('/^[a-f0-9]{64}$/D', $hash)) {
-            throw new RuntimeException('QUOTE_UNAVAILABLE');
+        // A snapshot change is not the only way prices can change: PHP model
+        // and assortment inputs must invalidate previously issued quotes too.
+        $parts = [];
+        foreach ([
+            'SNAPSHOT_ASSORTMENT_PRIVATE.json',
+            'ASSORTMENT_PRIVATE.json',
+            'PmCalcPreview.php',
+        ] as $required) {
+            $path = $privateRoot . '/' . $required;
+            $hash = is_file($path) ? hash_file('sha256', $path) : false;
+            if (!is_string($hash) || !preg_match('/^[a-f0-9]{64}$/D', $hash)) {
+                throw new RuntimeException('QUOTE_UNAVAILABLE');
+            }
+            $parts[] = $required . ':' . $hash;
         }
-        $this->snapshotSha = $hash;
+        // Older signed bundles may not have every helper file; bind those
+        // that exist and record absence to prevent a later silent change.
+        foreach (['ExactPricing.php', 'BigNat.php', 'PmOrderRounding.php'] as $helper) {
+            $path = $privateRoot . '/' . $helper;
+            $hash = is_file($path) ? hash_file('sha256', $path) : false;
+            $parts[] = $helper . ':' . ($hash === false ? 'absent' : $hash);
+        }
+        $this->snapshotSha = hash('sha256', implode('|', $parts));
         $this->store = new PmQuoteTokenStore($privateRoot . '/quote-tokens');
         $this->engine = $engine;
     }
@@ -180,6 +197,31 @@ final class PmQuoteTokenApi
             'finalClientPrice' => $amount,
             'currency' => 'RUB',
             'canSubmitOrder' => false,
+        ];
+    }
+
+    /**
+     * Recheck a token against the exact browser-submitted basket at order time.
+     * Never treat the amount saved in the browser as evidence of a server quote.
+     */
+    public function verifyForOrder(string $token, array $submittedItems): array
+    {
+        $record = $this->store->resolve($token, $this->snapshotSha);
+        $items = self::canonicalItems($submittedItems);
+        if ($items !== $record['orderItems']) {
+            throw new InvalidArgumentException('QUOTE_BASKET_CHANGED');
+        }
+        // The original quote is preliminary; it cannot survive a price change
+        // even if the snapshot fingerprint were accidentally held constant.
+        $price = $this->engine->quote(['orderItems' => $items]);
+        if (!is_array($price) ||
+            self::canonicalMoney($price['finalClientPrice'] ?? null) !== $record['finalClientPrice']) {
+            throw new InvalidArgumentException('QUOTE_STALE');
+        }
+        return [
+            'orderItems' => $record['orderItems'],
+            'finalClientPrice' => $record['finalClientPrice'],
+            'expiresAt' => $record['expiresAt'],
         ];
     }
 

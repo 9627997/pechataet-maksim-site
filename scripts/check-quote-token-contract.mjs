@@ -60,7 +60,8 @@ assert.equal(engine.parseCode(apiTest).kind, 'program');
 for (const needle of [
   'PmQuoteTokenStore',
   'canonicalItems',
-  "hash_file('sha256', $snapshot)",
+  'verifyForOrder',
+  "hash_file('sha256', $path)",
   "$this->engine->quote(['orderItems' => $canonical])",
   "'canSubmitOrder' => false",
 ]) {

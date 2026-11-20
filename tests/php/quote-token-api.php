@@ -9,6 +9,8 @@ $public = $root . '/site';
 @mkdir($private, 0700, true);
 @mkdir($public, 0700, true);
 file_put_contents($private . '/SNAPSHOT_ASSORTMENT_PRIVATE.json', '{"version":1}');
+file_put_contents($private . '/ASSORTMENT_PRIVATE.json', '{}');
+file_put_contents($private . '/PmCalcPreview.php', '<?php // test-only pricing engine fingerprint');
 $_SERVER['DOCUMENT_ROOT'] = $public;
 
 $engine = new class {
@@ -94,6 +96,8 @@ try {
     foreach (glob($private . '/quote-tokens/*') ?: [] as $file) @unlink($file);
     @rmdir($private . '/quote-tokens');
     @unlink($private . '/SNAPSHOT_ASSORTMENT_PRIVATE.json');
+    @unlink($private . '/ASSORTMENT_PRIVATE.json');
+    @unlink($private . '/PmCalcPreview.php');
     @rmdir($private);
     @rmdir(dirname($private));
     @rmdir($public);

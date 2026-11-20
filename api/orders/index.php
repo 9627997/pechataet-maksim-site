@@ -368,6 +368,28 @@ function pm_request_text(array $order): string
             : "- Стикеры Ø{$sticker['diameterMm']} мм: {$sticker['quantity']} шт.")
         : '- Стикеры: не выбраны';
 
+    $linkedLines = [];
+    if (isset($order['linkedBasket']['orderItems']) && is_array($order['linkedBasket']['orderItems'])) {
+        $linkedLines[] = '';
+        $linkedLines[] = 'КОРЗИНА ИЗ КАЛЬКУЛЯТОРА (серверная проверка, предварительно):';
+        foreach ($order['linkedBasket']['orderItems'] as $i => $item) {
+            $cfg = $item['configuration'];
+            if ($item['productType'] === 'ribbon') {
+                $label = 'лента ' . $cfg['widthMm'] . ' мм, ' . $item['quantity']['meters']
+                    . ' м, основа ' . $cfg['materialColor'] . ', нанесение ' . $cfg['printColor'];
+            } else {
+                $label = 'стикеры ' . $cfg['variantId'] . ', ' . $item['quantity']['pieces']
+                    . ' шт., основа ' . $cfg['backgroundColor'] . ', нанесение ' . $cfg['printColor'];
+            }
+            $linkedLines[] = ($i + 1) . '. ' . $label;
+        }
+        $linkedLines[] = 'Предварительная цена калькулятора: '
+            . $order['linkedBasket']['verifiedPreliminaryAmount'] . ' ₽ (не окончательная)';
+        $linkedLines[] = 'ВНИМАНИЕ: макеты Studio — ОБРАЗЦЫ, не готовы автоматически к выпуску по каждой строке.';
+        $linkedLines[] = 'Требуется ручное подтверждение технологии, состава, цены и макетов.';
+        $linkedLines[] = '';
+    }
+
     return implode("\n", [
         'Заявка — Печатает Максим',
         "Номер заявки: {$order['orderId']}",
@@ -379,9 +401,10 @@ function pm_request_text(array $order): string
         'Предпочтительный способ связи: ' . ($customer['preferredContact'] === 'phone' ? 'телефон' : 'Telegram'),
         'Комментарий: ' . ($customer['comment'] ?: 'не указан'),
         '',
-        'Состав заказа:',
+        'Макет-образец Studio (не финальная комплектация):',
         $ribbonLine,
         $stickerLine,
+        ...$linkedLines,
         "- Надпись на ленте: " . ($order['design']['ribbon']['text'] ?: 'без надписи'),
         "- Надпись на стикере: " . ($order['design']['sticker']['text'] ?: 'без надписи'),
         "- Предварительная стоимость: {$price}",
@@ -820,6 +843,36 @@ try
         pm_fail(400, 'invalid_json', 'Некорректный формат заявки.');
     }
         $payload = pm_normalize_payload($input);
+    if (array_key_exists('quoteId', $input)) {
+        // A linked quote is an immutable server-calculated specification.
+        // Never trust a browser total or silently drop additional 3+3 lines.
+        require_once __DIR__ . '/PmOrderQuoteVerifier.php';
+        try {
+            $linked = PmOrderQuoteVerifier::verify(
+                $input,
+                (string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2))
+            );
+            if (!is_array($linked)) {
+                pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
+            }
+            $payload['linkedBasket'] = $linked;
+        } catch (InvalidArgumentException $error) {
+            $reason = $error->getMessage();
+            if ($reason === 'QUOTE_EXPIRED') {
+                pm_fail(410, 'quote_expired', 'Срок действия расчёта истёк. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_STALE') {
+                pm_fail(409, 'quote_stale', 'Расчёт изменился. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_BASKET_CHANGED') {
+                pm_fail(409, 'quote_basket_changed', 'Состав заказа изменён. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_REPLAY') {
+                pm_fail(409, 'quote_replay', 'Этот расчёт уже привязан к другой заявке.');
+            }
+            pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
+        }
+    }
     $storage = pm_prepare_storage($config);
     $technicalStorage = $storage;
     pm_write_technical_log($storage, 'request_normalized', [

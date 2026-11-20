@@ -5472,7 +5472,7 @@ const bootStudio = () => {
           }
         : null,
     ].filter(Boolean);
-    return {
+    const payload = {
       schemaVersion: 1,
       orderSchemaVersion: 2,
       primaryProduct: state.primaryProduct || (ribbonEnabled ? 'ribbon' : 'sticker'),
@@ -5548,6 +5548,7 @@ const bootStudio = () => {
         },
       },
     };
+    return window.PmQuoteHandoff?.augmentPayload(payload) || payload;
   }
 
   function downloadOrderCopy(orderId = '') {

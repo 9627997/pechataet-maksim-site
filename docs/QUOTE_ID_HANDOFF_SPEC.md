@@ -38,3 +38,17 @@ Studio presently supports artwork for one ribbon and one sticker; Calc can quote
 `tests/php/quote-token-store.php` tests token storage, expiry and snapshot binding. `tests/php/quote-token-api.php` tests canonicalization, 3+3, price obtained from server-only engine and tampering. `scripts/check-quote-token-contract.mjs` parses these PHP files, checks the gateway flag and deployment allowlist, invokes PHP lint and runtime tests when PHP CLI exists. `npm run check:pr` executes it.
 
 This is **only** a gated backend capability. Do not merge as “complete order flow”, and do not enable the private flag until end-to-end server-reconciled ordering exists.
+
+
+## Phase 3 (draft) — browser handoff and receiver reconciliation
+
+Scope: feature-flagged implementation, NOT enabled in production.
+
+- Calc: after a successful legacy estimate, the Studio action tries `POST /api/calc/` `operation:issue` with the entire current basket. Only the opaque token (not the total) enters the Studio URL **fragment**. If the private feature flag is disabled, the original manual route remains available. If an unexpected server error occurs, the user is explicitly warned before opening the legacy editor.
+- Studio: `quote-handoff.js` removes the token fragment from the URL and calls `operation:resolve`. The page shows all 1–6 source line items and never silently substitutes the old Studio quantities or collapses a 3+3 cart into one ribbon and sticker line. The linked basket is kept only in session memory and submitted unchanged alongside Studio's existing preview files.
+- The artwork engine still produces **one SVG reference per product type**, NOT separate press-ready graphics per line. The UI and business notification explicitly disclose this. Individual print assets / physical feasibility for all lines **require manual verification**. The server stores the actual complete canonical basket and the preliminary server price separately from Studio's reference preview.
+- Order receiver: when a quoteId is supplied, the private Pricing 2 service verifies token TTL, private snapshot + model fingerprint, and re-quotes the full customer basket. The submitted `orderItems` must match the immutable record exactly; malformed, stale, changed or reused-by-other-request tokens fail closed. The token is bound to one `requestId` (same-ID retry allowed), while the existing receiver order idempotency is preserved.
+- Quotes never enable automatic production. Even verified preliminary totals are recorded under `linkedBasket.verifiedPreliminaryAmount`, while the order's `pricing.amount` stays null and `requiresIndividualCalculation` stays true. They do not replace manual commercial and design approval. Legacy orders without a token remain unchanged.
+- The public deployment includes only the two safe QuoteToken classes and the safe OrderQuoteVerifier class, not the private catalog, pricing engine or token records.
+
+Security gaps and release blockers: full 3+3 per-line editable artwork is **not implemented**; token renewal after 30 min may require re-quoting in Calc; private token-file garbage collection, quote invalidation on PHP model update, cross-browser end-to-end tests, webhook/ZIP reconciliation and exact production V4 compatibility must be tested before enabling the feature flag. Do not merge or advertise phase 3 as a complete automated 3+3 print-production editor.

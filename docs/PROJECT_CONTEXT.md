@@ -897,3 +897,7 @@ A draft branch implements a self-contained `PmQuoteTokenStore.php`: opaque expir
 `api/calc/PmQuoteTokenStore.php` хранит запись, `api/calc/PmQuoteTokenApi.php` приводит запрос к каноническому формату, `api/calc/index.php` реализует `operation:issue|resolve` только по флагу. Оба новых класса без секретных цен включены в точный allowlist публичной сборки; сами записи — только в `private/pm-calc/quote-tokens/`. Тесты `tests/php/quote-token-api.php` и `scripts/check-quote-token-contract.mjs` предотвращают регрессии.
 
 **Не путать фазу 2 с полным заказом:** Studio ещё не умеет полностью переносить 3+3 и `/api/orders/` не сверяет токен. `canSubmitOrder:false` неизменен. Включение флага, перенос корзины и финальная проверка при отправке — отдельные закрывающие шаги Issue #201.
+
+## QuoteId Phase 3 — полный список корзины, проверка на сервере (draft)
+
+См. `docs/QUOTE_ID_HANDOFF_SPEC.md`. Переносим все разрешённые 3+3 строки через opaque token fragment → protected resolve; Studio визуализирует полный состав, но производит пока только макеты-образцы по одному типу; отправка сохраняет весь канонический список. `PmOrderQuoteVerifier.php` сверяет корзину с TTL, SHA файла/ценообразования и текущим Pricing 2; replay с другим requestId запрещён. Legacy-заказы без токена не изменены. Новая предварительная цена не является согласованной; по-прежнему `amount:null`, `requiresIndividualCalculation:true`. Отсутствующий private flag отключает всё расширение в production. Тесты и полноценный выпуск требуют отдельного GO.
