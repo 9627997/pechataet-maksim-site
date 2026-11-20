@@ -884,3 +884,7 @@ Smoke-проверка print SVG в Chromium и WebKit растеризует л
 The public PHP gateway continues to return Pricing 2 preliminary customer totals, with `canSubmitOrder:false`. A protected server config flag can optionally invoke an additional private Pricing 3 adapter for the same validated order, without returning its output. Missing module, disabled flag or shadow errors must not alter the public price. Private engine, price sources, settings and calculations remain outside web-root and public Git.
 
 This observer is inert until a separately audited private release bundle is installed and the protected flag is enabled. The shadow work is tracked in GitHub Issue #200; the separate verified quote-id / Studio handoff is Issue #201. No physical print approval or live pricing switch is implied.
+
+## QuoteId contract stage (20 November 2026)
+
+A draft branch implements a self-contained `PmQuoteTokenStore.php`: opaque expiring quote tokens with snapshot binding and private file storage. It is not loaded by the live pricing API and is not shipped in the deployment allowlist. The executable contract test lives in `tests/php/quote-token-store.php` and the staged specification in `docs/QUOTE_ID_HANDOFF_SPEC.md`. Further work is required to issue/resolve tokens, preserve full 3+3 baskets in Studio, and validate final orders server-side. See GitHub Issue #201.

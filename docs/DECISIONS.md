@@ -941,3 +941,9 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: Public `/api/calc/` keeps using the current server Pricing 2 result; a protected opt-in observer may calculate a private candidate on the same basket. The observer is read-only, and its errors are isolated from the public response.
 - Reason: validate a candidate independently without revealing confidential pricing data or changing the site's working quote.
 - Consequences: private module and bundle are released through a separate secure process; any actual tariff change, order token integration, or physical production approval requires its own tested change. Ref: Issue #200.
+
+## DEC-QUOTE-OPAQUE — Server-issued token as the future Calc → Studio boundary (20 November 2026)
+
+- Status: Proposed for staged development, not enabled in production.
+- Decision: A short-lived opaque token will reference the canonical basket and pricing snapshot on the private server, rather than transferring trusted prices or user-edited totals through the browser.
+- Consequences: Studio and order submission require explicit validated mappings of all cart lines. Current preliminary pricing and manual confirmation remain unchanged until this workflow passes end-to-end tests. Ref: Issue #201.
