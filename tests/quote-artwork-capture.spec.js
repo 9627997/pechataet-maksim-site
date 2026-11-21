@@ -110,4 +110,13 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await first.locator('button').first().click();
   await expect(page.locator('#textInput')).toHaveValue('Первая лента');
   expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
+
+  // A reload is a real customer scenario. The private quote must re-resolve
+  // and the tab-scoped item drafts and explicit item artwork must return.
+  await page.reload({waitUntil: 'domcontentloaded'});
+  await expect(page.locator('#linkedQuoteSummary')).toHaveAttribute('data-status', 'ready');
+  await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
+  await expect(page.locator('#textInput')).toHaveValue('Первая лента');
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getArtworkCount())).toBe(1);
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
 });
