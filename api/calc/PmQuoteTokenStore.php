@@ -36,18 +36,20 @@ final class PmQuoteTokenStore
         return $this->directory . '/' . hash('sha256', $token) . '.json';
     }
 
-    public function issue(array $canonicalItems, string $clientAmount, string $snapshotSha): array
+    public function issue(array $canonicalItems, string $clientAmount, string $snapshotSha, string $pricingModelId = 'pricing2'): array
     {
         if (!array_is_list($canonicalItems) || count($canonicalItems) < 1 || count($canonicalItems) > 6
             || !preg_match('/^(?:0|[1-9][0-9]{0,10})(?:\.[0-9]{1,2})?$/D', $clientAmount)
             || (float) $clientAmount <= 0
-            || !preg_match('/^[a-f0-9]{64}$/D', $snapshotSha)) {
+            || !preg_match('/^[a-f0-9]{64}$/D', $snapshotSha)
+            || !preg_match('/^pricing[1-9][0-9]?$/D', $pricingModelId)) {
             throw new InvalidArgumentException('QUOTE_INVALID');
         }
         $token = bin2hex(random_bytes(24));
         $now = time();
         $record = [
-            'schema' => 1,
+            'schema' => 2,
+            'pricingModelId' => $pricingModelId,
             'issuedAt' => $now,
             'expiresAt' => $now + self::TTL_SECONDS,
             'snapshotSha' => $snapshotSha,
@@ -131,9 +133,10 @@ final class PmQuoteTokenStore
         return $removed;
     }
 
-    public function resolve(string $token, string $currentSnapshotSha): array
+    public function resolve(string $token, string $currentSnapshotSha, string $expectedPricingModelId = 'pricing2'): array
     {
-        if (!preg_match('/^[a-f0-9]{64}$/D', $currentSnapshotSha)) {
+        if (!preg_match('/^[a-f0-9]{64}$/D', $currentSnapshotSha)
+            || !preg_match('/^pricing[1-9][0-9]?$/D', $expectedPricingModelId)) {
             throw new InvalidArgumentException('QUOTE_INVALID');
         }
         $filename = $this->path($token);
@@ -146,7 +149,7 @@ final class PmQuoteTokenStore
         } catch (JsonException $error) {
             throw new InvalidArgumentException('QUOTE_INVALID', 0, $error);
         }
-        if (!is_array($data) || ($data['schema'] ?? null) !== 1
+        if (!is_array($data) || !in_array($data['schema'] ?? null, [1, 2], true)
             || !is_int($data['expiresAt'] ?? null)
             || !is_int($data['issuedAt'] ?? null)
             || $data['issuedAt'] > time()
@@ -157,9 +160,18 @@ final class PmQuoteTokenStore
             || !is_string($data['finalClientPrice'] ?? null)) {
             throw new InvalidArgumentException('QUOTE_INVALID');
         }
+        // Previous schema-1 tokens were issued exclusively by Pricing 2.
+        // Keep their short-lived compatibility while refusing model mixing.
+        $recordModel = $data['schema'] === 1 ? 'pricing2' : ($data['pricingModelId'] ?? null);
+        if (!is_string($recordModel) || !preg_match('/^pricing[1-9][0-9]?$/D', $recordModel)) {
+            throw new InvalidArgumentException('QUOTE_INVALID');
+        }
         if ($data['expiresAt'] <= time()) {
             $this->removeExpiredRecord($filename, hash('sha256', $token));
             throw new InvalidArgumentException('QUOTE_EXPIRED');
+        }
+        if (!hash_equals($expectedPricingModelId, $recordModel)) {
+            throw new InvalidArgumentException('QUOTE_STALE');
         }
         if (!is_string($data['snapshotSha'] ?? null)
             || !hash_equals($currentSnapshotSha, $data['snapshotSha'])) {
@@ -167,6 +179,7 @@ final class PmQuoteTokenStore
         }
         return [
             'orderItems' => $data['orderItems'],
+            'pricingModelId' => $recordModel,
             'finalClientPrice' => $data['finalClientPrice'],
             'expiresAt' => $data['expiresAt'],
         ];
