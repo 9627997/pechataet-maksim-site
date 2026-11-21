@@ -53,6 +53,32 @@ const api = readFileSync('api/calc/PmQuoteTokenApi.php', 'utf8');
 const apiTest = readFileSync('tests/php/quote-token-api.php', 'utf8');
 const gateway = readFileSync('api/calc/index.php', 'utf8');
 const deploy = readFileSync('scripts/build-deploy.mjs', 'utf8');
+const deployWorkflow = readFileSync(
+  '.github/workflows/deploy-reg-ru.yml',
+  'utf8',
+);
+const privateStage = readFileSync(
+  'scripts/stage-private-pricing-remote.sh',
+  'utf8',
+);
+for (const marker of [
+  'PM_QUOTE_BETA_GO_SHA',
+  'PM_QUOTE_BETA_GO_SHA}" = "${GITHUB_SHA}"',
+  'quote_release_mode=closed',
+  '"${quote_release_mode}" < scripts/stage-private-pricing-remote.sh',
+]) {
+  assert.ok(deployWorkflow.includes(marker), 'Unsafe quote deployment gate: ' + marker);
+}
+for (const marker of [
+  'QUOTE_RELEASE_MODE="${3:-closed}"',
+  'closed|enabled',
+  "'quote_tokens_enabled'",
+  'quote_enabled_php=false',
+  'quote_enabled_php=true',
+]) {
+  assert.ok(privateStage.includes(marker), 'Missing fail-closed private staging rule: ' + marker);
+}
+
 
 assert.equal(engine.parseCode(api).kind, 'program');
 assert.equal(engine.parseCode(apiTest).kind, 'program');
