@@ -70,12 +70,20 @@ jobs:
 
       - name: Install private Pricing 2.0 outside REG.RU document root
         shell: bash
+        env:
+          PM_QUOTE_BETA_GO_SHA: ${{ vars.PM_QUOTE_BETA_GO_SHA }}
         run: |
           set -euo pipefail
           remote_base='/var/www/u2767403/data/www/private'
           remote_stage="${remote_base}/.pm-calc-stage-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           private_dir="${RUNNER_TEMP}/pm-calc-private-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           target='${{ secrets.USERNAME }}@${{ secrets.HOST }}'
+          quote_release_mode=closed
+          # Explicit GitHub Environment approval must match this exact commit.
+          # An absent or stale approval keeps linked quotes off.
+          if [ -n "${PM_QUOTE_BETA_GO_SHA:-}" ] && [ "${PM_QUOTE_BETA_GO_SHA}" = "${GITHUB_SHA}" ]; then
+            quote_release_mode=enabled
+          fi
           ssh -i ~/.ssh/deploy_key "${target}" \
             "set -eu; install -d -m 700 '${remote_base}'; \
              if [ -e '${remote_stage}' ]; then exit 51; fi; \
@@ -84,7 +92,7 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key" \
             "${private_dir}/" "${target}:${remote_stage}/"
           ssh -i ~/.ssh/deploy_key "${target}" \
-            bash -s -- "${remote_stage}" "preliminary" < scripts/stage-private-pricing-remote.sh
+            bash -s -- "${remote_stage}" "preliminary" "${quote_release_mode}" < scripts/stage-private-pricing-remote.sh
 
       - name: Remove private data from GitHub runner
         if: always()
