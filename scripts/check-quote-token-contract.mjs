@@ -67,7 +67,10 @@ for (const marker of [
   'quote_release_mode=closed',
   '"${quote_release_mode}" < scripts/stage-private-pricing-remote.sh',
 ]) {
-  assert.ok(deployWorkflow.includes(marker), 'Unsafe quote deployment gate: ' + marker);
+  assert.ok(
+    deployWorkflow.includes(marker),
+    'Unsafe quote deployment gate: ' + marker,
+  );
 }
 for (const marker of [
   'QUOTE_RELEASE_MODE="${3:-closed}"',
@@ -76,9 +79,11 @@ for (const marker of [
   'quote_enabled_php=false',
   'quote_enabled_php=true',
 ]) {
-  assert.ok(privateStage.includes(marker), 'Missing fail-closed private staging rule: ' + marker);
+  assert.ok(
+    privateStage.includes(marker),
+    'Missing fail-closed private staging rule: ' + marker,
+  );
 }
-
 
 assert.equal(engine.parseCode(api).kind, 'program');
 assert.equal(engine.parseCode(apiTest).kind, 'program');
