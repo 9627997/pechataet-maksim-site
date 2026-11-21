@@ -25,6 +25,28 @@
   // Never clone the one-ribbon/one-sticker Studio samples across multiple SKU.
   const lineArtworks = new Map();
   let editingItemId = null;
+  const editorDrafts = new Map();
+  // A per-history-entry random key scopes drafts to this browser tab and
+  // quote, without writing the bearer quote token to sessionStorage.
+  const draftSessionId =
+    fromQuoteLink && validSessionId(previousState.pmQuoteDraftSession)
+      ? previousState.pmQuoteDraftSession
+      : fromQuoteLink ? crypto.randomUUID() : null;
+  const draftStorageKey = draftSessionId
+    ? 'pm-quote-workspaces-v1:' + draftSessionId
+    : null;
+  function validSessionId(value) {
+    return typeof value === 'string' &&
+      /^[0-9a-f-]{36}$/.test(value);
+  }
+  if (draftSessionId && draftSessionId !== previousState.pmQuoteDraftSession) {
+    history.replaceState(
+      {...history.state, pmQuoteDraftSession: draftSessionId},
+      '',
+      location.pathname + location.search,
+    );
+  }
+  let persistenceWarning = '';
   const root = document.getElementById('linkedQuoteSummary');
   const message = document.getElementById('linkedQuoteMessage');
   const list = document.getElementById('linkedQuoteLines');
@@ -120,7 +142,75 @@
       status = 'invalid';
       record = null;
     }
+    restoreSessionDrafts();
     render();
+  }
+
+  function persistSessionDrafts() {
+    if (!draftStorageKey || status !== 'ready' || !record) return false;
+    try {
+      sessionStorage.setItem(draftStorageKey, JSON.stringify({
+        schema: 1,
+        expiresAt: record.expiresAt,
+        orderItems: record.orderItems,
+        editorDrafts: Object.fromEntries(editorDrafts),
+        lineArtworks: Object.fromEntries(lineArtworks),
+        editingItemId,
+      }));
+      persistenceWarning = '';
+      return true;
+    } catch {
+      persistenceWarning = 'В браузере закончилось место для черновиков. Не обновляйте вкладку до отправки заявки.';
+      return false;
+    }
+  }
+
+  function restoreSessionDrafts() {
+    if (!draftStorageKey || status !== 'ready' || !record) return;
+    let snapshot;
+    try {
+      snapshot = JSON.parse(sessionStorage.getItem(draftStorageKey) || 'null');
+    } catch {
+      return;
+    }
+    if (!snapshot || snapshot.schema !== 1 ||
+        snapshot.expiresAt !== record.expiresAt ||
+        JSON.stringify(snapshot.orderItems) !== JSON.stringify(record.orderItems)) {
+      sessionStorage.removeItem(draftStorageKey);
+      return;
+    }
+    const ids = new Set(record.orderItems.map((item) => item.itemId));
+    for (const [id, draft] of Object.entries(snapshot.editorDrafts || {})) {
+      if (ids.has(id) && draft && typeof draft === 'object') {
+        editorDrafts.set(id, draft);
+      }
+    }
+    for (const [id, artwork] of Object.entries(snapshot.lineArtworks || {})) {
+      if (ids.has(id) && artwork &&
+          typeof artwork.previewSvg === 'string' &&
+          typeof artwork.printSvg === 'string' &&
+          typeof artwork.previewPng === 'string') {
+        lineArtworks.set(id, artwork);
+      }
+    }
+    // Active session is reloaded as a draft by app.js, not implicitly sent.
+    if (ids.has(snapshot.editingItemId)) {
+      editingItemId = snapshot.editingItemId;
+    }
+  }
+
+  function saveEditorDraft(itemId, draft) {
+    if (status !== 'ready' || !record?.orderItems.some((item) => item.itemId === itemId)) {
+      throw new Error('Нельзя сохранить черновик неизвестной позиции.');
+    }
+    editorDrafts.set(itemId, structuredClone(draft));
+    persistSessionDrafts();
+  }
+
+  function getEditorDraft(itemId) {
+    return editorDrafts.has(itemId)
+      ? structuredClone(editorDrafts.get(itemId))
+      : null;
   }
 
   function registerItemArtwork(itemId, artwork) {
@@ -146,6 +236,7 @@
       printSvg: artwork.printSvg,
       previewPng: artwork.previewPng,
     });
+    persistSessionDrafts();
     render();
   }
 
@@ -154,11 +245,13 @@
       throw new Error('Неизвестная позиция заказа.');
     }
     editingItemId = itemId;
+    persistSessionDrafts();
     render();
   }
 
   function clearItemArtwork(itemId) {
     lineArtworks.delete(itemId);
+    persistSessionDrafts();
     render();
   }
 
@@ -190,9 +283,12 @@
     augmentPayload,
     registerItemArtwork,
     clearItemArtwork,
+    saveEditorDraft,
+    getEditorDraft,
     selectEditingItem,
     getEditingItemId: () => editingItemId,
     getArtworkCount: () => lineArtworks.size,
+    getPersistenceWarning: () => persistenceWarning,
     getState: () => status,
     getItems: () => record === null ? [] : structuredClone(record.orderItems),
   });
