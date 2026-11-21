@@ -16,6 +16,11 @@ const workerPath = resolve(
   'api/orders/notification-worker.php',
 );
 const worker = await readFile(workerPath, 'utf8');
+const lineExportPath = resolve(
+  repositoryRoot,
+  'api/orders/PmLineArtworkExport.php',
+);
+const lineExport = await readFile(lineExportPath, 'utf8');
 const parser = new PhpParser.Engine({
   parser: {
     extractDoc: true,
@@ -36,6 +41,22 @@ const workerAst = parser.parseCode(
 );
 assert.equal(ast.kind, 'program');
 assert.equal(workerAst.kind, 'program');
+assert.equal(
+  parser.parseCode(lineExport, 'api/orders/PmLineArtworkExport.php').kind,
+  'program',
+);
+assert.ok(
+  worker.includes('pm_export_line_artworks($directory, $order)'),
+  'Google backup must include all canonical 3+3 line files',
+);
+assert.ok(
+  worker.includes("'artifactsByItemId'"),
+  'Google webhook must receive separate files keyed by verified itemId',
+);
+assert.ok(
+  lineExport.includes("is_link($file)"),
+  'Private file export must reject symlinks',
+);
 assert.ok(ast.children.length > 0, 'PHP endpoint must contain executable code');
 
 for (const requiredContract of [
@@ -179,6 +200,8 @@ if (!php.error) {
     'api/orders/PmOrderQuoteVerifier.php',
     'tests/php/order-quote-verifier.php',
     'api/orders/index.php',
+    'api/orders/PmLineArtworkExport.php',
+    'tests/php/line-artwork-export.php',
   ]) {
     const lint = spawnSync('php', ['-l', filename], { encoding: 'utf8' });
     assert.equal(lint.status, 0, lint.stderr || lint.stdout);
@@ -196,6 +219,19 @@ if (!php.error) {
   );
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.ok(run.stdout.includes('PASS: verified full linked basket'));
+  const exportCheck = spawnSync(
+    'php',
+    [
+      '-d',
+      'zend.assertions=1',
+      '-d',
+      'assert.exception=1',
+      'tests/php/line-artwork-export.php',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(exportCheck.status, 0, exportCheck.stderr || exportCheck.stdout);
+  assert.ok(exportCheck.stdout.includes('PASS: six distinct Google backup artifacts'));
 }
 console.log(
   'Order receiver PHP syntax, logging contract, and fast-acceptance lifecycle are valid.',
