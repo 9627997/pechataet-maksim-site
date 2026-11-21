@@ -984,3 +984,10 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: an optional production linked-quote release requires explicit exact-SHA authorization through GitHub Environment `PM_QUOTE_BETA_GO_SHA`. Default is OFF; other public Pricing 2 operations remain available.
 - The remote private deploy config is rebuilt in every deployment; its token flag must be derived exclusively from the verified release setting, not from stale hand-edits or browser-controlled values. Deployment verifies live `issue` and `resolve` when approved.
 - Production approval and final customer price remain manual. Pricing 3 is not activated. Do not approve a release SHA until end-to-end order/ZIP/notifications and all CI gates pass.
+
+## DEC-LINKED-PER-ITEM-EDITOR — Independent in-tab line sessions (21 November 2026)
+
+- Status: implemented in separate draft PR after #203; **not production-ready** until browser CI, runtime E2E, per-line output QA and refresh behavior are accepted.
+- Decision: linked quote items open independent active Studio editor state keyed by the immutable server canonical `itemId`. Selecting a new line saves the current editable state and restores a previous state's text/logo/product parameters, or starts an empty one seeded from that line's geometry/colors. The quote's original quantity is never overwritten by Studio presets.
+- Explicit per-item `Сохранить` remains required for snapshotting print artifacts. An edited draft cannot silently replace a previously captured file. Captured artifacts require manual physical verification.
+- Limitation: in-memory tab sessions do not survive browser refresh. Never advertise this as a finished persistent 3+3 editor or switch on automatic production. Full document persistence, end-to-end real ZIP/notifications and recovery remain future work. Issue #201/#204.
