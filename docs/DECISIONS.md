@@ -969,3 +969,11 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: Optional independently produced artwork attaches to a verified `itemId` of the canonical quote basket. Never duplicate one type-level Studio example as independent print-ready designs for different items. New files live in a private per-line archive and ZIP; `order.json` stores manifest, not SVG/PNG payloads.
 - Compatibility: legacy Studio files and manual confirmation stay unchanged; a missing or registered per-line file does not by itself authorize production.
 - Release blockers: independent editor per line, positive and adversarial runtime tests, true print/physical review and end-to-end notification checks. See Issue #201.
+
+## DEC-QUOTE-MODEL-BINDING — Pricing-independent token storage (21 November 2026)
+
+- Status: Draft PR #203, not activated in production.
+- Decision: the private quote record is schema 2 and binds `pricingModelId` as well as current snapshot and engine-source fingerprint. Resolution rejects a token belonging to another model, even with identical public basket data. Existing schema-1 tokens are treated as Pricing 2 only until expiry.
+- Safety: the current server issuer explicitly pins `pricing2`; no browser-controlled selector and no Pricing 3 switch are introduced. Switching models later requires an audited private engine router and exact model-specific re-quote at order submission. Public client still sees only the customer price and `canSubmitOrder:false`.
+- Reason: prevent Pricing 2/Pricing 3 quote confusion while developing the common Calc → Studio → Order flow only once.
+- Validation: private PHP storage tests check cross-model refusal, legacy schema 1 and model binding. Ref: Issues #200/#201.
