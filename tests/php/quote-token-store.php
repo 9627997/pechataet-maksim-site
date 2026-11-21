@@ -62,17 +62,20 @@ try {
     }
     // resolve() already deletes expired records; recreate one to test GC.
     file_put_contents($path, json_encode($data, JSON_THROW_ON_ERROR));
-    // Active token and its claim remain untouched; an expired token and its
-    // claim are pruned without clearing a different active token.
-    $live = $store->issue($items, '490.00', $sha);
-    $liveHash = hash('sha256', $live['quoteId']);
+    // Automatic maintenance can run inside issue() (sampled 1/16).
+    // Create the expired claim before that call, so either an automatic or
+    // an explicit prune must remove the record AND its claim together.
     $claims = dirname($dir) . '/quote-claims';
     @mkdir($claims, 0700, true);
     $expiredClaim = $claims . '/' . hash('sha256', $issued['quoteId']) . '.txt';
-    $liveClaim = $claims . '/' . $liveHash . '.txt';
     file_put_contents($expiredClaim, 'request-expired-000001');
+    $live = $store->issue($items, '490.00', $sha);
+    $liveHash = hash('sha256', $live['quoteId']);
+    $liveClaim = $claims . '/' . $liveHash . '.txt';
     file_put_contents($liveClaim, 'request-active-0000001');
-    assert($store->pruneExpired() === 1);
+    $pruned = $store->pruneExpired();
+    // If random maintenance already ran, the explicit pass removes zero.
+    assert($pruned === 0 || $pruned === 1);
     assert(!is_file($path));
     assert(!is_file($expiredClaim));
     assert(is_file($liveClaim));
