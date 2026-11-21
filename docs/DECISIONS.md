@@ -977,3 +977,10 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Safety: the current server issuer explicitly pins `pricing2`; no browser-controlled selector and no Pricing 3 switch are introduced. Switching models later requires an audited private engine router and exact model-specific re-quote at order submission. Public client still sees only the customer price and `canSubmitOrder:false`.
 - Reason: prevent Pricing 2/Pricing 3 quote confusion while developing the common Calc → Studio → Order flow only once.
 - Validation: private PHP storage tests check cross-model refusal, legacy schema 1 and model binding. Ref: Issues #200/#201.
+
+## DEC-LIVE-QUOTE-GATE — Exact-SHA release approval (21 November 2026)
+
+- Status: Implemented in draft PR #203 only, no production release.
+- Decision: an optional production linked-quote release requires explicit exact-SHA authorization through GitHub Environment `PM_QUOTE_BETA_GO_SHA`. Default is OFF; other public Pricing 2 operations remain available.
+- The remote private deploy config is rebuilt in every deployment; its token flag must be derived exclusively from the verified release setting, not from stale hand-edits or browser-controlled values. Deployment verifies live `issue` and `resolve` when approved.
+- Production approval and final customer price remain manual. Pricing 3 is not activated. Do not approve a release SHA until end-to-end order/ZIP/notifications and all CI gates pass.
