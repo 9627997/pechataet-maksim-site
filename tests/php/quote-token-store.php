@@ -12,6 +12,31 @@ try {
     $record = $store->resolve($issued['quoteId'], $sha);
     assert($record['orderItems'] === $items);
     assert($record['finalClientPrice'] === '490.00');
+    assert($record['pricingModelId'] === 'pricing2');
+    $model3 = $store->issue($items, '510.00', $sha, 'pricing3');
+    assert($store->resolve($model3['quoteId'], $sha, 'pricing3')['finalClientPrice'] === '510.00');
+    try {
+        $store->resolve($model3['quoteId'], $sha, 'pricing2');
+        throw new RuntimeException('Cross-pricing-model quote must be rejected');
+    } catch (InvalidArgumentException $error) {
+        assert($error->getMessage() === 'QUOTE_STALE');
+    }
+    // Schema 1 tokens existed only under Pricing 2. Preserve short TTL
+    // compatibility after introducing explicit identity in schema 2.
+    $legacyPath = $dir . '/' . hash('sha256', $issued['quoteId']) . '.json';
+    $legacy = json_decode(file_get_contents($legacyPath), true, 32, JSON_THROW_ON_ERROR);
+    assert($legacy['schema'] === 2 && $legacy['pricingModelId'] === 'pricing2');
+    $legacy['schema'] = 1;
+    unset($legacy['pricingModelId']);
+    file_put_contents($legacyPath, json_encode($legacy, JSON_THROW_ON_ERROR));
+    assert($store->resolve($issued['quoteId'], $sha)['pricingModelId'] === 'pricing2');
+    try {
+        $store->resolve($issued['quoteId'], $sha, 'pricing3');
+        throw new RuntimeException('Legacy token must not verify as Pricing 3');
+    } catch (InvalidArgumentException $error) {
+        assert($error->getMessage() === 'QUOTE_STALE');
+    }
+
     try {
         $store->resolve($issued['quoteId'], str_repeat('b', 64));
         throw new RuntimeException('Stale snapshot should be rejected');
