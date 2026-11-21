@@ -5632,6 +5632,9 @@ const bootStudio = () => {
     const status = $('#linkedQuoteMessage');
     const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
     try {
+      if (activeQuoteEditorItemId !== itemId) {
+        throw new Error('Сначала откройте «Редактировать эту позицию». Нельзя прикреплять текущий макет к другой строке.');
+      }
       if (document.body.dataset.artworkValid !== 'true' ||
           (!getResolvedText(type).trim() && !getResolvedLogo(type)?.logo)) {
         throw new Error('Добавьте надпись или логотип и проверьте печатную область.');
