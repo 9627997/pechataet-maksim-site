@@ -54,7 +54,7 @@ assert.ok(
   'Google webhook must receive separate files keyed by verified itemId',
 );
 assert.ok(
-  lineExport.includes("is_link($file)"),
+  lineExport.includes('is_link($file)'),
   'Private file export must reject symlinks',
 );
 assert.ok(ast.children.length > 0, 'PHP endpoint must contain executable code');
@@ -231,7 +231,9 @@ if (!php.error) {
     { encoding: 'utf8' },
   );
   assert.equal(exportCheck.status, 0, exportCheck.stderr || exportCheck.stdout);
-  assert.ok(exportCheck.stdout.includes('PASS: six distinct Google backup artifacts'));
+  assert.ok(
+    exportCheck.stdout.includes('PASS: six distinct Google backup artifacts'),
+  );
 }
 console.log(
   'Order receiver PHP syntax, logging contract, and fast-acceptance lifecycle are valid.',
