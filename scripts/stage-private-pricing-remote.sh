@@ -6,12 +6,22 @@ BASE='/var/www/u2767403/data/www/private'
 DEST="$BASE/pm-calc"
 STAGE="${1:-}"
 RELEASE_MODE="${2:-closed}"
+# Only an explicitly approved deployment SHA may enable linked quote tokens.
+QUOTE_RELEASE_MODE="${3:-closed}"
 # Only explicitly approved preliminary display mode may enable quotations.
 # It never enables orders, inventory claims, technical approval, or silicone.
 case "$RELEASE_MODE" in
   closed|preliminary) ;;
   *) echo 'BLOCK: unknown public pricing mode' >&2; exit 1 ;;
 esac
+case "$QUOTE_RELEASE_MODE" in
+  closed|enabled) ;;
+  *) echo 'BLOCK: unknown linked quote mode' >&2; exit 1 ;;
+esac
+if [ "$QUOTE_RELEASE_MODE" = enabled ] && [ "$RELEASE_MODE" != preliminary ]; then
+  echo 'BLOCK: quote tokens cannot run with public preliminary price disabled' >&2
+  exit 1
+fi
 if [[ ! "$STAGE" =~ ^/var/www/u2767403/data/www/private/\.pm-calc-stage-[0-9]+-[0-9]+$ ]]; then
   echo 'BLOCK: private staging path outside allowlist' >&2
   exit 1
@@ -33,15 +43,24 @@ if [ "$RELEASE_MODE" = "preliminary" ]; then
     '27f174a1b7b896515026966f12c4d29768e7f26f472f2dacbb5888c582eb0010' \
     || { echo 'BLOCK: unexpected sealed config' >&2; exit 1; }
   temporary_config="$STAGE/.config-preliminary-$"
-  (umask 077; cat > "$temporary_config" <<'PM_CONFIG'
+  # The release switch is gated by an exact approved SHA in GitHub Environment
+  # and never comes from a browser request or the Pricing 3 shadow observer.
+  if [ "$QUOTE_RELEASE_MODE" = enabled ]; then
+    quote_enabled_php=true
+  else
+    quote_enabled_php=false
+  fi
+  (umask 077; cat > "$temporary_config" <<PM_CONFIG
 <?php
-// Owner-approved 19.11.2026: preliminary price only, NO orders/stock guarantees.
-return ['preview_enabled' => true, 'mode' => 'preliminary_only'];
+// Preliminary public price only. Linked orders still require manual approval.
+// Quote tokens are enabled only for an explicitly approved release commit.
+return ['preview_enabled' => true, 'mode' => 'preliminary_only',
+        'quote_tokens_enabled' => ${quote_enabled_php}];
 PM_CONFIG
   )
   php -l "$temporary_config" >/dev/null
-  php -r '$c=require $argv[1]; if (($c["preview_enabled"]??null)!==true || ($c["mode"]??null)!=="preliminary_only") exit(1);' \
-    "$temporary_config" || { echo 'BLOCK: unsafe preliminary config' >&2; exit 1; }
+  php -r '$c=require $argv[1]; $expected=$argv[2]==="enabled"; if (($c["preview_enabled"]??null)!==true || ($c["mode"]??null)!=="preliminary_only" || ($c["quote_tokens_enabled"]??null)!==$expected) exit(1);' \
+    "$temporary_config" "$QUOTE_RELEASE_MODE" || { echo 'BLOCK: unsafe preliminary config' >&2; exit 1; }
   mv -- "$temporary_config" "$STAGE/config.php"
 fi
 chmod -R go-rwx "$STAGE"
@@ -58,7 +77,7 @@ if ! mv -- "$STAGE" "$DEST"; then
 fi
 chmod 700 "$DEST"
 if [ "$RELEASE_MODE" = "preliminary" ]; then
-  echo 'PASS: preliminary client estimates enabled; orders and physical approval remain BLOCKED'
+  echo "PASS: preliminary client estimates enabled; linked quote mode=${QUOTE_RELEASE_MODE}; production approval remains MANUAL"
 else
   echo 'PASS: private Pricing 2.0 installed outside webroot; public quoting remains disabled'
 fi
