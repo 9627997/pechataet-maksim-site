@@ -9,6 +9,9 @@ declare(strict_types=1);
  */
 final class PmQuoteTokenApi
 {
+    // An explicit server-owned identity, not an option from the browser.
+    // A future model requires a separately audited private engine and router.
+    private const PRICING_MODEL_ID = 'pricing2';
     private PmQuoteTokenStore $store;
     private object $engine;
     private string $snapshotSha;
@@ -189,7 +192,7 @@ final class PmQuoteTokenApi
         $price = $this->engine->quote(['orderItems' => $canonical]);
         if (!is_array($price)) throw new RuntimeException('QUOTE_UNAVAILABLE');
         $amount = self::canonicalMoney($price['finalClientPrice'] ?? null);
-        $issued = $this->store->issue($canonical, $amount, $this->snapshotSha);
+        $issued = $this->store->issue($canonical, $amount, $this->snapshotSha, self::PRICING_MODEL_ID);
         return [
             'status' => 'quote_issued',
             'quoteId' => $issued['quoteId'],
@@ -206,7 +209,7 @@ final class PmQuoteTokenApi
      */
     public function verifyForOrder(string $token, array $submittedItems): array
     {
-        $record = $this->store->resolve($token, $this->snapshotSha);
+        $record = $this->store->resolve($token, $this->snapshotSha, self::PRICING_MODEL_ID);
         $items = self::canonicalItems($submittedItems);
         if ($items !== $record['orderItems']) {
             throw new InvalidArgumentException('QUOTE_BASKET_CHANGED');
