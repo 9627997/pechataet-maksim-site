@@ -76,7 +76,7 @@
       message.textContent =
         'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Каждый тираж и макет согласует Максим до производства.' +
+        ' ₽. Ниже остаются макеты-образцы, а каждый сохранённый файл отдельной позиции согласует Максим до производства.' +
         (persistenceWarning ? ' ' + persistenceWarning : '');
       for (const item of record.orderItems) {
         const li = document.createElement('li');
