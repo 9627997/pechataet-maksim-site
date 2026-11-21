@@ -191,6 +191,7 @@ jobs:
         shell: bash
         env:
           PRODUCTION_URL: https://xn--80aaarctnodv3agc9d.xn--p1ai
+          PM_QUOTE_BETA_GO_SHA: ${{ vars.PM_QUOTE_BETA_GO_SHA }}
         run: |
           version_json="$(
             curl --fail --location \
@@ -249,6 +250,41 @@ jobs:
           }
           console.log('PASS: preliminary pricing returns final client total only; no order');
           PM_QUOTE_SMOKE
+
+          # The linked quote endpoint is live only when this exact deploy SHA
+          # was explicitly released. Verify issuance and resolution end-to-end
+          # against the installed *private* Pricing 2 PHP engine, without
+          # printing bearer tokens or private financial inputs.
+          if [ -n "${PM_QUOTE_BETA_GO_SHA:-}" ] && [ "${PM_QUOTE_BETA_GO_SHA}" = "${GITHUB_SHA}" ]; then
+            linked_issue="$(
+              curl --fail --silent --show-error --retry 2 \
+                --header 'Content-Type: application/json' \
+                --data-raw '{"operation":"issue","orderItems":[{"itemId":"linked-release-smoke","productType":"ribbon","quantity":{"meters":"5"},"configuration":{"widthMm":15,"repeatMm":100,"materialColor":"#f3eadc","printColor":"#171717"}}]}' \
+                "${PRODUCTION_URL}/api/calc/"
+            )"
+            linked_token="$(LINKED_ISSUE="${linked_issue}" node -e '
+              const x=JSON.parse(process.env.LINKED_ISSUE);
+              if(x.status!=="quote_issued"||x.canSubmitOrder!==false
+                || !/^[a-f0-9]{48}$/.test(x.quoteId||"")
+                || !Number.isFinite(Number(x.finalClientPrice))||Number(x.finalClientPrice)<=0
+                || x.expiresAt<=Date.now()/1000) process.exit(2);
+              process.stdout.write(x.quoteId);
+            ')"
+            linked_resolve="$(
+              curl --fail --silent --show-error --retry 2 \
+                --header 'Content-Type: application/json' \
+                --data-raw "{\"operation\":\"resolve\",\"quoteId\":\"${linked_token}\"}" \
+                "${PRODUCTION_URL}/api/calc/"
+            )"
+            LINKED_RESOLVE="${linked_resolve}" node -e '
+              const x=JSON.parse(process.env.LINKED_RESOLVE);
+              if(x.status!=="quote_resolved"||x.canSubmitOrder!==false
+                || !Array.isArray(x.orderItems)||x.orderItems.length!==1
+                || x.orderItems[0].itemId!=="linked-release-smoke"
+                || !Number.isFinite(Number(x.finalClientPrice))||Number(x.finalClientPrice)<=0) process.exit(2);
+              console.log("PASS: private-model-bound linked quote issue/resolve");
+            '
+          fi
 
           curl --fail --location --retry 3 "${PRODUCTION_URL}/studio/" >/dev/null
           curl --fail --location --retry 3 "${PRODUCTION_URL}/robots.txt" >/dev/null
