@@ -67,6 +67,8 @@
     root.hidden = !fromQuoteLink;
     if (!fromQuoteLink) return;
     root.dataset.status = status;
+    if (persistenceWarning) root.dataset.persistenceWarning = 'true';
+    else delete root.dataset.persistenceWarning;
     list.replaceChildren();
     if (status === 'loading') {
       message.textContent = 'Проверяем корзину калькулятора на сервере…';
@@ -74,7 +76,8 @@
       message.textContent =
         'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Ниже создаются макеты-образцы (по одному на тип), а каждый отдельный тираж и макет согласует Максим до производства.';
+        ' ₽. Каждый тираж и макет согласует Максим до производства.' +
+        (persistenceWarning ? ' ' + persistenceWarning : '');
       for (const item of record.orderItems) {
         const li = document.createElement('li');
         const details = document.createElement('span');
@@ -144,6 +147,9 @@
     }
     restoreSessionDrafts();
     render();
+    if (status === 'ready') {
+      document.dispatchEvent(new CustomEvent('studio:quote-ready'));
+    }
   }
 
   function persistSessionDrafts() {
