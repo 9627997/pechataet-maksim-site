@@ -2882,6 +2882,9 @@ const bootStudio = () => {
     updateOrderProductControls();
 
     saveState();
+    if (activeQuoteEditorItemId && window.PmQuoteHandoff?.getState() === 'ready') {
+      window.PmQuoteHandoff.saveEditorDraft(activeQuoteEditorItemId, state);
+    }
     publishContentState();
     publishProductSelection();
   }
@@ -5554,7 +5557,6 @@ const bootStudio = () => {
   // Linked quote workspaces are independent while this Studio tab is open.
   // Captured per-line print artifacts remain immutable until explicitly
   // recaptured. Never silently reuse one item's artwork for another item.
-  const quoteEditorStates = new Map();
   let activeQuoteEditorItemId = null;
 
   document.addEventListener('studio:quote-edit-item', (event) => {
@@ -5566,11 +5568,11 @@ const bootStudio = () => {
     const status = $('#linkedQuoteMessage');
     try {
       if (activeQuoteEditorItemId) {
-        quoteEditorStates.set(activeQuoteEditorItemId, structuredClone(state));
+        window.PmQuoteHandoff.saveEditorDraft(activeQuoteEditorItemId, state);
       }
       const type = item.productType;
       const cfg = item.configuration;
-      const saved = quoteEditorStates.get(itemId);
+      const saved = window.PmQuoteHandoff.getEditorDraft(itemId);
       const next = saved ? structuredClone(saved) : createInitialState();
       if (!saved) {
         next.productFirstMode = true;
@@ -5663,12 +5665,24 @@ const bootStudio = () => {
             previewPng: draft.artifacts.stickerPreviewPng,
           };
       window.PmQuoteHandoff.registerItemArtwork(itemId, result);
-      quoteEditorStates.set(itemId, structuredClone(state));
+      window.PmQuoteHandoff.saveEditorDraft(itemId, state);
       if (status) status.textContent =
         'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
     } catch (error) {
       if (status) status.textContent =
         'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+    }
+  });
+
+  // A token can be restored from history.state across reload. The linked
+  // basket must first resolve on the server; only then restore a matching
+  // tab-scoped draft. Never attach an unverified session to a legacy order.
+  document.addEventListener('studio:quote-ready', () => {
+    const itemId = window.PmQuoteHandoff?.getEditingItemId();
+    if (itemId) {
+      document.dispatchEvent(
+        new CustomEvent('studio:quote-edit-item', {detail: {itemId}}),
+      );
     }
   });
 
