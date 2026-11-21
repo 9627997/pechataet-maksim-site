@@ -5551,6 +5551,71 @@ const bootStudio = () => {
     return window.PmQuoteHandoff?.augmentPayload(payload) || payload;
   }
 
+  // Linked quote workspaces are independent while this Studio tab is open.
+  // Captured per-line print artifacts remain immutable until explicitly
+  // recaptured. Never silently reuse one item's artwork for another item.
+  const quoteEditorStates = new Map();
+  let activeQuoteEditorItemId = null;
+
+  document.addEventListener('studio:quote-edit-item', (event) => {
+    const itemId = event.detail?.itemId;
+    const item = window.PmQuoteHandoff?.getItems().find(
+      (entry) => entry.itemId === itemId,
+    );
+    if (!item) return;
+    const status = $('#linkedQuoteMessage');
+    try {
+      if (activeQuoteEditorItemId) {
+        quoteEditorStates.set(activeQuoteEditorItemId, structuredClone(state));
+      }
+      const type = item.productType;
+      const cfg = item.configuration;
+      const saved = quoteEditorStates.get(itemId);
+      const next = saved ? structuredClone(saved) : createInitialState();
+      if (!saved) {
+        next.productFirstMode = true;
+        next.primaryProduct = type;
+        next.activeContentProduct = type;
+        next.activeSettingsProduct = type;
+        next.bundle = type;
+        next.meters = type === 'ribbon' ? 25 : 0;
+        next.stickerQty = type === 'sticker' ? 250 : 0;
+        if (type === 'ribbon') {
+          next.width = cfg.widthMm;
+          next.ribbon = cfg.materialColor;
+          next.productStyles.ribbon.print = cfg.printColor;
+          next.repeatMode = 'manual';
+          next.repeatMm = cfg.repeatMm;
+          next.repeatGapMm = cfg.repeatMm;
+        } else {
+          const variant = getStickerVariant(cfg.variantId);
+          next.stickerVariantId = variant.id;
+          next.stickerSize = variant.diameterMm || 40;
+          next.stickerBg = cfg.backgroundColor;
+          next.productStyles.sticker.print = cfg.printColor;
+        }
+      }
+      Object.assign(state, next);
+      const product = state.activeSettingsProduct;
+      syncLegacyStyleAliases(product);
+      syncLegacyContentAliasesFromContent();
+      setActiveContentProduct(type, {renderPreview: false});
+      setActiveSettingsProduct(type);
+      syncControls();
+      render();
+      activeQuoteEditorItemId = itemId;
+      window.PmQuoteHandoff.selectEditingItem(itemId);
+      if (status) {
+        status.textContent = saved
+          ? 'Восстановлен черновик этой позиции. После изменений снова сохраните её макет.'
+          : 'Создан отдельный черновик позиции. Добавьте текст или логотип и сохраните её макет. Количество остаётся из калькулятора.';
+      }
+    } catch (error) {
+      if (status) status.textContent =
+        'Не удалось открыть позицию: ' + (error?.message || 'проверьте параметры.');
+    }
+  });
+
   // Linked quotes may contain three different designs of each product.
   // Capture only the current, physically matching Studio artwork for the
   // explicitly selected canonical line, never replicate a type-level sample.
@@ -5598,6 +5663,7 @@ const bootStudio = () => {
             previewPng: draft.artifacts.stickerPreviewPng,
           };
       window.PmQuoteHandoff.registerItemArtwork(itemId, result);
+      quoteEditorStates.set(itemId, structuredClone(state));
       if (status) status.textContent =
         'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
     } catch (error) {
