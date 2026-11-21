@@ -2404,6 +2404,9 @@ main.studio{
 @media(max-width:700px){.linked-quote-summary{margin:8px 10px;padding:12px}.linked-quote-head h2{font-size:15px}}
 
 /* Keep linked quote editing controls above the sticky mobile Studio preview. */
-.linked-quote-summary{position:relative;z-index:30;isolation:isolate}
+.linked-quote-summary{position:relative;z-index:70;isolation:isolate}
+/* Mobile product controls are fixed at z=60; the quote actions must sit above them.
+   Order dialogs must in turn sit above the quote summary. */
+body:has(.linked-quote-summary:not([hidden])) .modal{z-index:100}
 .linked-quote-summary li{min-width:0;overflow-wrap:anywhere}
 .linked-quote-summary li button{position:relative;z-index:1;margin:4px 6px 4px 0}
