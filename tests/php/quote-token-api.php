@@ -63,6 +63,10 @@ try {
     assert($engine->calls === 1);
     $resolved = $api->resolve($issued['quoteId']);
     assert($resolved['status'] === 'quote_resolved');
+    // The token is model-bound on the server, not selectable by the client.
+    $storageRecordPath = $private . '/quote-tokens/' . hash('sha256', $issued['quoteId']) . '.json';
+    $stored = json_decode(file_get_contents($storageRecordPath), true, 32, JSON_THROW_ON_ERROR);
+    assert($stored['schema'] === 2 && $stored['pricingModelId'] === 'pricing2');
     assert($resolved['canSubmitOrder'] === false);
     assert(count($resolved['orderItems']) === 2);
     assert($resolved['orderItems'][0]['configuration']['materialColor'] === '#f3eadc');
