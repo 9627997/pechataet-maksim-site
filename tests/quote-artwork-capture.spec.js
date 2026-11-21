@@ -30,6 +30,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
             backgroundColor: '#171717',
           },
         };
+  const stableExpiresAt = Math.floor(Date.now() / 1000) + 1800;
   const orderItems = [
     ...[1, 2, 3].map((index) => item('ribbon', index)),
     ...[1, 2, 3].map((index) => item('sticker', index)),
@@ -45,7 +46,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
           orderItems,
           finalClientPrice: '2990.00',
           currency: 'RUB',
-          expiresAt: Math.floor(Date.now() / 1000) + 1800,
+          expiresAt: stableExpiresAt,
           canSubmitOrder: false,
         }),
       });
