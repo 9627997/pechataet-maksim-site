@@ -24,6 +24,7 @@
   // Only explicit, independently prepared artwork may be attached to an item.
   // Never clone the one-ribbon/one-sticker Studio samples across multiple SKU.
   const lineArtworks = new Map();
+  let editingItemId = null;
   const root = document.getElementById('linkedQuoteSummary');
   const message = document.getElementById('linkedQuoteMessage');
   const list = document.getElementById('linkedQuoteLines');
@@ -49,13 +50,25 @@
       message.textContent = 'Проверяем корзину калькулятора на сервере…';
     } else if (status === 'ready') {
       message.textContent =
-        'Перенесены все ' + record.orderItems.length + ' позиций. Предварительная стоимость: ' +
+        'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
         ' ₽. Ниже создаются макеты-образцы (по одному на тип), а каждый отдельный тираж и макет согласует Максим до производства.';
       for (const item of record.orderItems) {
         const li = document.createElement('li');
         const details = document.createElement('span');
         details.textContent = label(item);
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'button ghost';
+        edit.textContent = editingItemId === item.itemId
+          ? 'Редактируется эта позиция'
+          : 'Редактировать эту позицию';
+        edit.disabled = editingItemId === item.itemId;
+        edit.addEventListener('click', () => {
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
+            detail: {itemId: item.itemId},
+          }));
+        });
         const capture = document.createElement('button');
         capture.type = 'button';
         capture.className = 'button ghost';
@@ -67,7 +80,7 @@
             detail: {itemId: item.itemId},
           }));
         });
-        li.append(details, capture);
+        li.append(details, edit, capture);
         list.append(li);
       }
     } else {
@@ -136,6 +149,14 @@
     render();
   }
 
+  function selectEditingItem(itemId) {
+    if (status !== 'ready' || !record?.orderItems.some((item) => item.itemId === itemId)) {
+      throw new Error('Неизвестная позиция заказа.');
+    }
+    editingItemId = itemId;
+    render();
+  }
+
   function clearItemArtwork(itemId) {
     lineArtworks.delete(itemId);
     render();
@@ -169,6 +190,8 @@
     augmentPayload,
     registerItemArtwork,
     clearItemArtwork,
+    selectEditingItem,
+    getEditingItemId: () => editingItemId,
     getArtworkCount: () => lineArtworks.size,
     getState: () => status,
     getItems: () => record === null ? [] : structuredClone(record.orderItems),
