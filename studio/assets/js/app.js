@@ -5604,8 +5604,8 @@ const bootStudio = () => {
       setActiveContentProduct(type, {renderPreview: false});
       setActiveSettingsProduct(type);
       syncControls();
-      render();
       activeQuoteEditorItemId = itemId;
+      render();
       window.PmQuoteHandoff.selectEditingItem(itemId);
       if (status) {
         status.textContent = saved
@@ -6030,6 +6030,12 @@ const bootStudio = () => {
   );
   updateFirstStepAvailability();
   render();
+  const resumedItemId = window.PmQuoteHandoff?.getEditingItemId();
+  if (resumedItemId && window.PmQuoteHandoff?.getState() === 'ready') {
+    document.dispatchEvent(
+      new CustomEvent('studio:quote-edit-item', {detail: {itemId: resumedItemId}}),
+    );
+  }
   updateShowcaseContent();
   updateProductShowcase();
   document.fonts?.ready.then(() => render());
