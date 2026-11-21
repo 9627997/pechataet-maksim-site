@@ -343,6 +343,76 @@ function pm_normalize_payload(array $input): array
     ];
 }
 
+/**
+ * Optional, item-bound artwork for linked quotes. A legacy Studio request
+ * remains unchanged; missing per-line artwork is explicitly reference-only.
+ * Caller passes only the immutable basket verified by PmOrderQuoteVerifier.
+ */
+function pm_normalize_line_artworks($raw, array $basket): array
+{
+    if ($raw === null) return [];
+    if (!is_array($raw) || array_is_list($raw) || count($raw) > 6) {
+        throw new InvalidArgumentException('Некорректные макеты отдельных позиций.');
+    }
+    $allowed = [];
+    foreach ($basket as $item) {
+        $id = $item['itemId'] ?? null;
+        if (!is_string($id) || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/D', $id) || isset($allowed[$id])) {
+            throw new InvalidArgumentException('Некорректный идентификатор позиции.');
+        }
+        $allowed[$id] = $item;
+    }
+    $result = [];
+    foreach ($raw as $id => $files) {
+        if (!is_string($id) || !isset($allowed[$id]) || !is_array($files)
+            || count($files) !== 3 || !array_key_exists('previewSvg', $files)
+            || !array_key_exists('printSvg', $files) || !array_key_exists('previewPng', $files)) {
+            throw new InvalidArgumentException('Макет не соответствует позиции заказа.');
+        }
+        $item = $allowed[$id];
+        $preview = pm_clean_svg($files['previewSvg'], 'preview ' . $id);
+        $print = pm_clean_svg($files['printSvg'], 'print ' . $id);
+        $png = pm_clean_png_data_url($files['previewPng'], 'preview PNG ' . $id);
+        if ($png === '') throw new InvalidArgumentException('Отсутствует PNG-превью позиции.');
+        // Physical print dimensions are checked on the root SVG, not on a
+        // separately scaled screen preview. Width is the repeat period for
+        // ribbon; the physically critical ribbon dimension is its height.
+        if (!preg_match('/<svg\\b([^>]*)>/i', $print, $root)) {
+            throw new InvalidArgumentException('Нет размеров печатного SVG.');
+        }
+        $attrs = $root[1];
+        $dimension = static function (string $name) use ($attrs): ?float {
+            if (!preg_match('/\\b' . $name . '\\s*=\\s*["\\x27]([0-9]+(?:\\.[0-9]+)?)mm["\\x27]/i', $attrs, $m)) return null;
+            return (float) $m[1];
+        };
+        $height = $dimension('height');
+        $width = $dimension('width');
+        $config = $item['configuration'];
+        if ($height === null || $width === null || $height <= 0 || $width <= 0) {
+            throw new InvalidArgumentException('Не указаны физические размеры print SVG.');
+        }
+        if ($item['productType'] === 'ribbon') {
+            if (abs($height - (float) $config['widthMm']) > 0.05 || $width > 500) {
+                throw new InvalidArgumentException('Размер печатной ленты не совпадает с заказом.');
+            }
+        } else {
+            if (abs($width - (float) $config['widthMm']) > 0.05
+                || abs($height - (float) $config['heightMm']) > 0.05) {
+                throw new InvalidArgumentException('Размер печатного стикера не совпадает с заказом.');
+            }
+        }
+        // Never derive filenames from untrusted itemId: fixed sequential names.
+        $result[] = [
+            'itemId' => $id,
+            'prefix' => sprintf('line-%02d', count($result) + 1),
+            'previewSvg' => $preview,
+            'printSvg' => $print,
+            'previewPng' => $png,
+        ];
+    }
+    return $result;
+}
+
 function pm_write_private_file(string $path, string $contents): void
 {
     if (file_put_contents($path, $contents, LOCK_EX) === false) {
@@ -368,6 +438,36 @@ function pm_request_text(array $order): string
             : "- Стикеры Ø{$sticker['diameterMm']} мм: {$sticker['quantity']} шт.")
         : '- Стикеры: не выбраны';
 
+    $linkedLines = [];
+    if (isset($order['linkedBasket']['orderItems']) && is_array($order['linkedBasket']['orderItems'])) {
+        $linkedLines[] = '';
+        $linkedLines[] = 'КОРЗИНА ИЗ КАЛЬКУЛЯТОРА (серверная проверка, предварительно):';
+        foreach ($order['linkedBasket']['orderItems'] as $i => $item) {
+            $cfg = $item['configuration'];
+            if ($item['productType'] === 'ribbon') {
+                $label = 'лента ' . $cfg['widthMm'] . ' мм, ' . $item['quantity']['meters']
+                    . ' м, основа ' . $cfg['materialColor'] . ', нанесение ' . $cfg['printColor'];
+            } else {
+                $label = 'стикеры ' . $cfg['variantId'] . ', ' . $item['quantity']['pieces']
+                    . ' шт., основа ' . $cfg['backgroundColor'] . ', нанесение ' . $cfg['printColor'];
+            }
+            $linkedLines[] = ($i + 1) . '. ' . $label;
+        }
+        $linkedLines[] = 'Предварительная цена калькулятора: '
+            . $order['linkedBasket']['verifiedPreliminaryAmount'] . ' ₽ (не окончательная)';
+        $linkedLines[] = 'ВНИМАНИЕ: макеты Studio — ОБРАЗЦЫ, не готовы автоматически к выпуску по каждой строке.';
+        $linkedLines[] = 'Требуется ручное подтверждение технологии, состава, цены и макетов.';
+        $linkedLines[] = '';
+    }
+
+    if (!empty($order['lineArtworkManifest'])) {
+        $linkedLines[] = 'ОТДЕЛЬНЫЕ МАКЕТЫ (все требуют ручной проверки):';
+        foreach ($order['lineArtworkManifest'] as $line) {
+            $linkedLines[] = '- ' . $line['itemId'] . ': ' . $line['printSvg']
+                . ', ' . $line['previewSvg'] . ', ' . $line['previewPng'];
+        }
+    }
+
     return implode("\n", [
         'Заявка — Печатает Максим',
         "Номер заявки: {$order['orderId']}",
@@ -379,9 +479,10 @@ function pm_request_text(array $order): string
         'Предпочтительный способ связи: ' . ($customer['preferredContact'] === 'phone' ? 'телефон' : 'Telegram'),
         'Комментарий: ' . ($customer['comment'] ?: 'не указан'),
         '',
-        'Состав заказа:',
+        'Макет-образец Studio (не финальная комплектация):',
         $ribbonLine,
         $stickerLine,
+        ...$linkedLines,
         "- Надпись на ленте: " . ($order['design']['ribbon']['text'] ?: 'без надписи'),
         "- Надпись на стикере: " . ($order['design']['sticker']['text'] ?: 'без надписи'),
         "- Предварительная стоимость: {$price}",
@@ -425,6 +526,9 @@ function pm_create_zip(string $directory): ?string
         if (is_file($path)) {
             $zip->addFile($path, $filename);
         }
+    }
+    foreach (glob($directory . '/line-[0-9][0-9]-*') ?: [] as $file) {
+        if (is_file($file) && !is_link($file)) $zip->addFile($file, basename($file));
     }
     $zip->close();
     @chmod($zipPath, 0600);
@@ -490,7 +594,17 @@ function pm_store_order(string $storage, array $payload, array $config): array
         $order = $payload;
         $order['orderId'] = $orderId;
         $order['acceptedAt'] = $acceptedAt;
-        unset($order['artifacts']);
+        $order['lineArtworkManifest'] = array_map(
+            static fn (array $line): array => [
+                'itemId' => $line['itemId'],
+                'previewSvg' => $line['prefix'] . '-preview.svg',
+                'printSvg' => $line['prefix'] . '-print.svg',
+                'previewPng' => $line['prefix'] . '-preview.png',
+                'status' => 'requires_manual_artwork_review',
+            ],
+            $payload['lineArtworks'] ?? []
+        );
+        unset($order['artifacts'], $order['lineArtworks']);
         pm_write_private_file(
             $temporary . '/order.json',
             json_encode($order, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n"
@@ -511,6 +625,12 @@ function pm_store_order(string $storage, array $payload, array $config): array
             if ($payload['artifacts']['stickerPreviewPng'] !== '') {
                 pm_write_private_file($temporary . '/sticker-preview.png', base64_decode($payload['artifacts']['stickerPreviewPng']));
             }
+        }
+        foreach ($payload['lineArtworks'] ?? [] as $line) {
+            $prefix = $line['prefix'];
+            pm_write_private_file($temporary . '/' . $prefix . '-preview.svg', $line['previewSvg']);
+            pm_write_private_file($temporary . '/' . $prefix . '-print.svg', $line['printSvg']);
+            pm_write_private_file($temporary . '/' . $prefix . '-preview.png', base64_decode($line['previewPng'], true));
         }
         pm_write_private_file(
             $temporary . '/notifications.json',
@@ -820,6 +940,40 @@ try
         pm_fail(400, 'invalid_json', 'Некорректный формат заявки.');
     }
         $payload = pm_normalize_payload($input);
+    if (array_key_exists('quoteId', $input)) {
+        // A linked quote is an immutable server-calculated specification.
+        // Never trust a browser total or silently drop additional 3+3 lines.
+        require_once __DIR__ . '/PmOrderQuoteVerifier.php';
+        try {
+            $linked = PmOrderQuoteVerifier::verify(
+                $input,
+                (string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2))
+            );
+            if (!is_array($linked)) {
+                pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
+            }
+            $payload['linkedBasket'] = $linked;
+            $payload['lineArtworks'] = pm_normalize_line_artworks($input['artifactsByItemId'] ?? null, $linked['orderItems']);
+        } catch (InvalidArgumentException $error) {
+            $reason = $error->getMessage();
+            if ($reason === 'QUOTE_EXPIRED') {
+                pm_fail(410, 'quote_expired', 'Срок действия расчёта истёк. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_STALE') {
+                pm_fail(409, 'quote_stale', 'Расчёт изменился. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_BASKET_CHANGED') {
+                pm_fail(409, 'quote_basket_changed', 'Состав заказа изменён. Пересчитайте корзину.');
+            }
+            if ($reason === 'QUOTE_REPLAY') {
+                pm_fail(409, 'quote_replay', 'Этот расчёт уже привязан к другой заявке.');
+            }
+            pm_fail(422, 'quote_invalid', 'Не удалось подтвердить расчёт.');
+        }
+    }
+    if (!array_key_exists('quoteId', $input) && array_key_exists('artifactsByItemId', $input)) {
+        pm_fail(422, 'artwork_without_quote', 'Позиционные макеты требуют подтверждённого состава корзины.');
+    }
     $storage = pm_prepare_storage($config);
     $technicalStorage = $storage;
     pm_write_technical_log($storage, 'request_normalized', [

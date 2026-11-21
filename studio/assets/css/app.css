@@ -2390,3 +2390,15 @@ header.topbar,
 main.studio{
   touch-action:pan-y;
 }
+
+/* Server-verified calculator basket: reference artwork remains manual-review only. */
+.linked-quote-summary{max-width:1320px;margin:12px auto 0;padding:16px 20px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 18px rgba(0,0,0,.04);font-size:13px}
+.linked-quote-summary[hidden]{display:none!important}
+.linked-quote-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.linked-quote-head h2{font-size:17px;margin:0}
+.linked-quote-head a{color:var(--accent);font-size:12px;font-weight:700}
+.linked-quote-summary p{margin:8px 0;line-height:1.55}
+.linked-quote-summary ol{margin:8px 0 0;padding-left:24px;display:grid;gap:5px}
+.linked-quote-summary[data-status="invalid"]{border-color:#a7252f}
+.linked-quote-summary[data-status="invalid"] p{color:#a7252f}
+@media(max-width:700px){.linked-quote-summary{margin:8px 10px;padding:12px}.linked-quote-head h2{font-size:15px}}

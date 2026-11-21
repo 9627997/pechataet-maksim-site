@@ -124,6 +124,54 @@ try {
         pm_calc_reply(413, ['status'=>'rejected','code'=>'REQUEST_TOO_LARGE']);
     }
     $payload = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
+    // Optional QuoteId API: isolated from legacy POST and disabled by default.
+    // Do not enable until the full Studio/order reconciliation path is ready.
+    $operation = is_array($payload) ? ($payload['operation'] ?? null) : null;
+    if ($operation !== null) {
+        if (($config['quote_tokens_enabled'] ?? false) !== true) {
+            pm_calc_reply(422, ['status'=>'rejected','code'=>'QUOTE_NOT_ENABLED']);
+        }
+        if (!in_array($operation, ['issue', 'resolve'], true)) {
+            pm_calc_reply(422, ['status'=>'rejected','code'=>'INVALID_REQUEST']);
+        }
+        if (($operation === 'issue' && array_keys($payload) !== ['operation', 'orderItems'])
+            || ($operation === 'resolve' && array_keys($payload) !== ['operation', 'quoteId'])) {
+            pm_calc_reply(422, ['status'=>'rejected','code'=>'INVALID_REQUEST']);
+        }
+        try {
+            require_once __DIR__ . '/PmQuoteTokenStore.php';
+            require_once __DIR__ . '/PmQuoteTokenApi.php';
+            $tokenApi = new PmQuoteTokenApi($private, $engine);
+            if ($operation === 'issue') {
+                if (!is_array($payload['orderItems'])) {
+                    pm_calc_reply(422, ['status'=>'rejected','code'=>'INVALID_REQUEST']);
+                }
+                pm_calc_reply(200, $tokenApi->issue($payload['orderItems']));
+            }
+            if (!is_string($payload['quoteId']) || strlen($payload['quoteId']) !== 48) {
+                pm_calc_reply(422, ['status'=>'rejected','code'=>'QUOTE_INVALID']);
+            }
+            pm_calc_reply(200, $tokenApi->resolve($payload['quoteId']));
+        } catch (InvalidArgumentException $error) {
+            if ($error->getMessage() === 'QUOTE_EXPIRED') {
+                pm_calc_reply(410, ['status'=>'rejected','code'=>'QUOTE_EXPIRED']);
+            }
+            if ($error->getMessage() === 'QUOTE_STALE') {
+                pm_calc_reply(409, ['status'=>'rejected','code'=>'QUOTE_STALE']);
+            }
+            if ($error->getMessage() === 'QUOTE_NOT_FOUND') {
+                pm_calc_reply(404, ['status'=>'rejected','code'=>'QUOTE_NOT_FOUND']);
+            }
+            if (in_array($error->getMessage(), ['OFFER_NOT_MAPPED', 'SAME_COLOR_BLOCKED'], true)) {
+                pm_calc_reply(422, ['status'=>'rejected','code'=>'UNSUPPORTED_COMBINATION']);
+            }
+            pm_calc_reply(422, ['status'=>'rejected','code'=>'QUOTE_INVALID']);
+        } catch (Throwable $error) {
+            // Never expose internal token paths, price model, or exception details.
+            error_log('PM CALC: optional quote-token service unavailable');
+            pm_calc_reply(503, ['status'=>'unavailable']);
+        }
+    }
     if (!is_array($payload) || array_keys($payload) !== ['orderItems']) pm_calc_reply(422, ['status'=>'rejected','code'=>'INVALID_REQUEST']);
     $items = $payload['orderItems'];
     if (!is_array($items) || !array_is_list($items) || count($items) < 1 || count($items) > 6) {

@@ -884,3 +884,39 @@ Smoke-проверка print SVG в Chromium и WebKit растеризует л
 The public PHP gateway continues to return Pricing 2 preliminary customer totals, with `canSubmitOrder:false`. A protected server config flag can optionally invoke an additional private Pricing 3 adapter for the same validated order, without returning its output. Missing module, disabled flag or shadow errors must not alter the public price. Private engine, price sources, settings and calculations remain outside web-root and public Git.
 
 This observer is inert until a separately audited private release bundle is installed and the protected flag is enabled. The shadow work is tracked in GitHub Issue #200; the separate verified quote-id / Studio handoff is Issue #201. No physical print approval or live pricing switch is implied.
+
+## QuoteId contract stage (20 November 2026)
+
+A draft branch implements a self-contained `PmQuoteTokenStore.php`: opaque expiring quote tokens with snapshot binding and private file storage. It is not loaded by the live pricing API and is not shipped in the deployment allowlist. The executable contract test lives in `tests/php/quote-token-store.php` and the staged specification in `docs/QUOTE_ID_HANDOFF_SPEC.md`. Further work is required to issue/resolve tokens, preserve full 3+3 baskets in Studio, and validate final orders server-side. See GitHub Issue #201.
+
+ 
+## QuoteId Phase 2 — закрытый серверный контракт (20 ноября 2026 года)
+
+В draft PR #203 добавлена опциональная серверная выдача и проверка `quoteId`, но она НЕ включена в production: только защищённый `private/pm-calc/config.php` может выставить `quote_tokens_enabled=true`, по умолчанию флаг отсутствует и операции отвергаются. Обычные GET каталога и POST предварительной оценки остаются неизменными. Токен создаётся после независимой серверной валидации всей корзины (не более 3+3) и повторного расчёта цены Pricing 2, содержит только ссылку на закрытую запись за document-root. Срок 30 минут; проверка snapshot SHA исключает использование устаревшего расчёта.
+
+`api/calc/PmQuoteTokenStore.php` хранит запись, `api/calc/PmQuoteTokenApi.php` приводит запрос к каноническому формату, `api/calc/index.php` реализует `operation:issue|resolve` только по флагу. Оба новых класса без секретных цен включены в точный allowlist публичной сборки; сами записи — только в `private/pm-calc/quote-tokens/`. Тесты `tests/php/quote-token-api.php` и `scripts/check-quote-token-contract.mjs` предотвращают регрессии.
+
+**Не путать фазу 2 с полным заказом:** Studio ещё не умеет полностью переносить 3+3 и `/api/orders/` не сверяет токен. `canSubmitOrder:false` неизменен. Включение флага, перенос корзины и финальная проверка при отправке — отдельные закрывающие шаги Issue #201.
+
+## QuoteId Phase 3 — полный список корзины, проверка на сервере (draft)
+
+См. `docs/QUOTE_ID_HANDOFF_SPEC.md`. Переносим все разрешённые 3+3 строки через opaque token fragment → protected resolve; Studio визуализирует полный состав, но производит пока только макеты-образцы по одному типу; отправка сохраняет весь канонический список. `PmOrderQuoteVerifier.php` сверяет корзину с TTL, SHA файла/ценообразования и текущим Pricing 2; replay с другим requestId запрещён. Legacy-заказы без токена не изменены. Новая предварительная цена не является согласованной; по-прежнему `amount:null`, `requiresIndividualCalculation:true`. Отсутствующий private flag отключает всё расширение в production. Тесты и полноценный выпуск требуют отдельного GO.
+
+
+## QuoteId: best-effort private garbage collection (20 ноября 2026 года)
+
+Хранилище токенов теперь само периодически (примерно одна из 16 выдач) проверяет до 256 приватных файлов на истечение TTL, удаляя соответствующую запись и, при наличии, привязку requestId. Активные токены не удаляются; повреждённым файлам даётся 2×TTL перед очисткой. Изменение полностью неактивно без `quote_tokens_enabled`, действующую Pricing 2.0 и состав заявки не затрагивает. Обязательны проверка поведения на реальном stage, мониторинг размера папки и тесты при включении флага; PR #203 остаётся draft.
+
+## Item-scoped artwork transport — draft PR #203 (20 November 2026)
+
+The optional quote-linked order path accepts `artifactsByItemId`, keyed strictly by the server-resolved canonical basket item IDs. Each entry has an explicitly produced preview SVG, physical print SVG in mm and PNG preview; the PHP receiver checks permitted keys, root print dimensions, SVG/PNG validity and the complete original quote basket. Private files use generated sequential names (`line-01-*`) rather than client-supplied paths. The private `order.json` stores a manifest only; binary/vector bodies remain separately archived and included in ZIP. The request text identifies the submitted files and requires manual review. Legacy ribbon/sticker previews and print files remain unchanged.
+
+The quote-handoff browser adapter exposes explicit `registerItemArtwork` / `clearItemArtwork` methods. No existing general Studio preview is silently reused for multiple SKUs. The linked-quote list now offers manual per-item capture: Studio checks geometry, colors and repeat before registering the currently configured SVG/PNG under the chosen itemId. **This is sequential capture, not a full 3+3 workspace:** captured files remain item-bound, but individual editing sessions cannot yet be restored independently. The standard quote flow remains preliminary and production is gated. Validate with real PHP, ZIP/webhook/Telegram, cross-browser/physical production before enabling.
+
+## Pricing-model-bound quote records (21 November 2026, draft)
+
+To avoid building a second Calc → Studio → Order pipeline, `PmQuoteTokenStore` now persists a server-issued `pricingModelId` in private schema-2 quote records in addition to the exact fingerprint of the current private pricing sources. The current API deliberately issues and verifies only `pricing2`; a different model identity is rejected as stale. Schema-1 tokens remain recognized only as Pricing 2 until their usual 30-minute expiry. No new public field or pricing selector is exposed. Future Pricing 3 activation requires a separately approved model-specific private engine adapter/router; the existing shadow observer is not used to price orders. This change alone does not alter public Prices, Studio, artwork, or production.
+
+## REG.RU live linked-quote release gating (21 November 2026, PR #203 draft)
+
+The production deployment stages the private Pricing 2 engine as before. Linked quote tokens remain OFF unless the GitHub **production Environment** variable `PM_QUOTE_BETA_GO_SHA` equals the exact deploy commit (`GITHUB_SHA`); absent, empty or stale values remain OFF. The value is a release marker, not a secret or pricing-model selector. The validated remote staging script writes `quote_tokens_enabled` to private `config.php` outside webroot, after checking the sealed private config fingerprint. No client request can enable it. The production workflow now probes both `issue` and `resolve` against the private Pricing 2 engine only for an explicitly approved SHA. Pricing 3 remains shadow-only; no automatic order or print approval. This gate is not a substitute for final CI, 3+3 design-session restoration, real ZIP/notifications testing, stage verification or rollback before approving the SHA.

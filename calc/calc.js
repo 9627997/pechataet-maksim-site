@@ -89,6 +89,7 @@ function specText() {
 function updateStudioLink() {
   const types = new Set(rows().map(row => row.dataset.type));
   const kind = types.size > 1 ? 'bundle' : types.has('sticker') ? 'sticker' : 'ribbon';
+  $('studioNext').dataset.manualFallback = '';
   $('studioNext').href = `/studio/?product=${kind}`;
 }
 const newId = () => `item-${Date.now().toString(36)}-${(++sequence).toString(36)}`;
@@ -545,6 +546,53 @@ $('copySpec').addEventListener('click', async () => {
     $('shareStatus').textContent = ok ? 'Комплектация и итоговая стоимость скопированы.' : 'Автоматическое копирование недоступно. Попробуйте открыть Telegram.';
   }
 });
+
+// The private quote-token API is optional and disabled until full handoff
+// acceptance. Only an opaque bearer token travels to Studio, never costs.
+$('studioNext').addEventListener('click', async (event) => {
+  const next = $('studioNext');
+  if (quotedPrice === null || next.dataset.manualFallback === 'true') return;
+  event.preventDefault();
+  const target = next.href;
+  const current = version;
+  next.setAttribute('aria-busy', 'true');
+  $('shareStatus').textContent = 'Переносим выбранную корзину в Studio…';
+  try {
+    const response = await fetch('/api/calc/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({operation: 'issue', orderItems: order()}),
+    });
+    const quote = await response.json().catch(() => ({}));
+    if (current !== version) return; // customer edited basket during request
+    if (
+      response.ok &&
+      quote.status === 'quote_issued' &&
+      quote.canSubmitOrder === false &&
+      /^[a-f0-9]{48}$/.test(quote.quoteId || '')
+    ) {
+      window.location.assign(target + '#quote=' + quote.quoteId);
+      return;
+    }
+    if (quote.code === 'QUOTE_NOT_ENABLED') {
+      // Existing manual workflow is intentionally unchanged.
+      window.location.assign(target);
+      return;
+    }
+    next.dataset.manualFallback = 'true';
+    $('shareStatus').textContent =
+      'Автоматический перенос сейчас недоступен. Нажмите «Создать макет» ещё раз, чтобы открыть Studio без переноса корзины.';
+  } catch {
+    if (current === version) {
+      next.dataset.manualFallback = 'true';
+      $('shareStatus').textContent =
+        'Не удалось сохранить корзину для Studio. Повторное нажатие откроет редактор без переноса.';
+    }
+  } finally {
+    next.removeAttribute('aria-busy');
+  }
+});
+
 $('shareTelegram').addEventListener('click', () => {
   const text = specText();
   if (!text) return;

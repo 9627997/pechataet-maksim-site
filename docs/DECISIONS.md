@@ -941,3 +941,46 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: Public `/api/calc/` keeps using the current server Pricing 2 result; a protected opt-in observer may calculate a private candidate on the same basket. The observer is read-only, and its errors are isolated from the public response.
 - Reason: validate a candidate independently without revealing confidential pricing data or changing the site's working quote.
 - Consequences: private module and bundle are released through a separate secure process; any actual tariff change, order token integration, or physical production approval requires its own tested change. Ref: Issue #200.
+
+## DEC-QUOTE-OPAQUE — Server-issued token as the future Calc → Studio boundary (20 November 2026)
+
+- Status: Proposed for staged development, not enabled in production.
+- Decision: A short-lived opaque token will reference the canonical basket and pricing snapshot on the private server, rather than transferring trusted prices or user-edited totals through the browser.
+- Consequences: Studio and order submission require explicit validated mappings of all cart lines. Current preliminary pricing and manual confirmation remain unchanged until this workflow passes end-to-end tests. Ref: Issue #201.
+
+ 
+## DEC-QUOTE-PHASE-2 — Изолированная выдача и проверка серверного quoteId (20 ноября 2026 года)
+
+- Статус: Предложено, реализовано в draft PR #203; не является разрешением к публикации полноценного заказа.
+- Решение: добавить отдельные операции `issue` и `resolve` в существующий API под **закрытым выключенным по умолчанию флагом**. Legacy-расчёт Pricing 2 остаётся неизменным; серверный quoteId с TTL и snapshot SHA никогда не принимает клиентскую цену как источник истины.
+- Причина: построить проверяемый по частям мост между Calc, Studio и серверной заявкой, исключив прежнюю подмену суммы из браузера.
+- Последствия: `canSubmitOrder:false` и ручное подтверждение сохраняются до полноценного согласования 3+3 строк и серверной сверки в `/api/orders/`. Функции сервера можно проверять изолированно; секретные нормативы не добавляются в репозиторий. Issue #201.
+
+## DEC-QUOTE-LINKED-BASKET — Перенос всего расчёта без автоматического производства (20 ноября 2026)
+
+- Статус: Реализуется в черновом PR #203, не принято для включения production.
+- Решение: хранить все шесть канонических строк заказа и клиентскую предварительную цену только под проверенным на сервере `quoteId`, вручную согласуя макеты. Не заменять выбранные цены/тиражи на старые пресеты Studio и не считать один эскиз печатным файлом всех вариантов.
+- Безопасность: серверный контроль токена, версии ценовых файлов и фактического состава обязателен при `/api/orders/`; токен с чужим requestId блокируется. Без привязки сохранится ранее утверждённый режим ручной заявки. Новая клиентская Pricing 3.0 не включается автоматически.
+- Незакрыто: макеты каждой строки, срок жизни/обновление токена, уборка приватного хранилища, E2E, CI, реальный stage. Документ 00C остаётся источником статусов.
+
+## DEC-QUOTE-ARTWORK-TRANSPORT — Explicit item-bound files (20 November 2026)
+
+- Status: Implemented only in draft PR #203; no production activation.
+- Decision: Optional independently produced artwork attaches to a verified `itemId` of the canonical quote basket. Never duplicate one type-level Studio example as independent print-ready designs for different items. New files live in a private per-line archive and ZIP; `order.json` stores manifest, not SVG/PNG payloads.
+- Compatibility: legacy Studio files and manual confirmation stay unchanged; a missing or registered per-line file does not by itself authorize production.
+- Release blockers: independent editor per line, positive and adversarial runtime tests, true print/physical review and end-to-end notification checks. See Issue #201.
+
+## DEC-QUOTE-MODEL-BINDING — Pricing-independent token storage (21 November 2026)
+
+- Status: Draft PR #203, not activated in production.
+- Decision: the private quote record is schema 2 and binds `pricingModelId` as well as current snapshot and engine-source fingerprint. Resolution rejects a token belonging to another model, even with identical public basket data. Existing schema-1 tokens are treated as Pricing 2 only until expiry.
+- Safety: the current server issuer explicitly pins `pricing2`; no browser-controlled selector and no Pricing 3 switch are introduced. Switching models later requires an audited private engine router and exact model-specific re-quote at order submission. Public client still sees only the customer price and `canSubmitOrder:false`.
+- Reason: prevent Pricing 2/Pricing 3 quote confusion while developing the common Calc → Studio → Order flow only once.
+- Validation: private PHP storage tests check cross-model refusal, legacy schema 1 and model binding. Ref: Issues #200/#201.
+
+## DEC-LIVE-QUOTE-GATE — Exact-SHA release approval (21 November 2026)
+
+- Status: Implemented in draft PR #203 only, no production release.
+- Decision: an optional production linked-quote release requires explicit exact-SHA authorization through GitHub Environment `PM_QUOTE_BETA_GO_SHA`. Default is OFF; other public Pricing 2 operations remain available.
+- The remote private deploy config is rebuilt in every deployment; its token flag must be derived exclusively from the verified release setting, not from stale hand-edits or browser-controlled values. Deployment verifies live `issue` and `resolve` when approved.
+- Production approval and final customer price remain manual. Pricing 3 is not activated. Do not approve a release SHA until end-to-end order/ZIP/notifications and all CI gates pass.
