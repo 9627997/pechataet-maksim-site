@@ -998,3 +998,10 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: each linked quote history entry owns a random draft-session UUID. `sessionStorage` holds independent editor drafts and explicitly captured SVG/PNG for each canonical `itemId`; the bearer token remains in `history.state` only. The private server must re-resolve the token before any draft restoration; stored basket and expiry must match exactly.
 - Security: reject stale/changed quotes; do not use browser state for price or to authorize production. Browser quota exhaustion may prevent refresh recovery; tell the customer without silently losing submitted artwork. Session storage is not reliable across tab closure. Full server-backed persistence is not in scope.
 - Tests: 3+3 user switches between designs, then refreshes and reopens the first draft; captured files remain item-bound. Mobile selection interaction must not be covered by sticky preview. No release until browser CI and actual private order receiver tests pass.
+
+## DEC-LINKED-ORDER-BACKUP — No silent loss of 3+3 artwork in Google backup (21 November 2026)
+
+- Status: draft PR #206, pending integration CI and separate live provider QA.
+- Reason: the server ZIP already stores per-item files but the background Google webhook previously reconstructed only two legacy type-level designs. That would omit six independent files from Drive backup even if Telegram delivered the ZIP.
+- Decision: reconstruct `artifactsByItemId` from private `lineArtworkManifest` using validated canonical IDs, generated filenames and only on-disk files. Reject unsafe/missing data rather than silently sending an incomplete 3+3 reference package. Legacy orders without a manifest remain unchanged.
+- Test gate: run isolated real PHP POST for 3+3, 18 ZIP entries, replay/idempotency, mock Google worker delivery and explicit export rejection cases in PR CI. Real Google Drive webhook compatibility and Telegram provider delivery remain unverified and cannot be inferred from mock success. Never enable `quote_tokens_enabled` or automated production on this check alone.

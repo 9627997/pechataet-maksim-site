@@ -7,6 +7,8 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
+require_once __DIR__ . '/PmLineArtworkExport.php';
+
 function pmq_config(): array
 {
     $path = dirname(__DIR__, 3) . '/private/pechataet-maksim-orders.php';
@@ -109,6 +111,13 @@ function pmq_process(string $directory, array $config): void
     foreach ([['ribbonPreviewPng', 'ribbon-preview.png'], ['stickerPreviewPng', 'sticker-preview.png']] as [$key, $file]) {
         if (is_file($directory . '/' . $file)) $order['artifacts'][$key] = base64_encode((string) file_get_contents($directory . '/' . $file));
     }
+    // Every item-specific SVG/PNG also accompanies the Google webhook.
+    // The order.json manifest contains only safe generated filenames; the
+    // exporter checks each against the server-verified basket and private files.
+    // Missing files fail the notification queue visibly instead of silently
+    // delivering an incomplete 3+3 order backup.
+    $itemArtworks = pm_export_line_artworks($directory, $order);
+    if ($itemArtworks !== []) $order['artifactsByItemId'] = $itemArtworks;
     $maxAttempts = max(1, min(5, (int) ($config['notifications']['max_attempts'] ?? 3)));
     $delay = max(0, min(10, (int) ($config['notifications']['retry_delay_seconds'] ?? 1)));
     $token = (string) ($config['telegram']['bot_token'] ?? '');
