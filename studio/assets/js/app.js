@@ -814,6 +814,22 @@ const bootStudio = () => {
   }
 
   function commitLogoAsset(asset, target, {returnToPreview = true} = {}) {
+    // SVG and traced assets finish asynchronously. On mobile WebKit, a user
+    // may type before its pending input event is reflected in canonical state.
+    // Reconcile a meaningful visible value BEFORE the file completion render,
+    // without overwriting any already-authored canonical text.
+    const visibleText = $('#textInput')?.value?.trim() || '';
+    const currentProduct = state.activeContentProduct;
+    if (visibleText && !getResolvedText(currentProduct).trim()) {
+      if (activeTextTarget === 'common') {
+        state.content.text.common = visibleText;
+        state.text = visibleText;
+        state.commonTextAuthored = true;
+        hasUsedCommonTextEditor = true;
+      } else {
+        state.content.text[currentProduct] = {mode: 'override', value: visibleText};
+      }
+    }
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
       // SVG/raster processing completes asynchronously. A logo upload must not
