@@ -30,6 +30,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
             backgroundColor: '#171717',
           },
         };
+  const stableExpiresAt = Math.floor(Date.now() / 1000) + 1800;
   const orderItems = [
     ...[1, 2, 3].map((index) => item('ribbon', index)),
     ...[1, 2, 3].map((index) => item('sticker', index)),
@@ -45,7 +46,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
           orderItems,
           finalClientPrice: '2990.00',
           currency: 'RUB',
-          expiresAt: Math.floor(Date.now() / 1000) + 1800,
+          expiresAt: stableExpiresAt,
           canSubmitOrder: false,
         }),
       });
@@ -57,7 +58,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
   await expect(
     page.locator('#linkedQuoteLines button'),
-  ).toHaveCount(6);
+  ).toHaveCount(12);
   const results = await page.evaluate(() => {
     const api = window.PmQuoteHandoff;
     let unknownRejected = false;
@@ -87,7 +88,36 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   expect(results.ids).toHaveLength(6);
   expect(results.count).toBe(1);
   expect(results.attached).toEqual(['ribbon-1']);
-  await expect(page.locator('#linkedQuoteLines button').first()).toHaveText(
+  await expect(page.locator('#linkedQuoteLines > li').first().locator('button').nth(1)).toHaveText(
     'Обновить макет позиции',
   );
+
+  // New workspaces are separate editor sessions: switching lines must not
+  // silently replace the first line's in-progress content with the second.
+  const first = page.locator('#linkedQuoteLines > li').nth(0);
+  const second = page.locator('#linkedQuoteLines > li').nth(1);
+  await first.locator('button').first().click();
+  await expect(first.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await page.locator('#textInput').evaluate((input) => {
+    input.value = 'Первая лента';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  await second.locator('button').first().click();
+  await expect(second.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await page.locator('#textInput').evaluate((input) => {
+    input.value = 'Вторая лента';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  await first.locator('button').first().click();
+  await expect(page.locator('#textInput')).toHaveValue('Первая лента');
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
+
+  // A reload is a real customer scenario. The private quote must re-resolve
+  // and the tab-scoped item drafts and explicit item artwork must return.
+  await page.reload({waitUntil: 'domcontentloaded'});
+  await expect(page.locator('#linkedQuoteSummary')).toHaveAttribute('data-status', 'ready');
+  await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
+  await expect(page.locator('#textInput')).toHaveValue('Первая лента');
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getArtworkCount())).toBe(1);
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
 });

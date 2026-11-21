@@ -814,6 +814,22 @@ const bootStudio = () => {
   }
 
   function commitLogoAsset(asset, target, {returnToPreview = true} = {}) {
+    // SVG and traced assets finish asynchronously. On mobile WebKit, a user
+    // may type before its pending input event is reflected in canonical state.
+    // Reconcile a meaningful visible value BEFORE the file completion render,
+    // without overwriting any already-authored canonical text.
+    const visibleText = $('#textInput')?.value?.trim() || '';
+    const currentProduct = state.activeContentProduct;
+    if (visibleText && !getResolvedText(currentProduct).trim()) {
+      if (activeTextTarget === 'common') {
+        state.content.text.common = visibleText;
+        state.text = visibleText;
+        state.commonTextAuthored = true;
+        hasUsedCommonTextEditor = true;
+      } else {
+        state.content.text[currentProduct] = {mode: 'override', value: visibleText};
+      }
+    }
     const normalizedTarget = normalizeLogoTarget(target);
     if (normalizedTarget === 'common') {
       // SVG/raster processing completes asynchronously. A logo upload must not
@@ -2882,6 +2898,9 @@ const bootStudio = () => {
     updateOrderProductControls();
 
     saveState();
+    if (activeQuoteEditorItemId && window.PmQuoteHandoff?.getState() === 'ready') {
+      window.PmQuoteHandoff.saveEditorDraft(activeQuoteEditorItemId, state);
+    }
     publishContentState();
     publishProductSelection();
   }
@@ -5551,6 +5570,70 @@ const bootStudio = () => {
     return window.PmQuoteHandoff?.augmentPayload(payload) || payload;
   }
 
+  // Linked quote workspaces are independent while this Studio tab is open.
+  // Captured per-line print artifacts remain immutable until explicitly
+  // recaptured. Never silently reuse one item's artwork for another item.
+  let activeQuoteEditorItemId = null;
+
+  document.addEventListener('studio:quote-edit-item', (event) => {
+    const itemId = event.detail?.itemId;
+    const item = window.PmQuoteHandoff?.getItems().find(
+      (entry) => entry.itemId === itemId,
+    );
+    if (!item) return;
+    const status = $('#linkedQuoteMessage');
+    try {
+      if (activeQuoteEditorItemId) {
+        window.PmQuoteHandoff.saveEditorDraft(activeQuoteEditorItemId, state);
+      }
+      const type = item.productType;
+      const cfg = item.configuration;
+      const saved = window.PmQuoteHandoff.getEditorDraft(itemId);
+      const next = saved ? structuredClone(saved) : createInitialState();
+      if (!saved) {
+        next.productFirstMode = true;
+        next.primaryProduct = type;
+        next.activeContentProduct = type;
+        next.activeSettingsProduct = type;
+        next.bundle = type;
+        next.meters = type === 'ribbon' ? 25 : 0;
+        next.stickerQty = type === 'sticker' ? 250 : 0;
+        if (type === 'ribbon') {
+          next.width = cfg.widthMm;
+          next.ribbon = cfg.materialColor;
+          next.productStyles.ribbon.print = cfg.printColor;
+          next.repeatMode = 'manual';
+          next.repeatMm = cfg.repeatMm;
+          next.repeatGapMm = cfg.repeatMm;
+        } else {
+          const variant = getStickerVariant(cfg.variantId);
+          next.stickerVariantId = variant.id;
+          next.stickerSize = variant.diameterMm || 40;
+          next.stickerBg = cfg.backgroundColor;
+          next.productStyles.sticker.print = cfg.printColor;
+        }
+      }
+      Object.assign(state, next);
+      const product = state.activeSettingsProduct;
+      syncLegacyStyleAliases(product);
+      syncLegacyContentAliasesFromContent();
+      setActiveContentProduct(type, {renderPreview: false});
+      setActiveSettingsProduct(type);
+      syncControls();
+      activeQuoteEditorItemId = itemId;
+      render();
+      window.PmQuoteHandoff.selectEditingItem(itemId);
+      if (status) {
+        status.textContent = saved
+          ? 'Восстановлен черновик этой позиции. После изменений снова сохраните её макет.'
+          : 'Создан отдельный черновик позиции. Добавьте текст или логотип и сохраните её макет. Количество остаётся из калькулятора.';
+      }
+    } catch (error) {
+      if (status) status.textContent =
+        'Не удалось открыть позицию: ' + (error?.message || 'проверьте параметры.');
+    }
+  });
+
   // Linked quotes may contain three different designs of each product.
   // Capture only the current, physically matching Studio artwork for the
   // explicitly selected canonical line, never replicate a type-level sample.
@@ -5565,6 +5648,9 @@ const bootStudio = () => {
     const status = $('#linkedQuoteMessage');
     const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
     try {
+      if (activeQuoteEditorItemId !== itemId) {
+        throw new Error('Сначала откройте «Редактировать эту позицию». Нельзя прикреплять текущий макет к другой строке.');
+      }
       if (document.body.dataset.artworkValid !== 'true' ||
           (!getResolvedText(type).trim() && !getResolvedLogo(type)?.logo)) {
         throw new Error('Добавьте надпись или логотип и проверьте печатную область.');
@@ -5598,11 +5684,24 @@ const bootStudio = () => {
             previewPng: draft.artifacts.stickerPreviewPng,
           };
       window.PmQuoteHandoff.registerItemArtwork(itemId, result);
+      window.PmQuoteHandoff.saveEditorDraft(itemId, state);
       if (status) status.textContent =
         'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
     } catch (error) {
       if (status) status.textContent =
         'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+    }
+  });
+
+  // A token can be restored from history.state across reload. The linked
+  // basket must first resolve on the server; only then restore a matching
+  // tab-scoped draft. Never attach an unverified session to a legacy order.
+  document.addEventListener('studio:quote-ready', () => {
+    const itemId = window.PmQuoteHandoff?.getEditingItemId();
+    if (itemId) {
+      document.dispatchEvent(
+        new CustomEvent('studio:quote-edit-item', {detail: {itemId}}),
+      );
     }
   });
 
@@ -5950,6 +6049,12 @@ const bootStudio = () => {
   );
   updateFirstStepAvailability();
   render();
+  const resumedItemId = window.PmQuoteHandoff?.getEditingItemId();
+  if (resumedItemId && window.PmQuoteHandoff?.getState() === 'ready') {
+    document.dispatchEvent(
+      new CustomEvent('studio:quote-edit-item', {detail: {itemId: resumedItemId}}),
+    );
+  }
   updateShowcaseContent();
   updateProductShowcase();
   document.fonts?.ready.then(() => render());

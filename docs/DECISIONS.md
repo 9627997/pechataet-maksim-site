@@ -984,3 +984,17 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: an optional production linked-quote release requires explicit exact-SHA authorization through GitHub Environment `PM_QUOTE_BETA_GO_SHA`. Default is OFF; other public Pricing 2 operations remain available.
 - The remote private deploy config is rebuilt in every deployment; its token flag must be derived exclusively from the verified release setting, not from stale hand-edits or browser-controlled values. Deployment verifies live `issue` and `resolve` when approved.
 - Production approval and final customer price remain manual. Pricing 3 is not activated. Do not approve a release SHA until end-to-end order/ZIP/notifications and all CI gates pass.
+
+## DEC-LINKED-PER-ITEM-EDITOR — Independent in-tab line sessions (21 November 2026)
+
+- Status: implemented in separate draft PR after #203; **not production-ready** until browser CI, runtime E2E, per-line output QA and refresh behavior are accepted.
+- Decision: linked quote items open independent active Studio editor state keyed by the immutable server canonical `itemId`. Selecting a new line saves the current editable state and restores a previous state's text/logo/product parameters, or starts an empty one seeded from that line's geometry/colors. The quote's original quantity is never overwritten by Studio presets.
+- Explicit per-item `Сохранить` remains required for snapshotting print artifacts. An edited draft cannot silently replace a previously captured file. Captured artifacts require manual physical verification.
+- Limitation: in-memory tab sessions do not survive browser refresh. Never advertise this as a finished persistent 3+3 editor or switch on automatic production. Full document persistence, end-to-end real ZIP/notifications and recovery remain future work. Issue #201/#204.
+
+## DEC-LINKED-SESSION-RESTORE — Recover verified per-item drafts on refresh (21 November 2026)
+
+- Status: draft PR #205, pending CI, not an approved release.
+- Decision: each linked quote history entry owns a random draft-session UUID. `sessionStorage` holds independent editor drafts and explicitly captured SVG/PNG for each canonical `itemId`; the bearer token remains in `history.state` only. The private server must re-resolve the token before any draft restoration; stored basket and expiry must match exactly.
+- Security: reject stale/changed quotes; do not use browser state for price or to authorize production. Browser quota exhaustion may prevent refresh recovery; tell the customer without silently losing submitted artwork. Session storage is not reliable across tab closure. Full server-backed persistence is not in scope.
+- Tests: 3+3 user switches between designs, then refreshes and reopens the first draft; captured files remain item-bound. Mobile selection interaction must not be covered by sticky preview. No release until browser CI and actual private order receiver tests pass.
