@@ -1,0 +1,31 @@
+name: Format temporary linked-order test files
+on:
+  push:
+    branches:
+      - agent/pm-linked-order-e2e-20261121
+permissions:
+  contents: write
+jobs:
+  prettier:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prettier --write scripts/check-linked-order-e2e.mjs scripts/check-order-receiver.mjs
+      - name: Push isolated format-only commit
+        shell: bash
+        run: |
+          if ! git diff --quiet -- scripts/check-linked-order-e2e.mjs scripts/check-order-receiver.mjs; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add scripts/check-linked-order-e2e.mjs scripts/check-order-receiver.mjs
+            git commit -m "style: format linked-order integration scripts"
+            git push origin HEAD:agent/pm-linked-order-e2e-20261121
+          fi
