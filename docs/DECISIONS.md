@@ -1021,3 +1021,7 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Decision: Drive webhook validates server-generated per-line manifest, saves exactly named SVG/PNG files and fails closed for mismatches; an incomplete previous folder must be repaired on retries even if `request.txt` exists. Google Sheets ledger insertion stays idempotent. Legacy orders remain compatible.
 - CI executes actual `Code.gs` with simulated Apps Script services, checking all six lines, 18 files, duplicate and partial deliveries, unsafe/missing content, and 1+1 legacy. This tests logic, not actual Google provider permissions, quotas or deploy version.
 - Release gate: explicitly publish a new Apps Script deployment and independently verify Drive files and Telegram ZIP with a controlled real order. Until then the public quote token feature remains OFF.
+
+### Google webhook versioned receipt requirement (22 Nov 2026)
+
+Server-side notification-worker must accept `google.status=sent` for 3+3 only if the Apps Script explicitly acknowledges `backupSchema=line-artworks-v2` and the exact count `lineFilesSaved=3×lineArtworkManifest.length`. An old Apps Script `ok:true` without receipt means fail/retry, not silent success. The returned metadata contains only schema and file count, not secrets, order content or provider URLs. Legacy orders with zero per-line artifacts remain unaffected.
