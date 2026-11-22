@@ -1025,3 +1025,7 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 ### Google webhook versioned receipt requirement (22 Nov 2026)
 
 Server-side notification-worker must accept `google.status=sent` for 3+3 only if the Apps Script explicitly acknowledges `backupSchema=line-artworks-v2` and the exact count `lineFilesSaved=3×lineArtworkManifest.length`. An old Apps Script `ok:true` without receipt means fail/retry, not silent success. The returned metadata contains only schema and file count, not secrets, order content or provider URLs. Legacy orders with zero per-line artifacts remain unaffected.
+
+### Preflight before enabling production quoteId (22 Nov 2026)
+
+The REG.RU deployment workflow checks the deployed Google Web App `GET` schema **before** staging private Pricing 2 config when `PM_QUOTE_BETA_GO_SHA` exactly matches the deployment commit. The Web App must return `ok:true, backupSchema:line-artworks-v2` (no secrets or customer data in GET); otherwise deployment stops with linked quote still OFF. This is a version preflight, not evidence that an actual 18-file order reached Drive: real provider acceptance remains mandatory.
