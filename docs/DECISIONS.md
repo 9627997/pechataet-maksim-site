@@ -1005,3 +1005,11 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Reason: the server ZIP already stores per-item files but the background Google webhook previously reconstructed only two legacy type-level designs. That would omit six independent files from Drive backup even if Telegram delivered the ZIP.
 - Decision: reconstruct `artifactsByItemId` from private `lineArtworkManifest` using validated canonical IDs, generated filenames and only on-disk files. Reject unsafe/missing data rather than silently sending an incomplete 3+3 reference package. Legacy orders without a manifest remain unchanged.
 - Test gate: run isolated real PHP POST for 3+3, 18 ZIP entries, replay/idempotency, mock Google worker delivery and explicit export rejection cases in PR CI. Real Google Drive webhook compatibility and Telegram provider delivery remain unverified and cannot be inferred from mock success. Never enable `quote_tokens_enabled` or automated production on this check alone.
+
+## DEC-QUOTE-SAFE-REISSUE — 30-minute quote renewal without trusting browser price (22 November 2026)
+
+- Status: draft PR; no production toggle approved.
+- Do not mutate expiry, prolong old token or reuse a stale amount. Request a new opaque quote through the same private Pricing 2 engine for the existing canonical item basket; then independently resolve and validate it.
+- Require exact basket equality, expiration parity, positive returned client total, and explicit customer confirmation when the total changes. Declining or failed checks never replace the old token or drafts.
+- Recover previously verified tab-local drafts after an expired-token reload only after successful server re-quotation for exactly the stored basket. Keep bearer token in `history.state`, never URL query/localStorage; keep drafts in tab-scoped sessionStorage.
+- New prices are preliminary; manual final review stays mandatory. The public quote feature flag stays OFF until provider/staging verification. An expired token can never authorize order acceptance without a new server check.
