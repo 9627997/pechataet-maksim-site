@@ -1013,3 +1013,19 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Require exact basket equality, expiration parity, positive returned client total, and explicit customer confirmation when the total changes. Declining or failed checks never replace the old token or drafts.
 - Recover previously verified tab-local drafts after an expired-token reload only after successful server re-quotation for exactly the stored basket. Keep bearer token in `history.state`, never URL query/localStorage; keep drafts in tab-scoped sessionStorage.
 - New prices are preliminary; manual final review stays mandatory. The public quote feature flag stays OFF until provider/staging verification. An expired token can never authorize order acceptance without a new server check.
+
+## DEC-DRIVE-APP-SCRIPT-3X3 — Verify each independent file is saved (22 Nov 2026)
+
+- Status: draft; do not equate GitHub publication with a new live Google Apps Script deployment.
+- Source-of-truth discrepancy: PHP notification-worker supplies all per-line artwork after PR #206, but existing Google Apps Script discarded those fields while returning `ok:true`.
+- Decision: Drive webhook validates server-generated per-line manifest, saves exactly named SVG/PNG files and fails closed for mismatches; an incomplete previous folder must be repaired on retries even if `request.txt` exists. Google Sheets ledger insertion stays idempotent. Legacy orders remain compatible.
+- CI executes actual `Code.gs` with simulated Apps Script services, checking all six lines, 18 files, duplicate and partial deliveries, unsafe/missing content, and 1+1 legacy. This tests logic, not actual Google provider permissions, quotas or deploy version.
+- Release gate: explicitly publish a new Apps Script deployment and independently verify Drive files and Telegram ZIP with a controlled real order. Until then the public quote token feature remains OFF.
+
+### Google webhook versioned receipt requirement (22 Nov 2026)
+
+Server-side notification-worker must accept `google.status=sent` for 3+3 only if the Apps Script explicitly acknowledges `backupSchema=line-artworks-v2` and the exact count `lineFilesSaved=3×lineArtworkManifest.length`. An old Apps Script `ok:true` without receipt means fail/retry, not silent success. The returned metadata contains only schema and file count, not secrets, order content or provider URLs. Legacy orders with zero per-line artifacts remain unaffected.
+
+### Preflight before enabling production quoteId (22 Nov 2026)
+
+The REG.RU deployment workflow checks the deployed Google Web App `GET` schema **before** staging private Pricing 2 config when `PM_QUOTE_BETA_GO_SHA` exactly matches the deployment commit. The Web App must return `ok:true, backupSchema:line-artworks-v2` (no secrets or customer data in GET); otherwise deployment stops with linked quote still OFF. This is a version preflight, not evidence that an actual 18-file order reached Drive: real provider acceptance remains mandatory.

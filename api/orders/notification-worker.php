@@ -60,7 +60,14 @@ function pmq_request(string $url, array $payload, ?array $file = null, array $he
     $decoded = is_string($body) ? json_decode($body, true) : null;
     // Telegram объясняет отказ в description ответа — сохраняем для логов.
     $description = is_array($decoded) && isset($decoded['description']) ? (string) $decoded['description'] : '';
-    return ['ok' => $body !== false && $status >= 200 && $status < 300 && (!is_array($decoded) || ($decoded['ok'] ?? true) !== false), 'status' => $status, 'error' => $error !== '' ? $error : $description];
+    return [
+        'ok' => $body !== false && $status >= 200 && $status < 300 && (!is_array($decoded) || ($decoded['ok'] ?? true) !== false),
+        'status' => $status,
+        'error' => $error !== '' ? $error : $description,
+        // Metadata only, never the provider body, URL or shared secret.
+        'backupSchema' => is_array($decoded) ? ($decoded['backupSchema'] ?? null) : null,
+        'lineFilesSaved' => is_array($decoded) ? ($decoded['lineFilesSaved'] ?? null) : null,
+    ];
 }
 
 function pmq_attempt(callable $callback, int $max, int $delay): array
@@ -162,7 +169,22 @@ function pmq_process(string $directory, array $config): void
         ? $previous['google']
         : ($googleUrl === '' ? ['status' => 'disabled'] : pmq_attempt(function () use ($config, $order, $googleUrl): array {
         $result = pmq_request($googleUrl, ['secret' => $config['google']['shared_secret'], 'order' => $order]);
-        return ['status' => $result['ok'] ? 'sent' : 'failed', 'httpStatus' => $result['status'] ?? 0] + $result;
+        $lineCount = count($order['lineArtworkManifest'] ?? []);
+        // Old deployed Apps Script returned ok:true while silently ignoring
+        // all six line files. Only a versioned receipt can mark a linked
+        // backup as sent; legacy 1+1 requests keep their old contract.
+        $complete = $result['ok'] && (
+            $lineCount === 0 || (
+                ($result['backupSchema'] ?? '') === 'line-artworks-v2' &&
+                ($result['lineFilesSaved'] ?? null) === 3 * $lineCount
+            )
+        );
+        return [
+            'status' => $complete ? 'sent' : 'failed',
+            'httpStatus' => $result['status'] ?? 0,
+            'error' => !$complete && $result['ok'] && $lineCount > 0
+                ? 'line_backup_receipt_missing' : ($result['error'] ?? ''),
+        ] + $result;
     }, $maxAttempts, $delay));
     $maxToken = (string) ($config['max']['access_token'] ?? '');
     $maxChat = (string) ($config['max']['chat_id'] ?? '');

@@ -68,6 +68,35 @@ jobs:
           private_dir="${RUNNER_TEMP}/pm-calc-private-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           python3 scripts/check-private-pricing-bundle.py "${private_dir}"
 
+      # A quote release must fail BEFORE changing private config if the
+      # deployed Google Web App is still the old 1+1-only version. GET has
+      # no customer data or shared secret and returns schema metadata only.
+      - name: Verify Google 3+3 backup schema before linked quote release
+        if: ${{ vars.PM_QUOTE_BETA_GO_SHA == github.sha }}
+        shell: bash
+        env:
+          PM_GOOGLE_WEBHOOK_URL: ${{ secrets.PM_GOOGLE_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PM_GOOGLE_WEBHOOK_URL:-}" ]; then
+            echo "BLOCK: Google webhook is required for linked quote release" >&2
+            exit 1
+          fi
+          # Never print the private Web App URL or any response body.
+          provider_health="$(
+            curl --fail --silent --location --retry 3 \
+              --connect-timeout 5 --max-time 35 "${PM_GOOGLE_WEBHOOK_URL}"
+          )" || { echo "BLOCK: Google backup health unavailable" >&2; exit 1; }
+          PROVIDER_HEALTH="${provider_health}" node -e '
+            let x;
+            try { x = JSON.parse(process.env.PROVIDER_HEALTH); }
+            catch { process.exit(2); }
+            if (x.ok !== true || x.backupSchema !== "line-artworks-v2") {
+              process.exit(3);
+            }
+            console.log("PASS: deployed Google Drive backup declares 3+3 schema");
+          ' || { echo "BLOCK: Google Web App must be deployed with line-artworks-v2" >&2; exit 1; }
+
       - name: Install private Pricing 2.0 outside REG.RU document root
         shell: bash
         env:

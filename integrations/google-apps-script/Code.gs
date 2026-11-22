@@ -11,7 +11,7 @@ function jsonResponse(payload) {
 }
 
 function doGet() {
-  return jsonResponse({ ok: true, service: 'studio-drive-backup' });
+  return jsonResponse({ ok: true, service: 'studio-drive-backup', backupSchema: 'line-artworks-v2' });
 }
 
 function safeCell(value) {
@@ -37,6 +37,106 @@ function orderSummary(order) {
       ? `Стикеры: Ø${sticker.diameterMm} мм · ${sticker.quantity} шт.`
       : 'Стикеры: не выбраны',
   ].join('\n');
+}
+
+// The notification worker supplies SVG and base64 PNG bytes for every
+// individually prepared quote line. Rebuild only generated server filenames;
+// never derive Drive filenames from arbitrary client itemId strings.
+function orderArtworkFiles(order) {
+  const legacy = [
+    ['ribbonSvg', 'ribbon.svg', 'image/svg+xml'],
+    ['stickerSvg', 'sticker.svg', 'image/svg+xml'],
+    ['ribbonPreviewSvg', 'ribbon-preview.svg', 'image/svg+xml'],
+    ['ribbonPrintSvg', 'ribbon-print-black.svg', 'image/svg+xml'],
+    ['stickerPreviewSvg', 'sticker-preview.svg', 'image/svg+xml'],
+    ['stickerPrintSvg', 'sticker-print-black.svg', 'image/svg+xml'],
+    ['ribbonPreviewPng', 'ribbon-preview.png', 'image/png'],
+    ['stickerPreviewPng', 'sticker-preview.png', 'image/png'],
+  ];
+  const files = [];
+  for (const [key, name, mime] of legacy) {
+    const content = order.artifacts?.[key];
+    if (typeof content === 'string' && content !== '') {
+      files.push({ name, mime, content, isPng: mime === 'image/png' });
+    }
+  }
+
+  const manifest = order.lineArtworkManifest || [];
+  const linked = order.linkedBasket?.orderItems || [];
+  const artwork = order.artifactsByItemId;
+  if (!Array.isArray(manifest) || manifest.length > 6) {
+    throw new Error('invalid_line_manifest');
+  }
+  if (manifest.length === 0) {
+    if (artwork && Object.keys(artwork).length) {
+      throw new Error('unexpected_line_artwork');
+    }
+    return files;
+  }
+  if (!Array.isArray(linked) || linked.length < 1 || linked.length > 6 ||
+      !artwork || typeof artwork !== 'object' || Array.isArray(artwork) ||
+      Object.keys(artwork).length !== manifest.length) {
+    throw new Error('incomplete_line_artwork');
+  }
+  const ids = linked.map((item) => item.itemId);
+  if (new Set(ids).size !== linked.length) {
+    throw new Error('invalid_canonical_items');
+  }
+  const seen = new Set();
+  for (let lineIndex = 0; lineIndex < manifest.length; lineIndex++) {
+    const line = manifest[lineIndex];
+    const id = line?.itemId;
+    const index = ids.indexOf(id);
+    if (typeof id !== 'string' || index < 0 || seen.has(id)) {
+      throw new Error('line_item_mismatch');
+    }
+    seen.add(id);
+    const data = artwork[id];
+    if (!data || Object.keys(data).sort().join(',') !==
+        'previewPng,previewSvg,printSvg') {
+      throw new Error('missing_line_files');
+    }
+    const prefix = 'line-' + String(lineIndex + 1).padStart(2, '0');
+    for (const [key, suffix, mime] of [
+      ['previewSvg', '-preview.svg', 'image/svg+xml'],
+      ['printSvg', '-print.svg', 'image/svg+xml'],
+      ['previewPng', '-preview.png', 'image/png'],
+    ]) {
+      const name = prefix + suffix;
+      const content = data[key];
+      if (line[key] !== name || typeof content !== 'string' ||
+          content.length < 8 || content.length > 11000000) {
+        throw new Error('invalid_line_file');
+      }
+      files.push({ name, mime, content, isPng: key === 'previewPng' });
+    }
+  }
+  return files;
+}
+
+function saveBackupFile(folder, file) {
+  const existing = folder.getFilesByName(file.name);
+  if (existing.hasNext()) {
+    if (existing.next().getSize() <= 0) throw new Error('empty_backup_file');
+    return;
+  }
+  if (file.isPng) {
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(file.content)) {
+      throw new Error('invalid_png_base64');
+    }
+    const bytes = Utilities.base64Decode(file.content);
+    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    if (bytes.length <= 8 || signature.some((value, i) =>
+      (bytes[i] & 255) !== value)) {
+      throw new Error('invalid_png_signature');
+    }
+    folder.createFile(Utilities.newBlob(bytes, 'image/png', file.name));
+  } else {
+    if (!file.content.includes('<svg')) {
+      throw new Error('invalid_svg');
+    }
+    folder.createFile(file.name, file.content, 'image/svg+xml');
+  }
 }
 
 function doPost(event) {
@@ -68,54 +168,40 @@ function doPost(event) {
         : root.createFolder(order.orderId);
       const summary = orderSummary(order);
 
+      // Validate the entire six-line manifest BEFORE saving any files.
+      // A partial or invalid Drive backup must never return ok:true.
+      const artworkFiles = orderArtworkFiles(order);
+      const savedOrder = {
+        ...order,
+        artifacts: undefined,
+        artifactsByItemId: undefined,
+      };
+      const files = [
+        {
+          name: 'order.json',
+          mime: 'text/plain',
+          content: JSON.stringify(savedOrder, null, 2),
+          isPng: false,
+        },
+        ...artworkFiles,
+      ];
+      for (const file of files) {
+        if (file.name === 'order.json') {
+          if (!folder.getFilesByName(file.name).hasNext()) {
+            folder.createFile(file.name, file.content, MimeType.PLAIN_TEXT);
+          }
+        } else {
+          saveBackupFile(folder, file);
+        }
+      }
+      // Completion marker LAST. On webhook retry repair missing artifacts
+      // even when an earlier attempt already wrote request.txt.
       if (!folder.getFilesByName('request.txt').hasNext()) {
         folder.createFile('request.txt', summary, MimeType.PLAIN_TEXT);
-        folder.createFile(
-          'order.json',
-          JSON.stringify({ ...order, artifacts: undefined }, null, 2),
-          MimeType.PLAIN_TEXT,
-        );
-        if (order.artifacts?.ribbonSvg) {
-          folder.createFile(
-            'ribbon.svg',
-            order.artifacts.ribbonSvg,
-            'image/svg+xml',
-          );
-        }
-        if (order.artifacts?.stickerSvg) {
-          folder.createFile(
-            'sticker.svg',
-            order.artifacts.stickerSvg,
-            'image/svg+xml',
-          );
-        }
-        if (order.artifacts?.ribbonPreviewSvg) {
-          folder.createFile(
-            'ribbon-preview.svg',
-            order.artifacts.ribbonPreviewSvg,
-            'image/svg+xml',
-          );
-        }
-        if (order.artifacts?.ribbonPrintSvg) {
-          folder.createFile(
-            'ribbon-print-black.svg',
-            order.artifacts.ribbonPrintSvg,
-            'image/svg+xml',
-          );
-        }
-        if (order.artifacts?.stickerPreviewSvg) {
-          folder.createFile(
-            'sticker-preview.svg',
-            order.artifacts.stickerPreviewSvg,
-            'image/svg+xml',
-          );
-        }
-        if (order.artifacts?.stickerPrintSvg) {
-          folder.createFile(
-            'sticker-print-black.svg',
-            order.artifacts.stickerPrintSvg,
-            'image/svg+xml',
-          );
+      }
+      for (const file of files) {
+        if (!folder.getFilesByName(file.name).hasNext()) {
+          throw new Error('drive_file_missing');
         }
       }
 
@@ -140,7 +226,14 @@ function doPost(event) {
         ]);
       }
 
-      return jsonResponse({ ok: true, folderUrl: folder.getUrl() });
+      return jsonResponse({
+        ok: true,
+        folderUrl: folder.getUrl(),
+        backupSchema: 'line-artworks-v2',
+        lineFilesSaved: order.lineArtworkManifest?.length
+          ? order.lineArtworkManifest.length * 3
+          : 0,
+      });
     } finally {
       lock.releaseLock();
     }
