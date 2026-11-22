@@ -8,7 +8,7 @@
     history.state && typeof history.state === 'object' ? history.state : {};
   const rememberedToken =
     typeof previousState.pmQuoteId === 'string' ? previousState.pmQuoteId : null;
-  const token = fragmentToken ?? rememberedToken;
+  let token = fragmentToken ?? rememberedToken;
   const fromQuoteLink = token !== null;
   if (fragmentToken !== null) {
     // Preserve only in this history entry to survive a Studio refresh. Never
@@ -47,9 +47,41 @@
     );
   }
   let persistenceWarning = '';
+  let renewalMessage = '';
+  let renewalBusy = false;
   const root = document.getElementById('linkedQuoteSummary');
   const message = document.getElementById('linkedQuoteMessage');
   const list = document.getElementById('linkedQuoteLines');
+  const renewalButton = document.createElement('button');
+  renewalButton.id = 'linkedQuoteRenew';
+  renewalButton.className = 'button ghost';
+  renewalButton.type = 'button';
+  renewalButton.textContent = 'Продлить расчёт на 30 минут';
+  renewalButton.addEventListener('click', () => {
+    void renewQuote();
+  });
+  if (root && list) root.insertBefore(renewalButton, list);
+
+  function readSessionSnapshot() {
+    if (!draftStorageKey) return null;
+    try {
+      const value = JSON.parse(sessionStorage.getItem(draftStorageKey) || 'null');
+      if (value?.schema !== 1 || !Array.isArray(value.orderItems) ||
+          value.orderItems.length < 1 || value.orderItems.length > 6 ||
+          !Number.isInteger(value.expiresAt)) return null;
+      return value;
+    } catch {
+      return null;
+    }
+  }
+
+  const sameItems = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const validServerQuote = (value, operation) =>
+    value?.status === operation && value.canSubmitOrder === false &&
+    Number.isInteger(value.expiresAt) &&
+    value.expiresAt > Date.now() / 1000 &&
+    Number.isFinite(Number(value.finalClientPrice)) &&
+    Number(value.finalClientPrice) > 0;
 
   const safeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
   function label(item) {
@@ -70,14 +102,24 @@
     if (persistenceWarning) root.dataset.persistenceWarning = 'true';
     else delete root.dataset.persistenceWarning;
     list.replaceChildren();
+    const recoverable = status === 'invalid' && readSessionSnapshot() !== null;
+    renewalButton.hidden = status !== 'ready' && !recoverable;
+    renewalButton.disabled = renewalBusy;
+    renewalButton.textContent = renewalBusy
+      ? 'Обновляем расчёт на сервере…'
+      : status === 'ready' ? 'Продлить расчёт на 30 минут' : 'Восстановить расчёт';
     if (status === 'loading') {
       message.textContent = 'Проверяем корзину калькулятора на сервере…';
     } else if (status === 'ready') {
       message.textContent =
+        (record.expiresAt <= Date.now() / 1000
+          ? 'Срок расчёта истёк. Нажмите «Продлить расчёт на 30 минут» перед отправкой заявки. '
+          : '') +
         'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
         ' ₽. Ниже остаются макеты-образцы, а каждый сохранённый файл отдельной позиции согласует Максим до производства.' +
-        (persistenceWarning ? ' ' + persistenceWarning : '');
+        (persistenceWarning ? ' ' + persistenceWarning : '') +
+        (renewalMessage ? ' ' + renewalMessage : '');
       for (const item of record.orderItems) {
         const li = document.createElement('li');
         const details = document.createElement('span');
@@ -109,15 +151,17 @@
         list.append(li);
       }
     } else {
-      message.textContent =
-        'Этот расчёт недействителен или устарел. Вернитесь в калькулятор и повторите расчёт: привязанную корзину нельзя отправлять как обычную заявку.';
+      message.textContent = recoverable
+        ? 'Расчёт недействителен или истёк, но ваши черновики остались в этой вкладке. Нажмите «Восстановить расчёт» для новой проверки цены на сервере.' +
+          (renewalMessage ? ' ' + renewalMessage : '')
+        : 'Этот расчёт недействителен или устарел. Вернитесь в калькулятор и повторите расчёт: привязанную корзину нельзя отправлять как обычную заявку.';
     }
   }
 
-  const validToken = typeof token === 'string' && /^[a-f0-9]{48}$/.test(token);
+  const isValidToken = (value) => typeof value === 'string' && /^[a-f0-9]{48}$/.test(value);
   async function load() {
     if (!fromQuoteLink) return;
-    if (!validToken) {
+    if (!isValidToken(token)) {
       status = 'invalid';
       render();
       return;
@@ -129,10 +173,9 @@
         body: JSON.stringify({operation: 'resolve', quoteId: token}),
       });
       const value = await reply.json().catch(() => ({}));
-      if (!reply.ok || value.status !== 'quote_resolved' ||
+      if (!reply.ok || !validServerQuote(value, 'quote_resolved') ||
           !Array.isArray(value.orderItems) || value.orderItems.length < 1 ||
-          value.orderItems.length > 6 || value.canSubmitOrder !== false ||
-          !Number.isInteger(value.expiresAt) || value.expiresAt <= Date.now() / 1000) {
+          value.orderItems.length > 6) {
         throw new Error('QUOTE_INVALID');
       }
       record = {
@@ -158,6 +201,7 @@
       sessionStorage.setItem(draftStorageKey, JSON.stringify({
         schema: 1,
         expiresAt: record.expiresAt,
+        finalClientPrice: record.finalClientPrice,
         orderItems: record.orderItems,
         editorDrafts: Object.fromEntries(editorDrafts),
         lineArtworks: Object.fromEntries(lineArtworks),
@@ -173,16 +217,9 @@
 
   function restoreSessionDrafts() {
     if (!draftStorageKey || status !== 'ready' || !record) return;
-    let snapshot;
-    try {
-      snapshot = JSON.parse(sessionStorage.getItem(draftStorageKey) || 'null');
-    } catch {
-      return;
-    }
-    if (!snapshot || snapshot.schema !== 1 ||
-        snapshot.expiresAt !== record.expiresAt ||
-        JSON.stringify(snapshot.orderItems) !== JSON.stringify(record.orderItems)) {
-      sessionStorage.removeItem(draftStorageKey);
+    const snapshot = readSessionSnapshot();
+    if (!snapshot || snapshot.expiresAt !== record.expiresAt ||
+        !sameItems(snapshot.orderItems, record.orderItems)) {
       return;
     }
     const ids = new Set(record.orderItems.map((item) => item.itemId));
@@ -202,6 +239,104 @@
     // Active session is reloaded as a draft by app.js, not implicitly sent.
     if (ids.has(snapshot.editingItemId)) {
       editingItemId = snapshot.editingItemId;
+    }
+  }
+
+  // Reissue is a fresh server-side Pricing 2 calculation, never a local
+  // extension of an expired quote. The newly issued token is resolved and
+  // compared with the original basket before any draft can be reattached.
+  // A changed amount is presented for explicit customer consent.
+  async function renewQuote() {
+    if (renewalBusy || !fromQuoteLink) return false;
+    const snapshot = record === null ? readSessionSnapshot() : null;
+    const original = record || snapshot;
+    if (!original || !Array.isArray(original.orderItems)) return false;
+    renewalBusy = true;
+    renewalMessage = '';
+    render();
+    try {
+      const issueReply = await fetch('/api/calc/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          operation: 'issue',
+          orderItems: structuredClone(original.orderItems),
+        }),
+      });
+      const issued = await issueReply.json().catch(() => ({}));
+      if (!issueReply.ok || !validServerQuote(issued, 'quote_issued') ||
+          !isValidToken(issued.quoteId)) throw new Error('ISSUE_FAILED');
+
+      const resolveReply = await fetch('/api/calc/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({operation: 'resolve', quoteId: issued.quoteId}),
+      });
+      const verified = await resolveReply.json().catch(() => ({}));
+      if (!resolveReply.ok || !validServerQuote(verified, 'quote_resolved') ||
+          !Array.isArray(verified.orderItems) ||
+          !sameItems(verified.orderItems, original.orderItems) ||
+          verified.expiresAt !== issued.expiresAt ||
+          Number(verified.finalClientPrice) !== Number(issued.finalClientPrice)) {
+        throw new Error('QUOTE_CHANGED');
+      }
+
+      const oldPrice = Number(original.finalClientPrice);
+      const newPrice = Number(verified.finalClientPrice);
+      if (!Number.isFinite(oldPrice) || oldPrice !== newPrice) {
+        const previous = Number.isFinite(oldPrice)
+          ? oldPrice.toLocaleString('ru-RU') + ' ₽'
+          : 'неизвестна';
+        const approved = window.confirm(
+          'Предварительная цена изменилась. Прежняя: ' + previous +
+          '. Новая: ' + newPrice.toLocaleString('ru-RU') +
+          ' ₽. Продолжить оформление по новой цене?',
+        );
+        if (!approved) {
+          renewalMessage = 'Новая предварительная цена не подтверждена. Заказ не изменён.';
+          return false;
+        }
+      }
+
+      // Restore a tab's previously verified per-line drafts only AFTER
+      // the fresh server quote proves the exact same canonical basket.
+      // Never copy drafts to a differently shaped or repriced SKU list.
+      if (snapshot) {
+        const ids = new Set(verified.orderItems.map((item) => item.itemId));
+        for (const [id, draft] of Object.entries(snapshot.editorDrafts || {})) {
+          if (ids.has(id) && draft && typeof draft === 'object') {
+            editorDrafts.set(id, structuredClone(draft));
+          }
+        }
+        for (const [id, artwork] of Object.entries(snapshot.lineArtworks || {})) {
+          if (ids.has(id) && artwork && typeof artwork.previewSvg === 'string' &&
+              typeof artwork.printSvg === 'string' && typeof artwork.previewPng === 'string') {
+            lineArtworks.set(id, structuredClone(artwork));
+          }
+        }
+        if (ids.has(snapshot.editingItemId)) editingItemId = snapshot.editingItemId;
+      }
+      token = issued.quoteId;
+      record = {
+        orderItems: structuredClone(verified.orderItems),
+        finalClientPrice: verified.finalClientPrice,
+        expiresAt: verified.expiresAt,
+      };
+      history.replaceState({...history.state, pmQuoteId: token},
+        '', location.pathname + location.search);
+      status = 'ready';
+      persistSessionDrafts();
+      renewalMessage = 'Новый предварительный расчёт подтверждён. Черновики и сохранённые макеты не удалены.';
+      if (snapshot && editingItemId) {
+        document.dispatchEvent(new CustomEvent('studio:quote-ready'));
+      }
+      return true;
+    } catch {
+      renewalMessage = 'Не удалось обновить расчёт. Макеты сохранены в этой вкладке; проверьте соединение и повторите.';
+      return false;
+    } finally {
+      renewalBusy = false;
+      render();
     }
   }
 
@@ -264,7 +399,7 @@
   function augmentPayload(payload) {
     if (!fromQuoteLink) return payload;
     if (status !== 'ready' || record === null || record.expiresAt <= Date.now() / 1000) {
-      throw new Error('Срок действия расчёта истёк или корзина недоступна. Откройте калькулятор и пересчитайте заказ.');
+      throw new Error('Срок расчёта истёк или сервер недоступен. Нажмите «Продлить расчёт на 30 минут»; ваши макеты останутся в Studio.');
     }
     // The order receiver MUST compare these items with the token snapshot and
     // calculate the customer amount itself. Studio artwork is reference-only.
@@ -287,6 +422,9 @@
   window.PmQuoteHandoff = Object.freeze({
     load,
     augmentPayload,
+    renewQuote,
+    getExpiresAt: () => record?.expiresAt ?? null,
+    getClientPrice: () => record?.finalClientPrice ?? null,
     registerItemArtwork,
     clearItemArtwork,
     saveEditorDraft,
