@@ -1013,3 +1013,11 @@ base64 (Manrope, Oswald cyrillic+latin), чтобы файл рендерилс�
 - Require exact basket equality, expiration parity, positive returned client total, and explicit customer confirmation when the total changes. Declining or failed checks never replace the old token or drafts.
 - Recover previously verified tab-local drafts after an expired-token reload only after successful server re-quotation for exactly the stored basket. Keep bearer token in `history.state`, never URL query/localStorage; keep drafts in tab-scoped sessionStorage.
 - New prices are preliminary; manual final review stays mandatory. The public quote feature flag stays OFF until provider/staging verification. An expired token can never authorize order acceptance without a new server check.
+
+## DEC-DRIVE-APP-SCRIPT-3X3 — Verify each independent file is saved (22 Nov 2026)
+
+- Status: draft; do not equate GitHub publication with a new live Google Apps Script deployment.
+- Source-of-truth discrepancy: PHP notification-worker supplies all per-line artwork after PR #206, but existing Google Apps Script discarded those fields while returning `ok:true`.
+- Decision: Drive webhook validates server-generated per-line manifest, saves exactly named SVG/PNG files and fails closed for mismatches; an incomplete previous folder must be repaired on retries even if `request.txt` exists. Google Sheets ledger insertion stays idempotent. Legacy orders remain compatible.
+- CI executes actual `Code.gs` with simulated Apps Script services, checking all six lines, 18 files, duplicate and partial deliveries, unsafe/missing content, and 1+1 legacy. This tests logic, not actual Google provider permissions, quotas or deploy version.
+- Release gate: explicitly publish a new Apps Script deployment and independently verify Drive files and Telegram ZIP with a controlled real order. Until then the public quote token feature remains OFF.
