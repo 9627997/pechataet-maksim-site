@@ -82,9 +82,16 @@ try {
     for await (const chunk of req) body += chunk.toString();
     payloads.push(JSON.parse(body));
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(providerReceiptEnabled
-      ? JSON.stringify({ok:true,backupSchema:'line-artworks-v2',lineFilesSaved:(payloads.at(-1)?.order?.lineArtworkManifest?.length || 0)*3})
-      : '{"ok":true}');
+    res.end(
+      providerReceiptEnabled
+        ? JSON.stringify({
+            ok: true,
+            backupSchema: 'line-artworks-v2',
+            lineFilesSaved:
+              (payloads.at(-1)?.order?.lineArtworkManifest?.length || 0) * 3,
+          })
+        : '{"ok":true}',
+    );
   });
   const hookPort = await port();
   await new Promise((done) => hook.listen(hookPort, '127.0.0.1', done));
@@ -298,7 +305,9 @@ try {
   assert.equal(notifications.google.status, 'failed');
   assert.equal(notifications.google.error, 'line_backup_receipt_missing');
   assert.equal(
-    JSON.parse(await readFile(join(directory, 'notification-queue.json'), 'utf8')).status,
+    JSON.parse(
+      await readFile(join(directory, 'notification-queue.json'), 'utf8'),
+    ).status,
     'partial_failure',
   );
 
@@ -314,7 +323,9 @@ try {
   assert.equal(completed.google.status, 'sent');
   assert.equal(completed.google.lineFilesSaved, 18);
   assert.equal(
-    JSON.parse(await readFile(join(directory, 'notification-queue.json'), 'utf8')).status,
+    JSON.parse(
+      await readFile(join(directory, 'notification-queue.json'), 'utf8'),
+    ).status,
     'sent',
   );
   assert.equal(payloads.length, 2);
