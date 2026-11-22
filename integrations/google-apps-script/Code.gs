@@ -83,7 +83,8 @@ function orderArtworkFiles(order) {
     throw new Error('invalid_canonical_items');
   }
   const seen = new Set();
-  for (const line of manifest) {
+  for (let lineIndex = 0; lineIndex < manifest.length; lineIndex++) {
+    const line = manifest[lineIndex];
     const id = line?.itemId;
     const index = ids.indexOf(id);
     if (typeof id !== 'string' || index < 0 || seen.has(id)) {
@@ -95,7 +96,7 @@ function orderArtworkFiles(order) {
         'previewPng,previewSvg,printSvg') {
       throw new Error('missing_line_files');
     }
-    const prefix = 'line-' + String(index + 1).padStart(2, '0');
+    const prefix = 'line-' + String(lineIndex + 1).padStart(2, '0');
     for (const [key, suffix, mime] of [
       ['previewSvg', '-preview.svg', 'image/svg+xml'],
       ['printSvg', '-print.svg', 'image/svg+xml'],
