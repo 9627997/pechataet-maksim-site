@@ -11,7 +11,7 @@ function jsonResponse(payload) {
 }
 
 function doGet() {
-  return jsonResponse({ ok: true, service: 'studio-drive-backup' });
+  return jsonResponse({ ok: true, service: 'studio-drive-backup', backupSchema: 'line-artworks-v2' });
 }
 
 function safeCell(value) {
@@ -226,7 +226,14 @@ function doPost(event) {
         ]);
       }
 
-      return jsonResponse({ ok: true, folderUrl: folder.getUrl() });
+      return jsonResponse({
+        ok: true,
+        folderUrl: folder.getUrl(),
+        backupSchema: 'line-artworks-v2',
+        lineFilesSaved: order.lineArtworkManifest?.length
+          ? order.lineArtworkManifest.length * 3
+          : 0,
+      });
     } finally {
       lock.releaseLock();
     }
