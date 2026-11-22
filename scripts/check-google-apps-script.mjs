@@ -6,7 +6,6 @@ const source = await readFile(
   'integrations/google-apps-script/Code.gs',
   'utf8',
 );
-const folders = new Map();
 const sheetRows = [];
 const png = Buffer.concat([
   Buffer.from('89504e470d0a1a0a', 'hex'),
