@@ -27,6 +27,7 @@ const png =
 let server;
 let hook;
 const payloads = [];
+let providerReceiptEnabled = false;
 
 const port = async () => {
   const probe = createTcpServer();
@@ -81,7 +82,9 @@ try {
     for await (const chunk of req) body += chunk.toString();
     payloads.push(JSON.parse(body));
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end('{"ok":true}');
+    res.end(providerReceiptEnabled
+      ? JSON.stringify({ok:true,backupSchema:'line-artworks-v2',lineFilesSaved:(payloads.at(-1)?.order?.lineArtworkManifest?.length || 0)*3})
+      : '{"ok":true}');
   });
   const hookPort = await port();
   await new Promise((done) => hook.listen(hookPort, '127.0.0.1', done));
@@ -292,16 +295,31 @@ try {
   const notifications = JSON.parse(
     await readFile(join(directory, 'notifications.json'), 'utf8'),
   );
-  assert.equal(notifications.google.status, 'sent');
+  assert.equal(notifications.google.status, 'failed');
+  assert.equal(notifications.google.error, 'line_backup_receipt_missing');
   assert.equal(
-    JSON.parse(
-      await readFile(join(directory, 'notification-queue.json'), 'utf8'),
-    ).status,
+    JSON.parse(await readFile(join(directory, 'notification-queue.json'), 'utf8')).status,
+    'partial_failure',
+  );
+
+  // An old deployed Apps Script may claim ok:true without saving line files.
+  // Once an updated provider returns an explicit receipt, a retry can succeed.
+  providerReceiptEnabled = true;
+  await spawnDone(php, [join(web, 'api/orders/notification-worker.php')], {
+    env: { ...process.env, PM_ORDER_STORAGE_DIR: storage },
+  });
+  const completed = JSON.parse(
+    await readFile(join(directory, 'notifications.json'), 'utf8'),
+  );
+  assert.equal(completed.google.status, 'sent');
+  assert.equal(completed.google.lineFilesSaved, 18);
+  assert.equal(
+    JSON.parse(await readFile(join(directory, 'notification-queue.json'), 'utf8')).status,
     'sent',
   );
-  assert.equal(payloads.length, 1);
+  assert.equal(payloads.length, 2);
   console.log(
-    'PASS: real PHP 3+3 order, 18 independent ZIP assets, replay/idempotency and mocked Google delivery',
+    'PASS: real PHP 3+3 order, 18 independent ZIP assets, retry/idempotency and versioned Google receipt',
   );
 } finally {
   if (server) server.kill('SIGTERM');
