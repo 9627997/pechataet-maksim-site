@@ -406,3 +406,41 @@ jobs:
               exit 1
             fi
           done
+
+      # Read-only, intentionally nonblocking while linked quotes are OFF.
+      # This inspects the CURRENTLY DEPLOYED Google Apps Script, not Code.gs
+      # in GitHub. No provider URL, body, secret or customer data is logged.
+      - name: Audit deployed Google 3+3 backup readiness
+        shell: bash
+        env:
+          PM_GOOGLE_WEBHOOK_URL: ${{ secrets.PM_GOOGLE_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PM_GOOGLE_WEBHOOK_URL:-}" ]; then
+            echo "PROVIDER_READINESS: google=NOT_CONFIGURED linked_quote=BLOCKED"
+            exit 0
+          fi
+          response_file="$(mktemp)"
+          trap 'rm -f -- "${response_file}"' EXIT
+          http_status="$(curl --silent --location --max-redirs 5 \
+            --connect-timeout 5 --max-time 35 \
+            --output "${response_file}" --write-out '%{http_code}' \
+            "${PM_GOOGLE_WEBHOOK_URL}" || true)"
+          if [ "${http_status}" != "200" ]; then
+            echo "PROVIDER_READINESS: google=UNREACHABLE linked_quote=BLOCKED"
+            exit 0
+          fi
+          node - "${response_file}" <<'PM_GOOGLE_READINESS'
+          const {readFileSync} = require('node:fs');
+          let result;
+          try { result = JSON.parse(readFileSync(process.argv[2], 'utf8')); }
+          catch {
+            console.log('PROVIDER_READINESS: google=INVALID_RESPONSE linked_quote=BLOCKED');
+            process.exit(0);
+          }
+          if (result.ok === true && result.backupSchema === 'line-artworks-v2') {
+            console.log('PROVIDER_READINESS: google=V2_SCHEMA_REPORTED linked_quote=STILL_REQUIRES_REAL_ORDER_E2E');
+          } else {
+            console.log('PROVIDER_READINESS: google=LEGACY_OR_UNKNOWN_SCHEMA linked_quote=BLOCKED');
+          }
+          PM_GOOGLE_READINESS
