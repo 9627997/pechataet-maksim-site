@@ -132,7 +132,7 @@ function saveBackupFile(folder, file) {
     }
     folder.createFile(Utilities.newBlob(bytes, 'image/png', file.name));
   } else {
-    if (!/<svg(?:\\s|>)/i.test(file.content)) {
+    if (!file.content.includes('<svg')) {
       throw new Error('invalid_svg');
     }
     folder.createFile(file.name, file.content, 'image/svg+xml');
