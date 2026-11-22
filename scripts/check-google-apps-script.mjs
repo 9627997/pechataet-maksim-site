@@ -153,6 +153,8 @@ const makeOrder = (orderId, chosen = orderItems) => ({
 const full = makeOrder('CI-3X3');
 const first = send(full);
 assert.equal(first.ok, true, JSON.stringify(first));
+assert.equal(first.backupSchema, 'line-artworks-v2');
+assert.equal(first.lineFilesSaved, 18);
 const folder = root.subfolders.get(full.orderId);
 assert.ok(folder);
 assert.equal(folder.files.size, 22);
@@ -200,10 +202,12 @@ const legacy = makeOrder('CI-LEGACY');
 delete legacy.lineArtworkManifest;
 delete legacy.artifactsByItemId;
 delete legacy.linkedBasket;
-assert.equal(send(legacy).ok, true);
+const legacyReceipt = send(legacy);
+assert.equal(legacyReceipt.ok, true);
+assert.equal(legacyReceipt.lineFilesSaved, 0);
 assert.equal(root.subfolders.get('CI-LEGACY').files.size, 4);
 assert.equal(send(makeOrder('CI-REJECT'), 'bad-secret').ok, false);
 assert.equal(root.subfolders.has('CI-REJECT'), false);
 console.log(
-  'PASS: Google Apps Script saves all 18 3+3 line files, repairs partial backup, preserves legacy and rejects invalid manifests',
+  'PASS: Google Apps Script saves all 18 3+3 line files, repairs partial backup, preserves legacy and rejects invalid manifests and returns a versioned receipt',
 );
