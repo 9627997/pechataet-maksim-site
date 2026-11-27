@@ -5699,6 +5699,7 @@ const bootStudio = () => {
       } else {
         throw new Error('Неизвестный тип изделия.');
       }
+      window.PmQuoteHandoff.showEditorFeedback();
       window.PmQuoteHandoff.setCaptureBusy(true);
       const draft = await buildOrderPayload();
       const result = type === 'ribbon'
@@ -5728,8 +5729,9 @@ const bootStudio = () => {
         }
       }
     } catch (error) {
-      if (status) status.textContent =
-        'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      const feedback = 'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      window.PmQuoteHandoff.showEditorFeedback(feedback);
+      if (status) status.textContent = feedback;
     } finally {
       if (window.PmQuoteHandoff.getCaptureBusy()) window.PmQuoteHandoff.setCaptureBusy(false);
     }
