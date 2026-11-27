@@ -1,0 +1,85 @@
+name: One-time V2 live standard order receipt verification
+on:
+  push:
+    branches:
+      - qa/live-order-v2-20261127-once
+permissions:
+  contents: read
+jobs:
+  verify-live-standard-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send one safe synthetic order and verify idempotent retry
+        shell: bash
+        env:
+          PM_QA_RUN_ID: ${{ github.run_id }}
+        run: |
+          node --input-type=module <<'JAVASCRIPT'
+          const id = 'pm-real-qa-v2-20261127-' + process.env.PM_QA_RUN_ID;
+          const svg = (label, w, h) =>
+            '<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'mm" height="'+h+'mm" viewBox="0 0 '+w+' '+h+'"><text x="1" y="6" fill="#171717">TEST '+label+' NO PRODUCTION</text></svg>';
+          const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/ewAAAABJRU5ErkJggg==';
+          const ribbon = svg('RIBBON 20261127', 100, 15);
+          const sticker = svg('STICKER 20261127', 25, 25);
+          const order = {
+            requestId: id,
+            createdAt: new Date().toISOString(),
+            customer: {
+              name: 'ТЕСТ ПЕЧАТАЕТ МАКСИМ НЕ ПРОИЗВОДИТЬ',
+              preferredContact: 'telegram',
+              telegram: '@PM_TEST_NO_CONTACT',
+              comment: 'АВТОМАТИЧЕСКАЯ КОНТРОЛЬНАЯ ЗАЯВКА 27.11.2026. НЕ ПРОИЗВОДИТЬ, НЕ ЗВОНИТЬ, НЕ СЧИТАТЬ РЕАЛЬНЫМ ЗАКАЗОМ. Проверка приёмника и доставки после исправления worker.'
+            },
+            products: {
+              ribbon: {
+                enabled: true, widthMm: 15, meters: 25, repeatMm: 100,
+                materialColor: '#f3eadc', printColor: '#171717'
+              },
+              sticker: {
+                enabled: true, variantId: 'circle-25', shape: 'circle',
+                diameterMm: 25, widthMm: 25, heightMm: 25,
+                cornerRadiusMm: 0, quantity: 250,
+                backgroundColor: '#ffffff', printColor: '#171717'
+              }
+            },
+            design: {ribbon: {text:'TEST',font:'',hasLogo:false},sticker: {text:'TEST',font:'',hasLogo:false}},
+            pricing: {preliminary: true, amount: null},
+            artifacts: {
+              ribbonSvg: ribbon, stickerSvg: sticker,
+              ribbonPreviewSvg: ribbon, stickerPreviewSvg: sticker,
+              ribbonPrintSvg: ribbon, stickerPrintSvg: sticker,
+              ribbonPreviewPng: png, stickerPreviewPng: png
+            }
+          };
+          const url = 'https://xn--80aaarctnodv3agc9d.xn--p1ai/api/orders/';
+          async function send() {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(order),
+              signal: AbortSignal.timeout(25000)
+            });
+            const data = await response.json().catch(() => ({}));
+            return {status: response.status, data};
+          }
+          const first = await send();
+          if (first.status !== 201 || first.data.status !== 'accepted' ||
+              first.data.duplicate !== false || !first.data.orderId) {
+            console.log('LIVE_TEST_ORDER: NOT_ACCEPTED HTTP=' + first.status +
+              ' STATUS=' + (first.data.status || 'unknown') +
+              ' CODE=' + (first.data.code || 'none'));
+            process.exit(1);
+          }
+          console.log('LIVE_TEST_ORDER: ACCEPTED ID=' + first.data.orderId +
+            ' REQUEST=' + id + ' TEST_DO_NOT_PRODUCE=true');
+          const again = await send();
+          if (again.status !== 200 || again.data.status !== 'accepted' ||
+              again.data.duplicate !== true || again.data.orderId !== first.data.orderId) {
+            console.log('LIVE_TEST_ORDER: IDEMPOTENCY_FAILED HTTP=' + again.status +
+              ' CODE=' + (again.data.code || 'none'));
+            process.exit(2);
+          }
+          console.log('LIVE_TEST_ORDER: IDEMPOTENCY_PASS ID=' + first.data.orderId);
+          console.log('LIVE_TEST_ORDER: EXTERNAL_DELIVERY_NOT_PROVEN');
+          JAVASCRIPT
