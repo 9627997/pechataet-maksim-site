@@ -185,7 +185,7 @@ const quoteHandoff = await readFile(
 for (const marker of [
   'function registerItemArtwork(itemId, artwork)',
   'function clearItemArtwork(itemId)',
-  'artifactsByItemId: Object.fromEntries(lineArtworks)',
+  'artifactsByItemId: Object.fromEntries(record.orderItems.filter(item => lineArtworks.has(item.itemId)).map(item => [item.itemId, lineArtworks.get(item.itemId)]))',
   'record.orderItems.some((item) => item.itemId === itemId)',
 ]) {
   assert.ok(

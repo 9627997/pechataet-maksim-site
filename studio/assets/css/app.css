@@ -2464,3 +2464,23 @@ body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #panel-order .t
   #linkedQuoteSteps{gap:4px}
   .linked-quote-step{font-size:13px}
 }
+
+/* Linked orders have a fixed commercial specification; Studio edits design only. */
+body.linked-quote-editing :is(#stickerProductPicker,#orderModeSwitcher,#resetProject,#recommendCard,#widthChoice,#ribbonColorSelect,#printColorSelect,#stickerVariantChoice,#stickerSizeChoice,#stickerBgChoice,#repeatMm,#repeatHint,#repeatMmPreview,#meters,#stickerQty,#bundleChoice,#settingsProductChoice,[data-apply-ribbon-repeat],#panel-settings .next-panel,.nav-item[data-panel="order"]){display:none!important}
+body.linked-quote-editing :is(label[for="ribbonColorSelect"],label[for="printColorSelect"],label[for="meters"],label[for="stickerQty"],.repeat-control-head,.mobile-products-repeat-control){display:none!important}
+body.linked-quote-editing .settings-product-fields[data-settings-product="ribbon"]>label{display:none!important}
+body.linked-quote-editing #continueUpload{background:white;color:#7d1c26;border:1px solid #7d1c26}
+#linkedEditorNotice[hidden]{display:none!important}
+#linkedEditorNotice{margin:10px 0 6px;padding:10px 12px;border-left:3px solid #7d1c26;background:#faf4f2;color:#7d1c26;font-size:14px;line-height:1.4}
+
+/* In linked orders, both navigation and preview participate in normal
+   document flow. No fixed layer can hide basket actions or the editor.
+   Standalone Studio retains its existing floating-preview behavior. */
+@media(max-width:700px){
+  body.linked-quote-editing .main-nav{position:static;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}
+  body.linked-quote-editing .main-nav .nav-item{min-height:44px}
+  body.linked-quote-editing .mobile-products-slot[data-hosted='true']{position:static;max-height:none;overflow:visible;padding-block:6px 10px}
+  body.linked-quote-editing .panel.active{padding-top:0}
+  body.linked-quote-editing .panel-head{scroll-margin-top:12px}
+  body.linked-quote-editing .linked-quote-summary{z-index:auto}
+}
