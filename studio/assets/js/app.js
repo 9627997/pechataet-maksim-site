@@ -5634,11 +5634,11 @@ const bootStudio = () => {
       const product = state.activeSettingsProduct;
       syncLegacyStyleAliases(product);
       syncLegacyContentAliasesFromContent();
-      setActiveContentProduct(type, {renderPreview: false});
-      setActiveSettingsProduct(type);
       activeQuoteEditorItemId = itemId;
       window.PmQuoteHandoff.selectEditingItem(itemId);
       document.body.classList.add('linked-quote-editing');
+      setActiveContentProduct(type, {renderPreview: false});
+      setActiveSettingsProduct(type);
       syncControls();
       showPanel('upload');
       render();
