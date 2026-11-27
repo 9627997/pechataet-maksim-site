@@ -2423,3 +2423,33 @@ body:has(.linked-quote-summary:not([hidden])) .modal{z-index:100}
 #linkedQuoteNext[hidden]{display:none!important}
 #linkedQuoteNext{margin-bottom:10px;min-height:44px;white-space:normal}
 @media(max-width:700px){.linked-quote-summary #linkedQuoteLines{grid-template-columns:minmax(0,1fr)}.linked-quote-summary #linkedQuoteLines li{padding:10px}}
+
+/* Calculator handoff: the basket is a compact editor navigator, not a second page. */
+.linked-quote-summary[data-status="ready"]{padding:10px 16px}
+.linked-quote-summary[data-status="ready"] .linked-quote-head{gap:6px}
+.linked-quote-summary[data-status="ready"] #linkedQuoteLines{grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:6px 0}
+.linked-quote-summary[data-status="ready"] #linkedQuoteLines li{padding:0;gap:0;border:0;background:transparent}
+.linked-quote-summary .linked-quote-tab{display:grid;place-content:center;gap:2px;width:100%;min-height:44px;padding:4px 2px;background:#f0ece6;border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;cursor:pointer;line-height:1.15;text-align:center}
+.linked-quote-tab strong{font-size:15px}.linked-quote-tab span{font-size:10px}
+.linked-quote-summary li[data-active="true"] .linked-quote-tab{border:2px solid var(--accent);background:#faf5f4;color:var(--accent)}
+.linked-quote-summary li[data-saved="true"]:not([data-active="true"]) .linked-quote-tab{border-color:#42805a;color:#27623e}
+.linked-quote-summary #linkedQuoteActive{font-weight:700;font-size:13px;margin:6px 0;overflow-wrap:anywhere}
+.linked-quote-summary #linkedQuotePrice{font-size:12px;margin:4px 0}
+.linked-quote-summary #linkedQuoteProgress{font-size:12px;margin:4px 0}
+.linked-quote-summary[data-status="ready"] #linkedQuoteMessage{font-size:12px;margin:4px 0}
+#linkedQuoteJump,#linkedQuoteRenew{min-height:36px;font-size:12px;padding:6px 10px;margin:2px 6px 0 0}
+#linkedQuoteJump{background:var(--accent);color:white}
+#linkedQuoteJump[hidden],#linkedQuoteActive[hidden],#linkedQuotePrice[hidden],#linkedQuoteProgress[hidden],#linkedQuoteRenew[hidden]{display:none!important}
+#linkedQuoteNext{margin-top:12px;margin-bottom:8px}
+body[data-linked-quote="ready"] #orderModeSwitcher{display:none!important}
+body[data-linked-quote="ready"] #stickerProductPicker{display:none!important}
+@media(max-width:700px){
+ .linked-quote-summary[data-status="ready"]{padding:10px;margin:6px 10px}
+ .linked-quote-summary .linked-quote-tab{min-height:44px}
+ /* The generic Studio uses a floating preview. In a linked order keep navigation,
+    preview and form in document flow so none of them hides behind the basket. */
+ body[data-linked-quote="ready"] .sidebar>.main-nav,
+ body[data-linked-quote="ready"] .sidebar>.mobile-products-slot[data-hosted="true"]{position:relative;top:auto;left:auto;right:auto;max-height:none;margin-bottom:10px}
+ body[data-linked-quote="ready"] .panel.active{padding-top:12px}
+ body[data-linked-quote="ready"] #textInput{scroll-margin-block:16px}
+}
