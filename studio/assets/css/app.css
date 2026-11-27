@@ -2464,3 +2464,11 @@ body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #panel-order .t
   #linkedQuoteSteps{gap:4px}
   .linked-quote-step{font-size:13px}
 }
+
+/* Linked orders have a fixed commercial specification; Studio edits design only. */
+body.linked-quote-editing :is(#stickerProductPicker,#orderModeSwitcher,#resetProject,#recommendCard,#widthChoice,#ribbonColorSelect,#printColorSelect,#stickerVariantChoice,#stickerSizeChoice,#stickerBgChoice,#repeatMm,#repeatHint,#repeatMmPreview,#meters,#stickerQty,#bundleChoice,#settingsProductChoice,[data-apply-ribbon-repeat],#panel-settings .next-panel,.nav-item[data-panel="order"]){display:none!important}
+body.linked-quote-editing :is(label[for="ribbonColorSelect"],label[for="printColorSelect"],label[for="meters"],label[for="stickerQty"],.repeat-control-head,.mobile-products-repeat-control){display:none!important}
+body.linked-quote-editing .settings-product-fields[data-settings-product="ribbon"]>label{display:none!important}
+body.linked-quote-editing #continueUpload{background:white;color:#7d1c26;border:1px solid #7d1c26}
+#linkedEditorNotice[hidden]{display:none!important}
+#linkedEditorNotice{margin:10px 0 6px;padding:10px 12px;border-left:3px solid #7d1c26;background:#faf4f2;color:#7d1c26;font-size:14px;line-height:1.4}
