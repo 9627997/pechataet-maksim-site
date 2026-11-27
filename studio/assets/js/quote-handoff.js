@@ -71,7 +71,58 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
-  if (root && list) list.after(nextButton);
+  // Compact basket remains available while the actual editor is in view.
+  const jump = document.createElement('button');
+  jump.id = 'linkedQuoteJump';
+  jump.type = 'button';
+  jump.className = 'button ghost';
+  jump.textContent = 'К редактору ↓';
+  jump.hidden = true;
+  const toggle = document.createElement('button');
+  toggle.id = 'linkedQuoteToggle';
+  toggle.type = 'button';
+  toggle.className = 'button ghost';
+  toggle.setAttribute('aria-controls', 'linkedQuoteLines');
+  toggle.hidden = true;
+  let expanded = false;
+  let reviewMode = false;
+  const review = document.createElement('section');
+  review.id = 'linkedQuoteReview';
+  review.hidden = true;
+  document.getElementById('openOrder')?.before(review);
+  const steps = document.createElement('div');
+  steps.id = 'linkedQuoteSteps';
+  steps.setAttribute('role', 'group');
+  steps.setAttribute('aria-label', 'Макеты изделий');
+  steps.hidden = true;
+  const current = document.createElement('p');
+  current.id = 'linkedQuoteCurrent';
+  current.hidden = true;
+  const selector = document.createElement('select');
+  selector.id = 'linkedQuoteSelect';
+  selector.className = 'input';
+  selector.setAttribute('aria-label', 'Выберите изделие для редактирования');
+  selector.hidden = true;
+  selector.addEventListener('change', () => {
+    expanded = false;
+    document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
+      detail: {itemId: selector.value, focusEditor: true},
+    }));
+  });
+  toggle.addEventListener('click', () => {
+    expanded = !expanded;
+    render();
+  });
+  function focusEditor() {
+    const panel = document.querySelector('.panel.active');
+    const target = panel?.querySelector('.panel-head') || panel;
+    target?.scrollIntoView({block: 'start'});
+  }
+  jump.addEventListener('click', focusEditor);
+  if (root && list) {
+    list.before(steps, current, selector, toggle, jump);
+    list.after(nextButton);
+  }
   if (root && list) root.insertBefore(progress, list);
   nextButton.addEventListener('click', () => {
     if (captureBusy || !editingItemId) return;
@@ -102,14 +153,22 @@
     Number(value.finalClientPrice) > 0;
 
   const safeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const colorName = (value) => ({
+    '#171717': 'чёрный', '#b69249': 'золото', '#c6c8cd': 'серебро',
+    '#ffffff': 'белый', '#f3eadc': 'молочный', '#e5c5c4': 'пудровый',
+    '#b7202d': 'красный', '#6b1f2d': 'бордовый', '#0c6a4f': 'изумрудный',
+    '#6f754e': 'оливковый', '#86b9ca': 'голубой', '#274d83': 'синий',
+    '#9b8db5': 'лавандовый', '#8e8d89': 'серый', transparent: 'прозрачный',
+  })[String(value).toLowerCase()] || 'по расчёту';
   function label(item) {
     const config = item.configuration || {};
     if (item.productType === 'ribbon') {
       return 'Лента ' + config.widthMm + ' мм · ' + item.quantity.meters + ' м · основа ' +
-        config.materialColor + ' · нанесение ' + config.printColor;
+        colorName(config.materialColor) + ' · печать ' + colorName(config.printColor);
     }
-    return 'Стикеры ' + config.variantId + ' · ' + item.quantity.pieces +
-      ' шт. · основа ' + config.backgroundColor + ' · нанесение ' + config.printColor;
+    const size = config.shape === 'circle' ? 'Ø ' + config.widthMm : config.widthMm + ' × ' + config.heightMm;
+    return 'Стикеры ' + size + ' мм · ' + item.quantity.pieces +
+      ' шт. · основа ' + colorName(config.backgroundColor) + ' · печать ' + colorName(config.printColor);
   }
 
   function render() {
@@ -118,7 +177,43 @@
     if (!fromQuoteLink) return;
     root.dataset.status = status;
     progress.hidden = status !== 'ready';
-    nextButton.hidden = status !== 'ready' || !editingItemId;
+    nextButton.hidden = status !== 'ready' || !editingItemId || reviewMode;
+    jump.hidden = status !== 'ready' || !editingItemId;
+    toggle.hidden = status !== 'ready';
+    list.dataset.expanded = String(expanded);
+    current.hidden = status !== 'ready';
+    selector.hidden = status !== 'ready';
+    selector.disabled = captureBusy || renewalBusy;
+    selector.replaceChildren();
+    steps.replaceChildren();
+    steps.hidden = status !== 'ready';
+    if (status === 'ready') {
+      const selected = record.orderItems.find(item => item.itemId === editingItemId);
+      current.textContent = selected
+        ? 'Макет ' + (record.orderItems.indexOf(selected) + 1) + ' из ' + record.orderItems.length + ' · ' + label(selected)
+        : 'Выберите изделие, чтобы открыть редактор';
+      const placeholder = new Option('Выберите изделие', '');
+      placeholder.disabled = true;
+      selector.append(placeholder);
+      record.orderItems.forEach((item, index) => {
+        selector.append(new Option((index + 1) + '. ' + label(item) + (lineArtworks.has(item.itemId) ? ' · готово' : ''), item.itemId));
+        const step = document.createElement('button');
+        step.type = 'button';
+        step.className = 'linked-quote-step';
+        step.textContent = (index + 1) + (lineArtworks.has(item.itemId) ? ' ✓' : '');
+        step.setAttribute('aria-label', 'Макет ' + (index + 1) + ': ' + label(item) + (lineArtworks.has(item.itemId) ? ', сохранён' : ''));
+        step.setAttribute('aria-current', editingItemId === item.itemId ? 'step' : 'false');
+        step.disabled = captureBusy || renewalBusy;
+        step.addEventListener('click', () => {
+          expanded = false;
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: item.itemId, focusEditor: true}}));
+        });
+        steps.append(step);
+      });
+      selector.value = editingItemId || '';
+    }
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.textContent = expanded ? 'Свернуть список' : 'Все изделия (' + (record?.orderItems.length || 0) + ')';
     nextButton.disabled = captureBusy || renewalBusy;
     if (status === 'ready') {
       progress.textContent = 'Готово макетов: ' + lineArtworks.size + ' из ' + record.orderItems.length;
@@ -133,6 +228,7 @@
     renewalButton.textContent = renewalBusy
       ? 'Обновляем расчёт на сервере…'
       : status === 'ready' ? 'Продлить расчёт на 30 минут' : 'Восстановить расчёт';
+    renderReview();
     if (status === 'loading') {
       message.textContent = 'Проверяем корзину калькулятора на сервере…';
     } else if (status === 'ready') {
@@ -140,9 +236,9 @@
         (record.expiresAt <= Date.now() / 1000
           ? 'Срок расчёта истёк. Нажмите «Продлить расчёт на 30 минут» перед отправкой заявки. '
           : '') +
-        'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
+        'Выберите изделие и создайте макет в редакторе. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Ниже остаются макеты-образцы, а каждый сохранённый файл отдельной позиции согласует Максим до производства.' +
+        ' ₽. Демонстрационные макеты-образцы не отправляются без вашего сохранения.' +
         (persistenceWarning ? ' ' + persistenceWarning : '') +
         (renewalMessage ? ' ' + renewalMessage : '');
       for (const item of record.orderItems) {
@@ -151,6 +247,7 @@
         li.dataset.saved = String(lineArtworks.has(item.itemId));
         const details = document.createElement('span');
         details.textContent = (record.orderItems.indexOf(item) + 1) + '. ' + label(item);
+        details.className = 'linked-quote-line-details';
         const stateLabel = document.createElement('small');
         stateLabel.className = 'linked-quote-line-status';
         stateLabel.textContent = editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
@@ -163,8 +260,9 @@
           : 'Редактировать эту позицию';
         edit.disabled = captureBusy || renewalBusy || editingItemId === item.itemId;
         edit.addEventListener('click', () => {
+          expanded = false;
           document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
-            detail: {itemId: item.itemId},
+            detail: {itemId: item.itemId, focusEditor: true},
           }));
         });
         const capture = document.createElement('button');
@@ -188,6 +286,44 @@
           (renewalMessage ? ' ' + renewalMessage : '')
         : 'Этот расчёт недействителен или устарел. Вернитесь в калькулятор и повторите расчёт: привязанную корзину нельзя отправлять как обычную заявку.';
     }
+  }
+
+  function renderReview() {
+    review.hidden = !reviewMode || status !== 'ready';
+    review.replaceChildren();
+    if (review.hidden) return;
+    const heading = document.createElement('h3');
+    heading.textContent = 'Ваш заказ · ' + lineArtworks.size + ' из ' + record.orderItems.length + ' макетов готовы';
+    review.append(heading);
+    for (const [index, item] of record.orderItems.entries()) {
+      const card = document.createElement('article');
+      card.className = 'linked-quote-review-card';
+      card.dataset.itemId = item.itemId;
+      const artwork = lineArtworks.get(item.itemId);
+      if (artwork?.previewPng.startsWith('data:image/png;base64,')) {
+        const preview = document.createElement('img');
+        preview.src = artwork.previewPng;
+        preview.alt = 'Макет ' + (index + 1);
+        card.append(preview);
+      }
+      const copy = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = (index + 1) + '. ' + label(item);
+      const state = document.createElement('small');
+      state.textContent = artwork ? 'Макет сохранён' : 'Нужен макет';
+      copy.append(title, state);
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'button ghost';
+      edit.textContent = 'Редактировать';
+      edit.addEventListener('click', () => document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: item.itemId, focusEditor: true}})));
+      card.append(copy, edit);
+      review.append(card);
+    }
+    const total = document.createElement('p');
+    total.className = 'linked-quote-review-total';
+    total.textContent = 'Предварительная стоимость: ' + safeNumber(record.finalClientPrice).toLocaleString('ru-RU') + ' ₽';
+    review.append(total);
   }
 
   const isValidToken = (value) => typeof value === 'string' && /^[a-f0-9]{48}$/.test(value);
@@ -457,12 +593,27 @@
     renewQuote,
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
+    focusEditor,
+    placeSaveAction: (panel) => {
+      if (!fromQuoteLink) return;
+      reviewMode = panel === 'order';
+      nextButton.hidden = status !== 'ready' || !editingItemId || reviewMode;
+      renderReview();
+      const target = document.getElementById('panel-' + panel);
+      if (!fromQuoteLink || !target || panel === 'order') {
+        if (root && list) list.after(nextButton);
+        return;
+      }
+      target.append(nextButton);
+    },
     nextIncompleteItem: () => {
       if (!record) return null;
       const index = record.orderItems.findIndex(item => item.itemId === editingItemId);
       const ordered = [...record.orderItems.slice(index + 1), ...record.orderItems.slice(0, index + 1)];
       return ordered.find(item => !lineArtworks.has(item.itemId))?.itemId ?? null;
     },
+    isComplete: () => status === 'ready' && record !== null && lineArtworks.size === record.orderItems.length,
+    isLinked: () => fromQuoteLink,
     getExpiresAt: () => record?.expiresAt ?? null,
     getClientPrice: () => record?.finalClientPrice ?? null,
     registerItemArtwork,

@@ -2423,3 +2423,44 @@ body:has(.linked-quote-summary:not([hidden])) .modal{z-index:100}
 #linkedQuoteNext[hidden]{display:none!important}
 #linkedQuoteNext{margin-bottom:10px;min-height:44px;white-space:normal}
 @media(max-width:700px){.linked-quote-summary #linkedQuoteLines{grid-template-columns:minmax(0,1fr)}.linked-quote-summary #linkedQuoteLines li{padding:10px}}
+
+/* Editor-first linked order: keep the basket compact on both screen sizes. */
+#linkedQuoteLines[data-expanded="false"]{display:none}
+#linkedQuoteSelect[hidden],#linkedQuoteCurrent[hidden],#linkedQuoteToggle[hidden],#linkedQuoteJump[hidden]{display:none!important}
+#linkedQuoteCurrent{font-weight:700;font-size:14px;line-height:1.35}
+#linkedQuoteSelect{width:100%;min-width:0;max-width:100%;min-height:44px;margin:4px 0 6px;font-size:14px}
+#linkedQuoteToggle,#linkedQuoteJump,#linkedQuoteRenew{min-height:40px;padding:8px 10px;font-size:12px;margin:2px 5px 2px 0}
+#linkedQuoteNext{margin-top:10px}
+body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #orderModeSwitcher{display:none!important}
+@media(max-width:700px){
+  .linked-quote-summary{padding:10px 12px;margin:8px 10px}
+  .linked-quote-head{gap:6px}
+  .linked-quote-summary p{margin:5px 0;line-height:1.35}
+  #linkedQuoteMessage{font-size:12px}
+  #linkedQuoteCurrent{font-size:13px}
+  .linked-quote-summary #linkedQuoteProgress{font-size:13px}
+  #linkedQuoteToggle,#linkedQuoteJump,#linkedQuoteRenew{min-height:44px}
+  .panel-head{scroll-margin-top:calc(var(--mobile-products-slot-space, 320px) + 80px)}
+}
+
+/* One visual sequence for the entire linked order. */
+#linkedQuoteSteps[hidden],#linkedQuoteReview[hidden]{display:none!important}
+#linkedQuoteSteps{display:flex;gap:6px;margin:6px 0}
+.linked-quote-step{flex:1;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:8px;background:#f0ece6;color:#24211f;font:inherit;font-weight:700;cursor:pointer}
+.linked-quote-step[aria-current="step"]{background:#7d1c26;border-color:#7d1c26;color:#fff}
+.linked-quote-step:focus-visible{outline:2px solid #7d1c26;outline-offset:2px}
+#linkedQuoteReview{display:grid;gap:10px;margin:12px 0}
+#linkedQuoteReview h3{font-size:17px;margin:0}
+.linked-quote-review-card{display:grid;grid-template-columns:80px minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px}
+.linked-quote-review-card img{width:80px;height:60px;object-fit:contain;background:#f5f3ef;border-radius:6px}
+.linked-quote-review-card div{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+.linked-quote-review-card small{color:#615b56}
+.linked-quote-review-card button{grid-column:1/-1;min-height:44px}
+.linked-quote-review-total{font-weight:700}
+body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #orderItemsSummary,
+body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #secondaryProductOffer,
+body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #panel-order .total{display:none!important}
+@media(max-width:700px){
+  #linkedQuoteSteps{gap:4px}
+  .linked-quote-step{font-size:13px}
+}
