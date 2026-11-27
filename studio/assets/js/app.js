@@ -5576,6 +5576,7 @@ const bootStudio = () => {
   let activeQuoteEditorItemId = null;
 
   document.addEventListener('studio:quote-edit-item', (event) => {
+    if (window.PmQuoteHandoff?.getCaptureBusy()) return;
     const itemId = event.detail?.itemId;
     const item = window.PmQuoteHandoff?.getItems().find(
       (entry) => entry.itemId === itemId,
@@ -5638,6 +5639,7 @@ const bootStudio = () => {
   // Capture only the current, physically matching Studio artwork for the
   // explicitly selected canonical line, never replicate a type-level sample.
   document.addEventListener('studio:quote-capture-item', async (event) => {
+    if (window.PmQuoteHandoff?.getCaptureBusy()) return;
     const itemId = event.detail?.itemId;
     const item = window.PmQuoteHandoff?.getItems().find(
       (entry) => entry.itemId === itemId,
@@ -5671,6 +5673,7 @@ const bootStudio = () => {
       } else {
         throw new Error('Неизвестный тип изделия.');
       }
+      window.PmQuoteHandoff.setCaptureBusy(true);
       const draft = await buildOrderPayload();
       const result = type === 'ribbon'
         ? {
@@ -5687,9 +5690,22 @@ const bootStudio = () => {
       window.PmQuoteHandoff.saveEditorDraft(itemId, state);
       if (status) status.textContent =
         'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
+      if (event.detail?.advance) {
+        const next = window.PmQuoteHandoff.nextIncompleteItem();
+        window.PmQuoteHandoff.setCaptureBusy(false);
+        if (next) {
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: next}}));
+          $('#linkedQuoteSummary')?.scrollIntoView({block: 'start'});
+        } else {
+          if (status) status.textContent = 'Все макеты сохранены. Теперь можно отправить заявку Максиму.';
+          $('#openOrder')?.scrollIntoView({block: 'center'});
+        }
+      }
     } catch (error) {
       if (status) status.textContent =
         'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+    } finally {
+      if (window.PmQuoteHandoff.getCaptureBusy()) window.PmQuoteHandoff.setCaptureBusy(false);
     }
   });
 
