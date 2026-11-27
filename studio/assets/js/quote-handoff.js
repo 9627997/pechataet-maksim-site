@@ -91,6 +91,14 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
+  const editorFeedback = document.createElement('p');
+  editorFeedback.id = 'linkedQuoteEditorFeedback';
+  editorFeedback.setAttribute('role', 'status');
+  editorFeedback.hidden = true;
+  function showEditorFeedback(text = '') {
+    editorFeedback.textContent = text;
+    editorFeedback.hidden = !text;
+  }
   if (root && list) {
     root.insertBefore(progress, list);
     list.after(activeLabel, priceLabel, jumpButton);
@@ -100,6 +108,7 @@
     const anchor = target?.querySelector('.next-panel, #openOrder');
     if (anchor && nextButton.nextElementSibling !== anchor) anchor.before(nextButton);
     else if (target && !anchor && nextButton.parentElement !== target) target.append(nextButton);
+    if (nextButton.parentElement && editorFeedback.nextElementSibling !== nextButton) nextButton.before(editorFeedback);
     nextButton.hidden = status !== 'ready' || !editingItemId ||
       (panel === 'order' && lineArtworks.size === record?.orderItems.length);
   }
@@ -451,6 +460,7 @@
   }
 
   function selectEditingItem(itemId) {
+    showEditorFeedback();
     if (status !== 'ready' || !record?.orderItems.some((item) => item.itemId === itemId)) {
       throw new Error('Неизвестная позиция заказа.');
     }
@@ -493,6 +503,7 @@
     augmentPayload,
     renewQuote,
     placeSaveAction,
+    showEditorFeedback,
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
     nextIncompleteItem: () => {
