@@ -177,7 +177,7 @@
     if (!fromQuoteLink) return;
     root.dataset.status = status;
     progress.hidden = status !== 'ready';
-    nextButton.hidden = status !== 'ready' || !editingItemId;
+    nextButton.hidden = status !== 'ready' || !editingItemId || reviewMode;
     jump.hidden = status !== 'ready' || !editingItemId;
     toggle.hidden = status !== 'ready';
     list.dataset.expanded = String(expanded);
@@ -597,6 +597,7 @@
     placeSaveAction: (panel) => {
       if (!fromQuoteLink) return;
       reviewMode = panel === 'order';
+      nextButton.hidden = status !== 'ready' || !editingItemId || reviewMode;
       renderReview();
       const target = document.getElementById('panel-' + panel);
       if (!fromQuoteLink || !target || panel === 'order') {
