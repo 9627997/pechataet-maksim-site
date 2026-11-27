@@ -59,6 +59,11 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(
     page.locator('#linkedQuoteLines button'),
   ).toHaveCount(12);
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText(
+    'Готово макетов: 0 из 6',
+  );
+  await expect(page.locator('#linkedQuoteLines > li').first().locator('button').nth(1)).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const results = await page.evaluate(() => {
     const api = window.PmQuoteHandoff;
     let unknownRejected = false;
@@ -88,6 +93,7 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   expect(results.ids).toHaveLength(6);
   expect(results.count).toBe(1);
   expect(results.attached).toEqual(['ribbon-1']);
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: 1 из 6');
   await expect(page.locator('#linkedQuoteLines > li').first().locator('button').nth(1)).toHaveText(
     'Обновить макет позиции',
   );
@@ -98,6 +104,9 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   const second = page.locator('#linkedQuoteLines > li').nth(1);
   await first.locator('button').first().click();
   await expect(first.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await expect(first).toHaveAttribute('data-active', 'true');
+  await expect(first.locator('button').nth(1)).toBeEnabled();
+  await expect(second.locator('button').nth(1)).toBeDisabled();
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'Первая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
