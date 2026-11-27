@@ -610,7 +610,7 @@
       quoteId: token,
       orderItems: structuredClone(record.orderItems),
       ...(lineArtworks.size > 0
-        ? {artifactsByItemId: Object.fromEntries(lineArtworks)}
+        ? {artifactsByItemId: Object.fromEntries(record.orderItems.filter(item => lineArtworks.has(item.itemId)).map(item => [item.itemId, lineArtworks.get(item.itemId)]))}
         : {}),
       pricing: {
         preliminary: true,
