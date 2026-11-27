@@ -62,9 +62,10 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#linkedQuoteProgress')).toHaveText(
     'Готово макетов: 0 из 6',
   );
-  await expect(
-    page.locator('#linkedQuoteLines > li').first().locator('button').nth(1),
-  ).toBeDisabled();
+  await expect(page.locator('#linkedQuoteSelect')).toHaveValue('ribbon-1');
+  await expect(page.locator('#linkedQuoteLines')).toBeHidden();
+  await expect(page.locator('#linkedQuoteNext')).toBeVisible();
+  await expect(page.locator('#panel-upload')).toHaveClass(/active/);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);
@@ -108,7 +109,6 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   // silently replace the first line's in-progress content with the second.
   const first = page.locator('#linkedQuoteLines > li').nth(0);
   const second = page.locator('#linkedQuoteLines > li').nth(1);
-  await first.locator('button').first().click();
   await expect(first.locator('button').first()).toHaveText('Редактируется эта позиция');
   await expect(first).toHaveAttribute('data-active', 'true');
   await expect(first.locator('button').nth(1)).toBeEnabled();
@@ -117,13 +117,13 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
     input.value = 'Первая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
-  await second.locator('button').first().click();
+  await page.locator('#linkedQuoteSelect').selectOption('ribbon-2');
   await expect(second.locator('button').first()).toHaveText('Редактируется эта позиция');
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'Вторая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
-  await first.locator('button').first().click();
+  await page.locator('#linkedQuoteSelect').selectOption('ribbon-1');
   await expect(page.locator('#textInput')).toHaveValue('Первая лента');
   expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
 
@@ -193,20 +193,21 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
   });
   await page.goto('/studio/?product=ribbon#quote=' + 'a'.repeat(48));
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
-  await page.locator('#linkedQuoteLines > li').first().locator('button').first().click();
+  await expect(page.locator('#linkedQuoteSelect')).toHaveValue('ribbon-1');
+  await expect(page.locator('#linkedQuoteLines')).toBeHidden();
   const names = ['ALFA', 'BETA', 'GAMA', 'DELT', 'EPSI', 'ZETA'];
   for (let i = 0; i < orderItems.length; i++) {
     await expect.poll(() => page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe(orderItems[i].itemId);
-    await page.locator('#textInput').evaluate((input, value) => {
-      input.value = value;
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-    }, names[i]);
+    await expect(page.locator('#panel-upload')).toHaveClass(/active/);
+    await expect(page.locator('#textInput')).toBeVisible();
+    await page.locator('#textInput').fill(names[i]);
     await expect(page.locator('body')).toHaveAttribute('data-artwork-valid', 'true');
     // The visible per-position capture uses the same production serializer.
     // Use the actual save-and-next button, not the handoff registration API.
     await page.locator('#linkedQuoteNext').click();
     await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: ' + (i + 1) + ' из 6', {timeout: 20000});
   }
+  await expect(page.locator('#openOrder')).toBeVisible();
   const artifacts = await page.evaluate(() => window.PmQuoteHandoff.augmentPayload({requestId: 'test-six-real-artifacts'}).artifactsByItemId);
   expect(Object.keys(artifacts)).toEqual(orderItems.map(item => item.itemId));
   expect(new Set(Object.values(artifacts).map(art => art.printSvg)).size).toBe(6);
