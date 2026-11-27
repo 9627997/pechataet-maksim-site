@@ -71,8 +71,7 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
-  const orderButton = document.getElementById('openOrder');
-  if (orderButton) orderButton.before(nextButton);
+  if (root && list) list.after(nextButton);
   if (root && list) root.insertBefore(progress, list);
   nextButton.addEventListener('click', () => {
     if (captureBusy || !editingItemId) return;
