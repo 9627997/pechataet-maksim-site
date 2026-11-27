@@ -2423,3 +2423,22 @@ body:has(.linked-quote-summary:not([hidden])) .modal{z-index:100}
 #linkedQuoteNext[hidden]{display:none!important}
 #linkedQuoteNext{margin-bottom:10px;min-height:44px;white-space:normal}
 @media(max-width:700px){.linked-quote-summary #linkedQuoteLines{grid-template-columns:minmax(0,1fr)}.linked-quote-summary #linkedQuoteLines li{padding:10px}}
+
+/* Editor-first linked order: keep the basket compact on both screen sizes. */
+#linkedQuoteLines[data-expanded="false"]{display:none}
+#linkedQuoteSelect[hidden],#linkedQuoteCurrent[hidden],#linkedQuoteToggle[hidden],#linkedQuoteJump[hidden]{display:none!important}
+#linkedQuoteCurrent{font-weight:700;font-size:14px;line-height:1.35}
+#linkedQuoteSelect{width:100%;min-width:0;max-width:100%;min-height:44px;margin:4px 0 6px;font-size:14px}
+#linkedQuoteToggle,#linkedQuoteJump,#linkedQuoteRenew{min-height:40px;padding:8px 10px;font-size:12px;margin:2px 5px 2px 0}
+#linkedQuoteNext{margin-top:10px}
+body:has(#linkedQuoteSummary[data-status="ready"]:not([hidden])) #orderModeSwitcher{display:none!important}
+@media(max-width:700px){
+  .linked-quote-summary{padding:10px 12px;margin:8px 10px}
+  .linked-quote-head{gap:6px}
+  .linked-quote-summary p{margin:5px 0;line-height:1.35}
+  #linkedQuoteMessage{font-size:12px}
+  #linkedQuoteCurrent{font-size:13px}
+  .linked-quote-summary #linkedQuoteProgress{font-size:13px}
+  #linkedQuoteToggle,#linkedQuoteJump,#linkedQuoteRenew{min-height:44px}
+  .panel-head{scroll-margin-top:calc(var(--mobile-products-slot-space, 320px) + 80px)}
+}
