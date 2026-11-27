@@ -57,9 +57,9 @@ test('quote handoff carries the exact 3+3 basket without a URL price @smoke', as
     'ready',
   );
   await expect(page.locator('#linkedQuoteLines li')).toHaveCount(6);
-  await expect(page.locator('#linkedQuoteMessage')).toContainText(
-    'макеты-образцы',
-  );
+  await expect(page.locator('#linkedQuoteActive')).toContainText('Макет 1 из 6');
+  await expect(page.locator('#linkedQuotePrice')).toContainText('2');
+  await expect(page.locator('#panel-upload')).toBeVisible();
   expect(page.url()).not.toContain('#quote=');
   // Refresh must preserve the verified linked basket in this history entry.
   await page.reload({waitUntil: 'domcontentloaded'});
