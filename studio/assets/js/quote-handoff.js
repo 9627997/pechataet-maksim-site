@@ -26,6 +26,7 @@
   const lineArtworks = new Map();
   let editingItemId = null;
   const editorDrafts = new Map();
+  const dirtyItems = new Set();
   // A per-history-entry random key scopes drafts to this browser tab and
   // quote, without writing the bearer quote token to sessionStorage.
   const draftSessionId =
@@ -71,6 +72,14 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
+  const editorNotice = document.createElement('p');
+  editorNotice.id = 'linkedEditorNotice';
+  editorNotice.setAttribute('role', 'alert');
+  editorNotice.hidden = true;
+  const setEditorNotice = (value) => {
+    editorNotice.textContent = value || '';
+    editorNotice.hidden = !value;
+  };
   // Compact basket remains available while the actual editor is in view.
   const jump = document.createElement('button');
   jump.id = 'linkedQuoteJump';
@@ -200,7 +209,7 @@
         const step = document.createElement('button');
         step.type = 'button';
         step.className = 'linked-quote-step';
-        step.textContent = (index + 1) + (lineArtworks.has(item.itemId) ? ' ✓' : '');
+        step.textContent = (index + 1) + (lineArtworks.has(item.itemId) ? ' ✓' : dirtyItems.has(item.itemId) ? ' !' : '');
         step.setAttribute('aria-label', 'Макет ' + (index + 1) + ': ' + label(item) + (lineArtworks.has(item.itemId) ? ', сохранён' : ''));
         step.setAttribute('aria-current', editingItemId === item.itemId ? 'step' : 'false');
         step.disabled = captureBusy || renewalBusy;
@@ -250,7 +259,7 @@
         details.className = 'linked-quote-line-details';
         const stateLabel = document.createElement('small');
         stateLabel.className = 'linked-quote-line-status';
-        stateLabel.textContent = editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
+        stateLabel.textContent = dirtyItems.has(item.itemId) ? 'Есть несохранённые изменения' : editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
         details.append(document.createElement('br'), stateLabel);
         const edit = document.createElement('button');
         edit.type = 'button';
@@ -373,6 +382,8 @@
         orderItems: record.orderItems,
         editorDrafts: Object.fromEntries(editorDrafts),
         lineArtworks: Object.fromEntries(lineArtworks),
+        dirtyItems: [...dirtyItems],
+        artworkIntegrity: 1,
         editingItemId,
       }));
       persistenceWarning = '';
@@ -404,6 +415,9 @@
         lineArtworks.set(id, artwork);
       }
     }
+    for (const id of snapshot.dirtyItems || []) if (ids.has(id)) dirtyItems.add(id);
+    // Legacy snapshots cannot prove that an export matches the last edit.
+    if (snapshot.artworkIntegrity !== 1) for (const id of lineArtworks.keys()) { dirtyItems.add(id); lineArtworks.delete(id); }
     // Active session is reloaded as a draft by app.js, not implicitly sent.
     if (ids.has(snapshot.editingItemId)) {
       editingItemId = snapshot.editingItemId;
@@ -508,12 +522,27 @@
     }
   }
 
+  function designSignature(draft, type) {
+    if (!draft) return '';
+    return JSON.stringify({
+      content: draft.content,
+      style: draft.productStyles?.[type],
+      width: type === 'ribbon' ? draft.width : draft.stickerVariantId,
+      color: type === 'ribbon' ? draft.ribbon : draft.stickerBg,
+      repeat: type === 'ribbon' ? draft.repeatMm : null,
+    });
+  }
   function saveEditorDraft(itemId, draft) {
     if (status !== 'ready' || !record?.orderItems.some((item) => item.itemId === itemId)) {
       throw new Error('Нельзя сохранить черновик неизвестной позиции.');
     }
+    const old = editorDrafts.get(itemId);
+    const type = record.orderItems.find(item => item.itemId === itemId).productType;
+    const changed = Boolean(old && lineArtworks.has(itemId) && designSignature(old, type) !== designSignature(draft, type));
+    if (changed) { lineArtworks.delete(itemId); dirtyItems.add(itemId); }
     editorDrafts.set(itemId, structuredClone(draft));
     persistSessionDrafts();
+    if (changed) { render(); setEditorNotice('Макет изменён. Сохраните его ещё раз.'); }
   }
 
   function getEditorDraft(itemId) {
@@ -540,6 +569,7 @@
         !artwork.previewPng.startsWith('data:image/png;base64,')) {
       throw new Error('Для позиции нужны отдельные SVG и PNG-превью.');
     }
+    dirtyItems.delete(itemId);
     lineArtworks.set(itemId, {
       previewSvg: artwork.previewSvg,
       printSvg: artwork.printSvg,
@@ -547,6 +577,7 @@
     });
     persistSessionDrafts();
     render();
+    setEditorNotice('');
   }
 
   function selectEditingItem(itemId) {
@@ -554,6 +585,7 @@
       throw new Error('Неизвестная позиция заказа.');
     }
     editingItemId = itemId;
+    setEditorNotice(dirtyItems.has(itemId) ? 'Макет изменён. Сохраните его ещё раз.' : '');
     persistSessionDrafts();
     render();
   }
@@ -594,6 +626,8 @@
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
     focusEditor,
+    setEditorNotice,
+    designSignature,
     placeSaveAction: (panel) => {
       if (!fromQuoteLink) return;
       reviewMode = panel === 'order';
@@ -601,10 +635,10 @@
       renderReview();
       const target = document.getElementById('panel-' + panel);
       if (!fromQuoteLink || !target || panel === 'order') {
-        if (root && list) list.after(nextButton);
+        if (root && list) list.after(editorNotice, nextButton);
         return;
       }
-      target.append(nextButton);
+      target.append(editorNotice, nextButton);
     },
     nextIncompleteItem: () => {
       if (!record) return null;
