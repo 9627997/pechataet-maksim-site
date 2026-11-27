@@ -85,6 +85,20 @@
   toggle.setAttribute('aria-controls', 'linkedQuoteLines');
   toggle.hidden = true;
   let expanded = false;
+  const current = document.createElement('p');
+  current.id = 'linkedQuoteCurrent';
+  current.hidden = true;
+  const selector = document.createElement('select');
+  selector.id = 'linkedQuoteSelect';
+  selector.className = 'input';
+  selector.setAttribute('aria-label', 'Выберите изделие для редактирования');
+  selector.hidden = true;
+  selector.addEventListener('change', () => {
+    expanded = false;
+    document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
+      detail: {itemId: selector.value, focusEditor: true},
+    }));
+  });
   toggle.addEventListener('click', () => {
     expanded = !expanded;
     render();
@@ -96,7 +110,7 @@
   }
   jump.addEventListener('click', focusEditor);
   if (root && list) {
-    list.before(toggle, jump);
+    list.before(current, selector, toggle, jump);
     list.after(nextButton);
   }
   if (root && list) root.insertBefore(progress, list);
@@ -157,6 +171,23 @@
     jump.hidden = status !== 'ready' || !editingItemId;
     toggle.hidden = status !== 'ready';
     list.dataset.expanded = String(expanded);
+    current.hidden = status !== 'ready';
+    selector.hidden = status !== 'ready';
+    selector.disabled = captureBusy || renewalBusy;
+    selector.replaceChildren();
+    if (status === 'ready') {
+      const selected = record.orderItems.find(item => item.itemId === editingItemId);
+      current.textContent = selected
+        ? 'Макет ' + (record.orderItems.indexOf(selected) + 1) + ' из ' + record.orderItems.length + ' · ' + label(selected)
+        : 'Выберите изделие, чтобы открыть редактор';
+      const placeholder = new Option('Выберите изделие', '');
+      placeholder.disabled = true;
+      selector.append(placeholder);
+      record.orderItems.forEach((item, index) => {
+        selector.append(new Option((index + 1) + '. ' + label(item) + (lineArtworks.has(item.itemId) ? ' · готово' : ''), item.itemId));
+      });
+      selector.value = editingItemId || '';
+    }
     toggle.setAttribute('aria-expanded', String(expanded));
     toggle.textContent = expanded ? 'Свернуть список' : 'Все изделия (' + (record?.orderItems.length || 0) + ')';
     nextButton.disabled = captureBusy || renewalBusy;
@@ -182,7 +213,7 @@
           : '') +
         'Выберите изделие и создайте макет в редакторе. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Макеты-образцы не отправляются без вашего сохранения.' +
+        ' ₽. Демонстрационные макеты-образцы не отправляются без вашего сохранения.' +
         (persistenceWarning ? ' ' + persistenceWarning : '') +
         (renewalMessage ? ' ' + renewalMessage : '');
       for (const item of record.orderItems) {
@@ -500,6 +531,14 @@
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
     focusEditor,
+    placeSaveAction: (panel) => {
+      const target = document.getElementById('panel-' + panel);
+      if (!fromQuoteLink || !target || panel === 'order') {
+        if (root && list) list.after(nextButton);
+        return;
+      }
+      target.append(nextButton);
+    },
     nextIncompleteItem: () => {
       if (!record) return null;
       const index = record.orderItems.findIndex(item => item.itemId === editingItemId);
