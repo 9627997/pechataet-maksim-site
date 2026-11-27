@@ -61,7 +61,27 @@
   renewalButton.addEventListener('click', () => {
     void renewQuote();
   });
-  if (root && list) root.insertBefore(renewalButton, list);
+  if (root && list) root.append(renewalButton);
+
+  const activeLabel = document.createElement('p');
+  activeLabel.id = 'linkedQuoteActive';
+  const priceLabel = document.createElement('p');
+  priceLabel.id = 'linkedQuotePrice';
+  const jumpButton = document.createElement('button');
+  jumpButton.type = 'button';
+  jumpButton.id = 'linkedQuoteJump';
+  jumpButton.className = 'button ghost';
+  jumpButton.textContent = 'К редактору ↓';
+  jumpButton.addEventListener('click', () => {
+    if (captureBusy || renewalBusy || status !== 'ready') return;
+    if (!editingItemId) {
+      document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
+        detail: {itemId: record.orderItems[0].itemId, focusEditor: true},
+      }));
+    } else {
+      document.dispatchEvent(new CustomEvent('studio:quote-focus-editor'));
+    }
+  });
 
   const progress = document.createElement('p');
   progress.id = 'linkedQuoteProgress';
@@ -71,8 +91,28 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
-  if (root && list) list.after(nextButton);
-  if (root && list) root.insertBefore(progress, list);
+  const editorFeedback = document.createElement('p');
+  editorFeedback.id = 'linkedQuoteEditorFeedback';
+  editorFeedback.setAttribute('role', 'status');
+  editorFeedback.hidden = true;
+  function showEditorFeedback(text = '') {
+    editorFeedback.textContent = text;
+    editorFeedback.hidden = !text;
+  }
+  if (root && list) {
+    root.insertBefore(progress, list);
+    list.after(activeLabel, priceLabel, jumpButton);
+  }
+  function placeSaveAction(panel = document.body.dataset.activePanel || 'upload') {
+    const target = document.getElementById('panel-' + panel);
+    const anchor = target?.querySelector('.next-panel, #openOrder');
+    if (anchor && nextButton.nextElementSibling !== anchor) anchor.before(nextButton);
+    else if (target && !anchor && nextButton.parentElement !== target) target.append(nextButton);
+    if (nextButton.parentElement && editorFeedback.nextElementSibling !== nextButton) nextButton.before(editorFeedback);
+    nextButton.hidden = status !== 'ready' || !editingItemId ||
+      (panel === 'order' && lineArtworks.size === record?.orderItems.length);
+  }
+  placeSaveAction();
   nextButton.addEventListener('click', () => {
     if (captureBusy || !editingItemId) return;
     document.dispatchEvent(new CustomEvent('studio:quote-capture-item', {
@@ -102,14 +142,22 @@
     Number(value.finalClientPrice) > 0;
 
   const safeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const colors = {
+    '#171717': 'чёрный', '#b69249': 'золото', '#c6c8cd': 'серебро',
+    '#ffffff': 'белый', '#f3eadc': 'молочный', '#e5c5c4': 'пудровый',
+    '#b7202d': 'красный', '#6b1f2d': 'бордовый', '#0c6a4f': 'изумрудный',
+    '#6f754e': 'оливковый', '#86b9ca': 'голубой', '#274d83': 'синий',
+    '#9b8db5': 'лавандовый', '#8e8d89': 'серый', transparent: 'прозрачный',
+  };
+  const colorName = (value) => colors[String(value).toLowerCase()] || 'цвет по расчёту';
   function label(item) {
-    const config = item.configuration || {};
-    if (item.productType === 'ribbon') {
-      return 'Лента ' + config.widthMm + ' мм · ' + item.quantity.meters + ' м · основа ' +
-        config.materialColor + ' · нанесение ' + config.printColor;
-    }
-    return 'Стикеры ' + config.variantId + ' · ' + item.quantity.pieces +
-      ' шт. · основа ' + config.backgroundColor + ' · нанесение ' + config.printColor;
+    const cfg = item.configuration || {};
+    const product = item.productType === 'ribbon'
+      ? 'Лента ' + cfg.widthMm + ' мм · ' + item.quantity.meters + ' м'
+      : 'Стикер ' + (cfg.shape === 'circle' ? 'Ø ' + cfg.widthMm : cfg.widthMm + ' × ' + cfg.heightMm) +
+        ' мм · ' + item.quantity.pieces + ' шт.';
+    return product + ' · основа: ' + colorName(cfg.materialColor ?? cfg.backgroundColor) +
+      ' · печать: ' + colorName(cfg.printColor);
   }
 
   function render() {
@@ -117,11 +165,22 @@
     root.hidden = !fromQuoteLink;
     if (!fromQuoteLink) return;
     root.dataset.status = status;
+    document.body.dataset.linkedQuote = status;
     progress.hidden = status !== 'ready';
-    nextButton.hidden = status !== 'ready' || !editingItemId;
+    activeLabel.hidden = status !== 'ready';
+    priceLabel.hidden = status !== 'ready';
+    jumpButton.hidden = status !== 'ready';
+    jumpButton.disabled = captureBusy || renewalBusy;
+    placeSaveAction();
     nextButton.disabled = captureBusy || renewalBusy;
     if (status === 'ready') {
       progress.textContent = 'Готово макетов: ' + lineArtworks.size + ' из ' + record.orderItems.length;
+      const index = record.orderItems.findIndex(item => item.itemId === editingItemId);
+      activeLabel.textContent = index >= 0
+        ? 'Макет ' + (index + 1) + ' из ' + record.orderItems.length + ' · ' + label(record.orderItems[index])
+        : 'Выберите изделие для создания макета';
+      priceLabel.textContent = 'Предварительно: ' + safeNumber(record.finalClientPrice).toLocaleString('ru-RU') + ' ₽';
+      jumpButton.textContent = index >= 0 ? 'К редактору ↓' : 'Создать первый макет ↓';
       nextButton.textContent = captureBusy ? 'Сохраняем макет…' : 'Сохранить макет и перейти дальше';
     }
     if (persistenceWarning) root.dataset.persistenceWarning = 'true';
@@ -140,46 +199,33 @@
         (record.expiresAt <= Date.now() / 1000
           ? 'Срок расчёта истёк. Нажмите «Продлить расчёт на 30 минут» перед отправкой заявки. '
           : '') +
-        'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
-        safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Ниже остаются макеты-образцы, а каждый сохранённый файл отдельной позиции согласует Максим до производства.' +
+        'Выберите изделие выше редактора. Все макеты проверит Максим перед печатью.' +
         (persistenceWarning ? ' ' + persistenceWarning : '') +
         (renewalMessage ? ' ' + renewalMessage : '');
-      for (const item of record.orderItems) {
+      for (const [index, item] of record.orderItems.entries()) {
         const li = document.createElement('li');
-        li.dataset.active = String(editingItemId === item.itemId);
-        li.dataset.saved = String(lineArtworks.has(item.itemId));
-        const details = document.createElement('span');
-        details.textContent = (record.orderItems.indexOf(item) + 1) + '. ' + label(item);
-        const stateLabel = document.createElement('small');
-        stateLabel.className = 'linked-quote-line-status';
-        stateLabel.textContent = editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
-        details.append(document.createElement('br'), stateLabel);
+        const active = editingItemId === item.itemId;
+        const saved = lineArtworks.has(item.itemId);
+        li.dataset.active = String(active);
+        li.dataset.saved = String(saved);
         const edit = document.createElement('button');
         edit.type = 'button';
-        edit.className = 'button ghost';
-        edit.textContent = editingItemId === item.itemId
-          ? 'Редактируется эта позиция'
-          : 'Редактировать эту позицию';
-        edit.disabled = captureBusy || renewalBusy || editingItemId === item.itemId;
+        edit.className = 'linked-quote-tab';
+        edit.disabled = captureBusy || renewalBusy;
+        if (active) edit.setAttribute('aria-current', 'step');
+        edit.setAttribute('aria-label', (index + 1) + '. ' + label(item) +
+          (active ? ' · редактируется' : saved ? ' · макет сохранён' : ' · нужен макет'));
+        const number = document.createElement('strong');
+        number.textContent = (index + 1) + (saved ? ' ✓' : '');
+        const product = document.createElement('span');
+        product.textContent = item.productType === 'ribbon' ? 'Лента' : 'Стикер';
+        edit.append(number, product);
         edit.addEventListener('click', () => {
           document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
-            detail: {itemId: item.itemId},
+            detail: {itemId: item.itemId, focusEditor: true},
           }));
         });
-        const capture = document.createElement('button');
-        capture.type = 'button';
-        capture.className = 'button ghost';
-        capture.textContent = lineArtworks.has(item.itemId)
-          ? 'Обновить макет позиции'
-          : 'Сохранить текущий макет для позиции';
-        capture.disabled = captureBusy || renewalBusy || editingItemId !== item.itemId;
-        capture.addEventListener('click', () => {
-          document.dispatchEvent(new CustomEvent('studio:quote-capture-item', {
-            detail: {itemId: item.itemId},
-          }));
-        });
-        li.append(details, edit, capture);
+        li.append(edit);
         list.append(li);
       }
     } else {
@@ -414,6 +460,7 @@
   }
 
   function selectEditingItem(itemId) {
+    showEditorFeedback();
     if (status !== 'ready' || !record?.orderItems.some((item) => item.itemId === itemId)) {
       throw new Error('Неизвестная позиция заказа.');
     }
@@ -455,6 +502,8 @@
     load,
     augmentPayload,
     renewQuote,
+    placeSaveAction,
+    showEditorFeedback,
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
     nextIncompleteItem: () => {

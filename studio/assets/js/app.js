@@ -1364,6 +1364,7 @@ const bootStudio = () => {
 
     state.panel = id;
     document.body.dataset.activePanel = id;
+    window.PmQuoteHandoff?.placeSaveAction(id);
     if (id === 'order') setPrintGuidesEditing(false);
     $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.panel === id));
     $$('.panel').forEach((panel) => panel.classList.toggle('active', panel.id === 'panel-' + id));
@@ -5583,6 +5584,21 @@ const bootStudio = () => {
   // recaptured. Never silently reuse one item's artwork for another item.
   let activeQuoteEditorItemId = null;
 
+  function focusLinkedEditor() {
+    showPanel('upload');
+    requestAnimationFrame(() => $('#textInput')?.scrollIntoView({block: 'center'}));
+  }
+  document.addEventListener('studio:quote-focus-editor', focusLinkedEditor);
+
+  function openInitialQuoteItem() {
+    const handoff = window.PmQuoteHandoff;
+    if (handoff?.getState() !== 'ready') return;
+    const itemId = handoff.getEditingItemId() || handoff.getItems()[0]?.itemId;
+    if (itemId && activeQuoteEditorItemId !== itemId) {
+      document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId}}));
+    }
+  }
+
   document.addEventListener('studio:quote-edit-item', (event) => {
     if (window.PmQuoteHandoff?.getCaptureBusy()) return;
     const itemId = event.detail?.itemId;
@@ -5631,11 +5647,13 @@ const bootStudio = () => {
       syncControls();
       activeQuoteEditorItemId = itemId;
       window.PmQuoteHandoff.selectEditingItem(itemId);
+      showPanel('upload');
       render();
+      if (event.detail?.focusEditor) focusLinkedEditor();
       if (status) {
         status.textContent = saved
-          ? 'Восстановлен черновик этой позиции. После изменений снова сохраните её макет.'
-          : 'Создан отдельный черновик позиции. Добавьте текст или логотип и сохраните её макет. Количество остаётся из калькулятора.';
+          ? 'Черновик восстановлен. Сохраните изменения после редактирования.'
+          : 'Добавьте текст или логотип в редакторе и сохраните макет.';
       }
     } catch (error) {
       if (status) status.textContent =
@@ -5681,6 +5699,7 @@ const bootStudio = () => {
       } else {
         throw new Error('Неизвестный тип изделия.');
       }
+      window.PmQuoteHandoff.showEditorFeedback();
       window.PmQuoteHandoff.setCaptureBusy(true);
       const draft = await buildOrderPayload();
       const result = type === 'ribbon'
@@ -5702,16 +5721,17 @@ const bootStudio = () => {
         const next = window.PmQuoteHandoff.nextIncompleteItem();
         window.PmQuoteHandoff.setCaptureBusy(false);
         if (next) {
-          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: next}}));
-          $('#linkedQuoteSummary')?.scrollIntoView({block: 'start'});
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: next, focusEditor: true}}));
         } else {
           if (status) status.textContent = 'Все макеты сохранены. Теперь можно отправить заявку Максиму.';
+          showPanel('order');
           $('#openOrder')?.scrollIntoView({block: 'center'});
         }
       }
     } catch (error) {
-      if (status) status.textContent =
-        'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      const feedback = 'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      window.PmQuoteHandoff.showEditorFeedback(feedback);
+      if (status) status.textContent = feedback;
     } finally {
       if (window.PmQuoteHandoff.getCaptureBusy()) window.PmQuoteHandoff.setCaptureBusy(false);
     }
@@ -5720,14 +5740,7 @@ const bootStudio = () => {
   // A token can be restored from history.state across reload. The linked
   // basket must first resolve on the server; only then restore a matching
   // tab-scoped draft. Never attach an unverified session to a legacy order.
-  document.addEventListener('studio:quote-ready', () => {
-    const itemId = window.PmQuoteHandoff?.getEditingItemId();
-    if (itemId) {
-      document.dispatchEvent(
-        new CustomEvent('studio:quote-edit-item', {detail: {itemId}}),
-      );
-    }
-  });
+  document.addEventListener('studio:quote-ready', openInitialQuoteItem);
 
   function downloadOrderCopy(orderId = '') {
     downloadTextFile(
@@ -6073,12 +6086,7 @@ const bootStudio = () => {
   );
   updateFirstStepAvailability();
   render();
-  const resumedItemId = window.PmQuoteHandoff?.getEditingItemId();
-  if (resumedItemId && window.PmQuoteHandoff?.getState() === 'ready') {
-    document.dispatchEvent(
-      new CustomEvent('studio:quote-edit-item', {detail: {itemId: resumedItemId}}),
-    );
-  }
+  openInitialQuoteItem();
   updateShowcaseContent();
   updateProductShowcase();
   document.fonts?.ready.then(() => render());
