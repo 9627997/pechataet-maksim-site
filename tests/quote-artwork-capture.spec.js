@@ -56,15 +56,19 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   });
   await page.goto('/studio/?product=ribbon#quote=' + 'a'.repeat(48));
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
-  await expect(
-    page.locator('#linkedQuoteLines button'),
-  ).toHaveCount(12);
+  await expect(page.locator('#linkedQuoteLines button')).toHaveCount(6);
+  await expect(page.locator('#linkedQuoteLines > li').first()).toHaveAttribute('data-active', 'true');
+  await expect(page.locator('#linkedQuoteActive')).toContainText('Макет 1 из 6');
+  await expect(page.locator('#linkedQuoteActive')).toContainText('молочный');
+  await expect(page.locator('#linkedQuoteActive')).not.toContainText('#f3eadc');
+  await expect(page.locator('#panel-upload #linkedQuoteNext')).toHaveCount(1);
   await expect(page.locator('#linkedQuoteProgress')).toHaveText(
     'Готово макетов: 0 из 6',
   );
-  await expect(
-    page.locator('#linkedQuoteLines > li').first().locator('button').nth(1),
-  ).toBeDisabled();
+  await expect(page.locator('#linkedQuoteJump')).toBeVisible();
+  expect(await page.locator('#linkedQuoteSummary').evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(320);
+  await page.locator('#linkedQuoteJump').click();
+  await expect(page.locator('#textInput')).toBeInViewport();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);
@@ -100,25 +104,24 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#linkedQuoteProgress')).toHaveText(
     'Готово макетов: 1 из 6',
   );
-  await expect(page.locator('#linkedQuoteLines > li').first().locator('button').nth(1)).toHaveText(
-    'Обновить макет позиции',
-  );
+  await expect(page.locator('#linkedQuoteLines > li').first()).toHaveAttribute('data-saved', 'true');
 
   // New workspaces are separate editor sessions: switching lines must not
   // silently replace the first line's in-progress content with the second.
   const first = page.locator('#linkedQuoteLines > li').nth(0);
   const second = page.locator('#linkedQuoteLines > li').nth(1);
   await first.locator('button').first().click();
-  await expect(first.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await expect(first.locator('button').first()).toHaveAttribute('aria-current', 'step');
   await expect(first).toHaveAttribute('data-active', 'true');
-  await expect(first.locator('button').nth(1)).toBeEnabled();
-  await expect(second.locator('button').nth(1)).toBeDisabled();
+  await expect(page.locator('#linkedQuoteNext')).toBeEnabled();
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'Первая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
   await second.locator('button').first().click();
-  await expect(second.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await expect(second.locator('button').first()).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#linkedQuoteActive')).toContainText('Макет 2 из 6');
+  await expect(page.locator('#textInput')).toBeInViewport();
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'Вторая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
@@ -168,10 +171,7 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
           },
         };
   const stableExpiresAt = Math.floor(Date.now() / 1000) + 1800;
-  const orderItems = [
-    ...[1, 2, 3].map((index) => item('ribbon', index)),
-    ...[1, 2, 3].map((index) => item('sticker', index)),
-  ];
+  const orderItems = [1, 2, 3].flatMap(index => [item('ribbon', index), item('sticker', index)]);
   await page.route('**/api/calc/', async (route) => {
     const body = route.request().postDataJSON();
     if (body?.operation === 'resolve') {
@@ -193,20 +193,23 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
   });
   await page.goto('/studio/?product=ribbon#quote=' + 'a'.repeat(48));
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
-  await page.locator('#linkedQuoteLines > li').first().locator('button').first().click();
+  await expect(page.locator('#linkedQuoteLines > li').first()).toHaveAttribute('data-active', 'true');
+  await page.locator('#linkedQuoteJump').click();
   const names = ['ALFA', 'BETA', 'GAMA', 'DELT', 'EPSI', 'ZETA'];
   for (let i = 0; i < orderItems.length; i++) {
     await expect.poll(() => page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe(orderItems[i].itemId);
-    await page.locator('#textInput').evaluate((input, value) => {
-      input.value = value;
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-    }, names[i]);
+    await expect(page.locator('#panel-upload')).toBeVisible();
+    await expect(page.locator('#linkedQuoteActive')).toContainText('Макет ' + (i + 1) + ' из 6');
+    await expect(page.locator('#textInput')).toBeInViewport();
+    await page.locator('#textInput').fill(names[i]);
     await expect(page.locator('body')).toHaveAttribute('data-artwork-valid', 'true');
     // The visible per-position capture uses the same production serializer.
     // Use the actual save-and-next button, not the handoff registration API.
     await page.locator('#linkedQuoteNext').click();
     await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: ' + (i + 1) + ' из 6', {timeout: 20000});
   }
+  await expect(page.locator('#panel-order')).toBeVisible();
+  await expect(page.locator('#openOrder')).toBeVisible();
   const artifacts = await page.evaluate(() => window.PmQuoteHandoff.augmentPayload({requestId: 'test-six-real-artifacts'}).artifactsByItemId);
   expect(Object.keys(artifacts)).toEqual(orderItems.map(item => item.itemId));
   expect(new Set(Object.values(artifacts).map(art => art.printSvg)).size).toBe(6);
