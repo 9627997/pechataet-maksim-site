@@ -1361,6 +1361,12 @@ const bootStudio = () => {
 
   function showPanel(id) {
     if (id !== 'upload' && !isFirstStepReady()) return;
+    if (id === 'order' && window.PmQuoteHandoff?.isLinked() && !window.PmQuoteHandoff.isComplete()) {
+      const message = $('#linkedQuoteMessage');
+      if (message) message.textContent = 'Сначала сохраните макеты всех изделий.';
+      window.PmQuoteHandoff.focusEditor();
+      return;
+    }
 
     state.panel = id;
     document.body.dataset.activePanel = id;
@@ -5742,9 +5748,17 @@ const bootStudio = () => {
   }
 
   $('#openOrder').addEventListener('click', (event) => {
+    const linked = window.PmQuoteHandoff;
+    if (linked?.isLinked() && !linked.isComplete()) {
+      const message = $('#linkedQuoteMessage');
+      if (message) message.textContent = 'Сначала сохраните макеты всех изделий.';
+      return;
+    }
     const price = calculatePrice();
     const artworkValid = document.body.dataset.artworkValid === 'true';
-    $('#orderSummary').textContent = [
+    $('#orderSummary').textContent = linked?.isLinked() && linked.isComplete()
+      ? 'Изделий: ' + linked.getItems().length + ' · Макетов: ' + linked.getArtworkCount() + ' · Предварительно: ' + Number(linked.getClientPrice()).toLocaleString('ru-RU') + ' ₽'
+      : [
       state.meters > 0 ? `Лента ${state.width} мм · ${state.meters} м` : '',
       state.stickerQty > 0
         ? `${getStickerOrderLabel()}: ${state.stickerQty} шт.`
