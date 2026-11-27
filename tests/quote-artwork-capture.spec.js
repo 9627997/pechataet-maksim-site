@@ -66,6 +66,14 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#linkedQuoteLines')).toBeHidden();
   await expect(page.locator('#linkedQuoteNext')).toBeVisible();
   await expect(page.locator('#panel-upload')).toHaveClass(/active/);
+  await expect(page.locator('#linkedQuoteSteps button')).toHaveCount(6);
+  await expect(page.locator('#linkedQuoteSteps button').first()).toHaveAttribute('aria-current', 'step');
+  const bounds = await page.locator('#linkedQuoteSummary').boundingBox();
+  expect(bounds.height).toBeLessThan(page.viewportSize().height * 0.65);
+  await page.locator('#linkedQuoteToggle').click();
+  await expect(page.locator('#linkedQuoteLines')).toBeVisible();
+  await page.locator('#linkedQuoteToggle').click();
+  await expect(page.locator('#linkedQuoteLines')).toBeHidden();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);
@@ -208,6 +216,13 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
     await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: ' + (i + 1) + ' из 6', {timeout: 20000});
   }
   await expect(page.locator('#openOrder')).toBeVisible();
+  await expect(page.locator('#linkedQuoteReview .linked-quote-review-card')).toHaveCount(6);
+  await expect(page.locator('#linkedQuoteReview img')).toHaveCount(6);
+  await expect(page.locator('#linkedQuoteReview')).toContainText('6 из 6');
+  await expect(page.locator('#linkedQuoteReview')).toContainText(/2\s?990/);
+  await page.locator('#openOrder').click();
+  await expect(page.locator('#orderSummary')).toContainText('Изделий: 6');
+  await expect(page.locator('#orderSummary')).toContainText('Макетов: 6');
   const artifacts = await page.evaluate(() => window.PmQuoteHandoff.augmentPayload({requestId: 'test-six-real-artifacts'}).artifactsByItemId);
   expect(Object.keys(artifacts)).toEqual(orderItems.map(item => item.itemId));
   expect(new Set(Object.values(artifacts).map(art => art.printSvg)).size).toBe(6);
