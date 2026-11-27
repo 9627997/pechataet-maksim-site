@@ -1,0 +1,72 @@
+name: One-time production test order delivery status (read-only)
+on:
+  push:
+    branches:
+      - qa/live-order-status-20261127-once
+permissions:
+  contents: read
+jobs:
+  check-delivery:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    timeout-minutes: 5
+    steps:
+      - name: Configure SSH identity
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.HOST }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Read sanitized order and notification status
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.HOST }}
+          SSH_USER: ${{ secrets.USERNAME }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$SSH_USER@$SSH_HOST" php <<'PHP'
+          <?php
+          $id = 'PM-20261127-CAB5035E';
+          $path = '/var/www/u2767403/data/www/.pechataet-maksim-orders/orders/2026/11/' . $id;
+          $worker = '/var/www/u2767403/data/www/xn--80aaarctnodv3agc9d.xn--p1ai/api/orders/notification-worker.php';
+          $export = dirname($worker) . '/PmLineArtworkExport.php';
+          echo 'LIVE_DELIVERY: order=' . $id . ' folder=' . (is_dir($path) ? 'present' : 'missing') . PHP_EOL;
+          echo 'LIVE_DELIVERY: exporter=' . (is_file($export) ? 'present' : 'missing') . PHP_EOL;
+          foreach (['notification-queue.json','notifications.json','archive.json'] as $name) {
+            $file = $path . '/' . $name;
+            if (!is_file($file)) {
+              echo 'LIVE_DELIVERY: ' . $name . '=absent' . PHP_EOL;
+              continue;
+            }
+            $data = json_decode((string)file_get_contents($file), true);
+            if (!is_array($data)) {
+              echo 'LIVE_DELIVERY: ' . $name . '=invalid_json' . PHP_EOL;
+              continue;
+            }
+            echo 'LIVE_DELIVERY: ' . $name .
+                 ' status=' . preg_replace('/[^a-zA-Z0-9_-]/','', (string)($data['status'] ?? 'unknown'));
+            if ($name === 'notifications.json') {
+              foreach (['telegram','google','max'] as $channel) {
+                $c = $data[$channel] ?? [];
+                echo ' ' . $channel . '=' .
+                     preg_replace('/[^a-zA-Z0-9_-]/','', (string)($c['status'] ?? 'unknown'));
+              }
+            }
+            echo PHP_EOL;
+          }
+          $zip = $path . '/order-package.zip';
+          if (is_file($zip) && class_exists('ZipArchive')) {
+            $z = new ZipArchive();
+            if ($z->open($zip) === true) {
+              echo 'LIVE_DELIVERY: zip=present entries=' . $z->numFiles . PHP_EOL;
+              $z->close();
+            } else echo 'LIVE_DELIVERY: zip=invalid' . PHP_EOL;
+          } else echo 'LIVE_DELIVERY: zip=' . (is_file($zip) ? 'present_uninspected' : 'missing') . PHP_EOL;
+          PHP
