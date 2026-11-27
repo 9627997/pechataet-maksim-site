@@ -1851,6 +1851,14 @@ const bootStudio = () => {
       );
     }
 
+    // A linked quote fixes the physical repeat step, not the whitespace.
+    // Keep the priced step unchanged while the artwork changes.
+    const linkedRibbon = window.PmQuoteHandoff?.getItems().find(
+      (item) => item.itemId === window.PmQuoteHandoff.getEditingItemId() &&
+        item.productType === 'ribbon',
+    );
+    if (linkedRibbon) state.repeatMm = linkedRibbon.configuration.repeatMm;
+
     // The slider and the badge next to it show the interval g itself — the
     // one thing this control owns — never the derived repeat step.
     document.body.dataset.ribbonRepeatMode = state.repeatMode;
@@ -5622,8 +5630,8 @@ const bootStudio = () => {
       setActiveSettingsProduct(type);
       syncControls();
       activeQuoteEditorItemId = itemId;
-      render();
       window.PmQuoteHandoff.selectEditingItem(itemId);
+      render();
       if (status) {
         status.textContent = saved
           ? 'Восстановлен черновик этой позиции. После изменений снова сохраните её макет.'
