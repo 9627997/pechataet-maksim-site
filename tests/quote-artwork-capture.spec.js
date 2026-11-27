@@ -59,6 +59,15 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(
     page.locator('#linkedQuoteLines button'),
   ).toHaveCount(12);
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText(
+    'Готово макетов: 0 из 6',
+  );
+  await expect(
+    page.locator('#linkedQuoteLines > li').first().locator('button').nth(1),
+  ).toBeDisabled();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
   const results = await page.evaluate(() => {
     const api = window.PmQuoteHandoff;
     let unknownRejected = false;
@@ -88,6 +97,9 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   expect(results.ids).toHaveLength(6);
   expect(results.count).toBe(1);
   expect(results.attached).toEqual(['ribbon-1']);
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText(
+    'Готово макетов: 1 из 6',
+  );
   await expect(page.locator('#linkedQuoteLines > li').first().locator('button').nth(1)).toHaveText(
     'Обновить макет позиции',
   );
@@ -98,6 +110,9 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   const second = page.locator('#linkedQuoteLines > li').nth(1);
   await first.locator('button').first().click();
   await expect(first.locator('button').first()).toHaveText('Редактируется эта позиция');
+  await expect(first).toHaveAttribute('data-active', 'true');
+  await expect(first.locator('button').nth(1)).toBeEnabled();
+  await expect(second.locator('button').nth(1)).toBeDisabled();
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'Первая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
@@ -120,4 +135,84 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#textInput')).toHaveValue('Первая лента');
   expect(await page.evaluate(() => window.PmQuoteHandoff.getArtworkCount())).toBe(1);
   expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
+});
+
+
+test('save and next creates six real distinct print artifacts @smoke', async ({page}) => {
+  test.setTimeout(120000);
+  const item = (type, index) =>
+    type === 'ribbon'
+      ? {
+          itemId: `ribbon-${index}`,
+          productType: 'ribbon',
+          quantity: {meters: '25'},
+          configuration: {
+            widthMm: 15,
+            repeatMm: 100,
+            materialColor: '#f3eadc',
+            printColor: '#171717',
+          },
+        }
+      : {
+          itemId: `sticker-${index}`,
+          productType: 'sticker',
+          quantity: {pieces: '250'},
+          configuration: {
+            variantId: 'circle-25',
+            shape: 'circle',
+            widthMm: 25,
+            heightMm: 25,
+            cornerRadiusMm: null,
+            printColor: '#c6c8cd',
+            backgroundColor: '#171717',
+          },
+        };
+  const stableExpiresAt = Math.floor(Date.now() / 1000) + 1800;
+  const orderItems = [
+    ...[1, 2, 3].map((index) => item('ribbon', index)),
+    ...[1, 2, 3].map((index) => item('sticker', index)),
+  ];
+  await page.route('**/api/calc/', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.operation === 'resolve') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'quote_resolved',
+          orderItems,
+          finalClientPrice: '2990.00',
+          currency: 'RUB',
+          expiresAt: stableExpiresAt,
+          canSubmitOrder: false,
+        }),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto('/studio/?product=ribbon#quote=' + 'a'.repeat(48));
+  await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
+  await page.locator('#linkedQuoteLines > li').first().locator('button').first().click();
+  const names = ['ALFA', 'BETA', 'GAMA', 'DELT', 'EPSI', 'ZETA'];
+  for (let i = 0; i < orderItems.length; i++) {
+    await expect.poll(() => page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe(orderItems[i].itemId);
+    await page.locator('#textInput').evaluate((input, value) => {
+      input.value = value;
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    }, names[i]);
+    await expect(page.locator('body')).toHaveAttribute('data-artwork-valid', 'true');
+    // The visible per-position capture uses the same production serializer.
+    // Use the actual save-and-next button, not the handoff registration API.
+    await page.locator('#linkedQuoteNext').click();
+    await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: ' + (i + 1) + ' из 6', {timeout: 20000});
+  }
+  const artifacts = await page.evaluate(() => window.PmQuoteHandoff.augmentPayload({requestId: 'test-six-real-artifacts'}).artifactsByItemId);
+  expect(Object.keys(artifacts)).toEqual(orderItems.map(item => item.itemId));
+  expect(new Set(Object.values(artifacts).map(art => art.printSvg)).size).toBe(6);
+  for (const [i, item] of orderItems.entries()) {
+    expect(artifacts[item.itemId].previewSvg).toContain(names[i]);
+    expect(artifacts[item.itemId].printSvg).toContain('<svg');
+    expect(artifacts[item.itemId].previewPng).toMatch(/^data:image\/png;base64,/);
+  }
 });

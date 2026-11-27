@@ -49,6 +49,7 @@
   let persistenceWarning = '';
   let renewalMessage = '';
   let renewalBusy = false;
+  let captureBusy = false;
   const root = document.getElementById('linkedQuoteSummary');
   const message = document.getElementById('linkedQuoteMessage');
   const list = document.getElementById('linkedQuoteLines');
@@ -61,6 +62,23 @@
     void renewQuote();
   });
   if (root && list) root.insertBefore(renewalButton, list);
+
+  const progress = document.createElement('p');
+  progress.id = 'linkedQuoteProgress';
+  progress.setAttribute('role', 'status');
+  const nextButton = document.createElement('button');
+  nextButton.id = 'linkedQuoteNext';
+  nextButton.type = 'button';
+  nextButton.className = 'button primary wide';
+  nextButton.hidden = true;
+  if (root && list) list.after(nextButton);
+  if (root && list) root.insertBefore(progress, list);
+  nextButton.addEventListener('click', () => {
+    if (captureBusy || !editingItemId) return;
+    document.dispatchEvent(new CustomEvent('studio:quote-capture-item', {
+      detail: {itemId: editingItemId, advance: true},
+    }));
+  });
 
   function readSessionSnapshot() {
     if (!draftStorageKey) return null;
@@ -99,12 +117,19 @@
     root.hidden = !fromQuoteLink;
     if (!fromQuoteLink) return;
     root.dataset.status = status;
+    progress.hidden = status !== 'ready';
+    nextButton.hidden = status !== 'ready' || !editingItemId;
+    nextButton.disabled = captureBusy || renewalBusy;
+    if (status === 'ready') {
+      progress.textContent = 'Готово макетов: ' + lineArtworks.size + ' из ' + record.orderItems.length;
+      nextButton.textContent = captureBusy ? 'Сохраняем макет…' : 'Сохранить макет и перейти дальше';
+    }
     if (persistenceWarning) root.dataset.persistenceWarning = 'true';
     else delete root.dataset.persistenceWarning;
     list.replaceChildren();
     const recoverable = status === 'invalid' && readSessionSnapshot() !== null;
     renewalButton.hidden = status !== 'ready' && !recoverable;
-    renewalButton.disabled = renewalBusy;
+    renewalButton.disabled = renewalBusy || captureBusy;
     renewalButton.textContent = renewalBusy
       ? 'Обновляем расчёт на сервере…'
       : status === 'ready' ? 'Продлить расчёт на 30 минут' : 'Восстановить расчёт';
@@ -122,15 +147,21 @@
         (renewalMessage ? ' ' + renewalMessage : '');
       for (const item of record.orderItems) {
         const li = document.createElement('li');
+        li.dataset.active = String(editingItemId === item.itemId);
+        li.dataset.saved = String(lineArtworks.has(item.itemId));
         const details = document.createElement('span');
-        details.textContent = label(item);
+        details.textContent = (record.orderItems.indexOf(item) + 1) + '. ' + label(item);
+        const stateLabel = document.createElement('small');
+        stateLabel.className = 'linked-quote-line-status';
+        stateLabel.textContent = editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
+        details.append(document.createElement('br'), stateLabel);
         const edit = document.createElement('button');
         edit.type = 'button';
         edit.className = 'button ghost';
         edit.textContent = editingItemId === item.itemId
           ? 'Редактируется эта позиция'
           : 'Редактировать эту позицию';
-        edit.disabled = editingItemId === item.itemId;
+        edit.disabled = captureBusy || renewalBusy || editingItemId === item.itemId;
         edit.addEventListener('click', () => {
           document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
             detail: {itemId: item.itemId},
@@ -142,6 +173,7 @@
         capture.textContent = lineArtworks.has(item.itemId)
           ? 'Обновить макет позиции'
           : 'Сохранить текущий макет для позиции';
+        capture.disabled = captureBusy || renewalBusy || editingItemId !== item.itemId;
         capture.addEventListener('click', () => {
           document.dispatchEvent(new CustomEvent('studio:quote-capture-item', {
             detail: {itemId: item.itemId},
@@ -423,6 +455,14 @@
     load,
     augmentPayload,
     renewQuote,
+    setCaptureBusy: (value) => { captureBusy = value; render(); },
+    getCaptureBusy: () => captureBusy,
+    nextIncompleteItem: () => {
+      if (!record) return null;
+      const index = record.orderItems.findIndex(item => item.itemId === editingItemId);
+      const ordered = [...record.orderItems.slice(index + 1), ...record.orderItems.slice(0, index + 1)];
+      return ordered.find(item => !lineArtworks.has(item.itemId))?.itemId ?? null;
+    },
     getExpiresAt: () => record?.expiresAt ?? null,
     getClientPrice: () => record?.finalClientPrice ?? null,
     registerItemArtwork,
