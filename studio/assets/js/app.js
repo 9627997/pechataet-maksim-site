@@ -1375,6 +1375,7 @@ const bootStudio = () => {
     }
     updateProductShowcase();
     updateStudioContext();
+    window.PmQuoteHandoff?.placeSaveAction(id);
   }
 
   function setPrintGuidesEditing(active) {
@@ -5605,8 +5606,8 @@ const bootStudio = () => {
         next.activeContentProduct = type;
         next.activeSettingsProduct = type;
         next.bundle = type;
-        next.meters = type === 'ribbon' ? 25 : 0;
-        next.stickerQty = type === 'sticker' ? 250 : 0;
+        next.meters = type === 'ribbon' ? Number(item.quantity.meters) : 0;
+        next.stickerQty = type === 'sticker' ? Number(item.quantity.pieces) : 0;
         if (type === 'ribbon') {
           next.width = cfg.widthMm;
           next.ribbon = cfg.materialColor;
@@ -5631,7 +5632,9 @@ const bootStudio = () => {
       syncControls();
       activeQuoteEditorItemId = itemId;
       window.PmQuoteHandoff.selectEditingItem(itemId);
+      showPanel('upload');
       render();
+      if (event.detail?.focusEditor) window.PmQuoteHandoff.focusEditor();
       if (status) {
         status.textContent = saved
           ? 'Восстановлен черновик этой позиции. После изменений снова сохраните её макет.'
@@ -5702,10 +5705,10 @@ const bootStudio = () => {
         const next = window.PmQuoteHandoff.nextIncompleteItem();
         window.PmQuoteHandoff.setCaptureBusy(false);
         if (next) {
-          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: next}}));
-          $('#linkedQuoteSummary')?.scrollIntoView({block: 'start'});
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: next, focusEditor: true}}));
         } else {
           if (status) status.textContent = 'Все макеты сохранены. Теперь можно отправить заявку Максиму.';
+          showPanel('order');
           $('#openOrder')?.scrollIntoView({block: 'center'});
         }
       }
@@ -5721,7 +5724,7 @@ const bootStudio = () => {
   // basket must first resolve on the server; only then restore a matching
   // tab-scoped draft. Never attach an unverified session to a legacy order.
   document.addEventListener('studio:quote-ready', () => {
-    const itemId = window.PmQuoteHandoff?.getEditingItemId();
+    const itemId = window.PmQuoteHandoff?.getEditingItemId() || window.PmQuoteHandoff?.getItems()[0]?.itemId;
     if (itemId) {
       document.dispatchEvent(
         new CustomEvent('studio:quote-edit-item', {detail: {itemId}}),
@@ -6073,7 +6076,7 @@ const bootStudio = () => {
   );
   updateFirstStepAvailability();
   render();
-  const resumedItemId = window.PmQuoteHandoff?.getEditingItemId();
+  const resumedItemId = window.PmQuoteHandoff?.getEditingItemId() || window.PmQuoteHandoff?.getItems()[0]?.itemId;
   if (resumedItemId && window.PmQuoteHandoff?.getState() === 'ready') {
     document.dispatchEvent(
       new CustomEvent('studio:quote-edit-item', {detail: {itemId: resumedItemId}}),
