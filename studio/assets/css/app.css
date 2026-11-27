@@ -2410,3 +2410,16 @@ main.studio{
 body:has(.linked-quote-summary:not([hidden])) .modal{z-index:100}
 .linked-quote-summary li{min-width:0;overflow-wrap:anywhere}
 .linked-quote-summary li button{position:relative;z-index:1;margin:4px 6px 4px 0}
+
+/* Linked calculator basket: explicit per-item workspaces at both breakpoints. */
+.linked-quote-summary #linkedQuoteProgress{font-weight:700;font-size:15px}
+.linked-quote-summary #linkedQuoteLines{list-style:none;padding:0;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.linked-quote-summary #linkedQuoteLines li{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.linked-quote-summary #linkedQuoteLines li[data-active="true"]{border:2px solid var(--accent);background:#faf5f4}
+.linked-quote-summary #linkedQuoteLines li[data-saved="true"]:not([data-active="true"]){border-color:#42805a}
+.linked-quote-line-status{display:inline-block;font-weight:700;margin-top:5px}
+.linked-quote-summary #linkedQuoteLines button{margin:0;white-space:normal;min-height:44px}
+.linked-quote-summary #linkedQuoteLines button:disabled{opacity:.6}
+#linkedQuoteNext[hidden]{display:none!important}
+#linkedQuoteNext{margin-bottom:10px;min-height:44px;white-space:normal}
+@media(max-width:700px){.linked-quote-summary #linkedQuoteLines{grid-template-columns:minmax(0,1fr)}.linked-quote-summary #linkedQuoteLines li{padding:10px}}
