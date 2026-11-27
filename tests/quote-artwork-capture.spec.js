@@ -195,12 +195,18 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
   await expect(page.locator('#linkedQuoteLines > li').first()).toHaveAttribute('data-active', 'true');
   await page.locator('#linkedQuoteJump').click();
+  await page.locator('#linkedQuoteNext').click();
+  await expect(page.locator('#linkedQuoteEditorFeedback')).toBeVisible();
+  await expect(page.locator('#linkedQuoteEditorFeedback')).toContainText('Добавьте надпись или логотип');
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: 0 из 6');
+  await page.locator('#linkedQuoteJump').click();
   const names = ['ALFA', 'BETA', 'GAMA', 'DELT', 'EPSI', 'ZETA'];
   for (let i = 0; i < orderItems.length; i++) {
     await expect.poll(() => page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe(orderItems[i].itemId);
     await expect(page.locator('#panel-upload')).toBeVisible();
     await expect(page.locator('#linkedQuoteActive')).toContainText('Макет ' + (i + 1) + ' из 6');
     await expect(page.locator('#textInput')).toBeInViewport();
+    await page.locator('#textInput').click();
     await page.locator('#textInput').fill(names[i]);
     await expect(page.locator('body')).toHaveAttribute('data-artwork-valid', 'true');
     // The visible per-position capture uses the same production serializer.
