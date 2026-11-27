@@ -496,6 +496,8 @@
             lineArtworks.set(id, structuredClone(artwork));
           }
         }
+        for (const id of snapshot.dirtyItems || []) if (ids.has(id)) dirtyItems.add(id);
+        if (snapshot.artworkIntegrity !== 1) for (const id of lineArtworks.keys()) { dirtyItems.add(id); lineArtworks.delete(id); }
         if (ids.has(snapshot.editingItemId)) editingItemId = snapshot.editingItemId;
       }
       token = issued.quoteId;
