@@ -71,7 +71,34 @@
   nextButton.type = 'button';
   nextButton.className = 'button primary wide';
   nextButton.hidden = true;
-  if (root && list) list.after(nextButton);
+  // Compact basket remains available while the actual editor is in view.
+  const jump = document.createElement('button');
+  jump.id = 'linkedQuoteJump';
+  jump.type = 'button';
+  jump.className = 'button ghost';
+  jump.textContent = 'К редактору ↓';
+  jump.hidden = true;
+  const toggle = document.createElement('button');
+  toggle.id = 'linkedQuoteToggle';
+  toggle.type = 'button';
+  toggle.className = 'button ghost';
+  toggle.setAttribute('aria-controls', 'linkedQuoteLines');
+  toggle.hidden = true;
+  let expanded = false;
+  toggle.addEventListener('click', () => {
+    expanded = !expanded;
+    render();
+  });
+  function focusEditor() {
+    const panel = document.querySelector('.panel.active');
+    const target = panel?.querySelector('.panel-head') || panel;
+    target?.scrollIntoView({block: 'start'});
+  }
+  jump.addEventListener('click', focusEditor);
+  if (root && list) {
+    list.before(toggle, jump);
+    list.after(nextButton);
+  }
   if (root && list) root.insertBefore(progress, list);
   nextButton.addEventListener('click', () => {
     if (captureBusy || !editingItemId) return;
@@ -102,14 +129,22 @@
     Number(value.finalClientPrice) > 0;
 
   const safeNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const colorName = (value) => ({
+    '#171717': 'чёрный', '#b69249': 'золото', '#c6c8cd': 'серебро',
+    '#ffffff': 'белый', '#f3eadc': 'молочный', '#e5c5c4': 'пудровый',
+    '#b7202d': 'красный', '#6b1f2d': 'бордовый', '#0c6a4f': 'изумрудный',
+    '#6f754e': 'оливковый', '#86b9ca': 'голубой', '#274d83': 'синий',
+    '#9b8db5': 'лавандовый', '#8e8d89': 'серый', transparent: 'прозрачный',
+  })[String(value).toLowerCase()] || 'по расчёту';
   function label(item) {
     const config = item.configuration || {};
     if (item.productType === 'ribbon') {
       return 'Лента ' + config.widthMm + ' мм · ' + item.quantity.meters + ' м · основа ' +
-        config.materialColor + ' · нанесение ' + config.printColor;
+        colorName(config.materialColor) + ' · печать ' + colorName(config.printColor);
     }
-    return 'Стикеры ' + config.variantId + ' · ' + item.quantity.pieces +
-      ' шт. · основа ' + config.backgroundColor + ' · нанесение ' + config.printColor;
+    const size = config.shape === 'circle' ? 'Ø ' + config.widthMm : config.widthMm + ' × ' + config.heightMm;
+    return 'Стикеры ' + size + ' мм · ' + item.quantity.pieces +
+      ' шт. · основа ' + colorName(config.backgroundColor) + ' · печать ' + colorName(config.printColor);
   }
 
   function render() {
@@ -119,6 +154,11 @@
     root.dataset.status = status;
     progress.hidden = status !== 'ready';
     nextButton.hidden = status !== 'ready' || !editingItemId;
+    jump.hidden = status !== 'ready' || !editingItemId;
+    toggle.hidden = status !== 'ready';
+    list.dataset.expanded = String(expanded);
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.textContent = expanded ? 'Свернуть список' : 'Все изделия (' + (record?.orderItems.length || 0) + ')';
     nextButton.disabled = captureBusy || renewalBusy;
     if (status === 'ready') {
       progress.textContent = 'Готово макетов: ' + lineArtworks.size + ' из ' + record.orderItems.length;
@@ -140,9 +180,9 @@
         (record.expiresAt <= Date.now() / 1000
           ? 'Срок расчёта истёк. Нажмите «Продлить расчёт на 30 минут» перед отправкой заявки. '
           : '') +
-        'Перенесены все ' + record.orderItems.length + ' позиций. Выбирайте «Редактировать эту позицию», затем сохраните её макет отдельно. Предварительная стоимость: ' +
+        'Выберите изделие и создайте макет в редакторе. Предварительная стоимость: ' +
         safeNumber(record.finalClientPrice).toLocaleString('ru-RU') +
-        ' ₽. Ниже остаются макеты-образцы, а каждый сохранённый файл отдельной позиции согласует Максим до производства.' +
+        ' ₽. Макеты-образцы не отправляются без вашего сохранения.' +
         (persistenceWarning ? ' ' + persistenceWarning : '') +
         (renewalMessage ? ' ' + renewalMessage : '');
       for (const item of record.orderItems) {
@@ -151,6 +191,7 @@
         li.dataset.saved = String(lineArtworks.has(item.itemId));
         const details = document.createElement('span');
         details.textContent = (record.orderItems.indexOf(item) + 1) + '. ' + label(item);
+        details.className = 'linked-quote-line-details';
         const stateLabel = document.createElement('small');
         stateLabel.className = 'linked-quote-line-status';
         stateLabel.textContent = editingItemId === item.itemId ? 'Редактируется' : lineArtworks.has(item.itemId) ? 'Макет сохранён' : 'Нужен макет';
@@ -163,8 +204,9 @@
           : 'Редактировать эту позицию';
         edit.disabled = captureBusy || renewalBusy || editingItemId === item.itemId;
         edit.addEventListener('click', () => {
+          expanded = false;
           document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {
-            detail: {itemId: item.itemId},
+            detail: {itemId: item.itemId, focusEditor: true},
           }));
         });
         const capture = document.createElement('button');
@@ -457,6 +499,7 @@
     renewQuote,
     setCaptureBusy: (value) => { captureBusy = value; render(); },
     getCaptureBusy: () => captureBusy,
+    focusEditor,
     nextIncompleteItem: () => {
       if (!record) return null;
       const index = record.orderItems.findIndex(item => item.itemId === editingItemId);
