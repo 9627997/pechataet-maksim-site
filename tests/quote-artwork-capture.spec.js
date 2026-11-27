@@ -125,6 +125,9 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
     input.value = 'Первая лента';
     input.dispatchEvent(new Event('input', {bubbles: true}));
   });
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: 0 из 6');
+  await expect(page.locator('#linkedEditorNotice')).toContainText('Макет изменён');
+  await expect(page.locator('#linkedQuoteSteps button').first()).toContainText('!');
   await page.locator('#linkedQuoteSelect').selectOption('ribbon-2');
   await expect(second.locator('button').first()).toHaveText('Редактируется эта позиция');
   await page.locator('#textInput').evaluate((input) => {
@@ -141,7 +144,8 @@ test('linked quote preserves six distinct artwork slots, no implicit cloning @sm
   await expect(page.locator('#linkedQuoteSummary')).toHaveAttribute('data-status', 'ready');
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
   await expect(page.locator('#textInput')).toHaveValue('Первая лента');
-  expect(await page.evaluate(() => window.PmQuoteHandoff.getArtworkCount())).toBe(1);
+  expect(await page.evaluate(() => window.PmQuoteHandoff.getArtworkCount())).toBe(0);
+  await expect(page.locator('#linkedEditorNotice')).toContainText('Макет изменён');
   expect(await page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe('ribbon-1');
 });
 
@@ -203,6 +207,8 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
   await expect(page.locator('#linkedQuoteSelect')).toHaveValue('ribbon-1');
   await expect(page.locator('#linkedQuoteLines')).toBeHidden();
+  await page.locator('#linkedQuoteNext').click();
+  await expect(page.locator('#linkedEditorNotice')).toContainText('Добавьте надпись или логотип');
   const names = ['ALFA', 'BETA', 'GAMA', 'DELT', 'EPSI', 'ZETA'];
   for (let i = 0; i < orderItems.length; i++) {
     await expect.poll(() => page.evaluate(() => window.PmQuoteHandoff.getEditingItemId())).toBe(orderItems[i].itemId);
@@ -220,6 +226,21 @@ test('save and next creates six real distinct print artifacts @smoke', async ({p
   await expect(page.locator('#linkedQuoteReview img')).toHaveCount(6);
   await expect(page.locator('#linkedQuoteReview')).toContainText('6 из 6');
   await expect(page.locator('#linkedQuoteReview')).toContainText(/2\s?990/);
+  await page.locator('#linkedQuoteReview .linked-quote-review-card').first().locator('button').click();
+  await expect(page.locator('#textInput')).toHaveValue('ALFA');
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: 6 из 6');
+  await page.locator('#continueUpload').click();
+  await expect(page.locator('#widthChoice')).toBeHidden();
+  await expect(page.locator('#printColorSelect')).toBeHidden();
+  await expect(page.locator('#repeatMm')).toBeHidden();
+  await expect(page.locator('#panel-settings .next-panel')).toBeHidden();
+  await page.locator('.nav-item[data-panel="upload"]').click();
+  await page.locator('#textInput').fill('OMEGA');
+  await expect(page.locator('#linkedQuoteProgress')).toHaveText('Готово макетов: 5 из 6');
+  await expect(page.locator('#linkedEditorNotice')).toContainText('Макет изменён');
+  await page.locator('#linkedQuoteNext').click();
+  await expect(page.locator('#linkedQuoteReview img')).toHaveCount(6);
+  names[0] = 'OMEGA';
   await page.locator('#openOrder').click();
   await expect(page.locator('#orderSummary')).toContainText('Изделий: 6');
   await expect(page.locator('#orderSummary')).toContainText('Макетов: 6');
