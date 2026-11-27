@@ -1364,7 +1364,7 @@ const bootStudio = () => {
     if (id === 'order' && window.PmQuoteHandoff?.isLinked() && !window.PmQuoteHandoff.isComplete()) {
       const message = $('#linkedQuoteMessage');
       if (message) message.textContent = 'Сначала сохраните макеты всех изделий.';
-      window.PmQuoteHandoff.focusEditor();
+      window.PmQuoteHandoff.setEditorNotice('Сначала сохраните макеты всех изделий.');
       return;
     }
 
@@ -2947,7 +2947,7 @@ const bootStudio = () => {
       panelCopy.textContent = `Добавьте название или логотип для ${productGenitive}.`;
     }
     if (continueButton && state.productFirstMode) {
-      continueButton.textContent = `Далее: настроить ${isSticker ? 'стикер' : 'ленту'}`;
+      continueButton.textContent = window.PmQuoteHandoff?.isLinked() ? 'Дополнительные настройки дизайна' : `Далее: настроить ${isSticker ? 'стикер' : 'ленту'}`;
     }
     if (settingsNext && state.productFirstMode) {
       settingsNext.textContent = 'Далее: получить заказ';
@@ -5606,7 +5606,8 @@ const bootStudio = () => {
       const cfg = item.configuration;
       const saved = window.PmQuoteHandoff.getEditorDraft(itemId);
       const next = saved ? structuredClone(saved) : createInitialState();
-      if (!saved) {
+      {
+        // Quote configuration is canonical even when restoring an old draft.
         next.productFirstMode = true;
         next.primaryProduct = type;
         next.activeContentProduct = type;
@@ -5635,9 +5636,10 @@ const bootStudio = () => {
       syncLegacyContentAliasesFromContent();
       setActiveContentProduct(type, {renderPreview: false});
       setActiveSettingsProduct(type);
-      syncControls();
       activeQuoteEditorItemId = itemId;
       window.PmQuoteHandoff.selectEditingItem(itemId);
+      document.body.classList.add('linked-quote-editing');
+      syncControls();
       showPanel('upload');
       render();
       if (event.detail?.focusEditor) window.PmQuoteHandoff.focusEditor();
@@ -5647,8 +5649,9 @@ const bootStudio = () => {
           : 'Создан отдельный черновик позиции. Добавьте текст или логотип и сохраните её макет. Количество остаётся из калькулятора.';
       }
     } catch (error) {
-      if (status) status.textContent =
-        'Не удалось открыть позицию: ' + (error?.message || 'проверьте параметры.');
+      const feedback = 'Не удалось открыть позицию: ' + (error?.message || 'проверьте параметры.');
+      window.PmQuoteHandoff.setEditorNotice(feedback);
+      if (status) status.textContent = feedback;
     }
   });
 
@@ -5675,14 +5678,14 @@ const bootStudio = () => {
         throw new Error('Добавьте надпись или логотип и проверьте печатную область.');
       }
       if (type === 'ribbon') {
-        if (state.meters <= 0 || state.width !== cfg.widthMm ||
+        if (state.meters !== Number(item.quantity.meters) || state.width !== cfg.widthMm ||
             Math.abs(state.repeatMm - cfg.repeatMm) > 0.05 ||
             !same(state.ribbon, cfg.materialColor) ||
             !same(getProductStyle('ribbon').print, cfg.printColor)) {
           throw new Error('Настройки ленты отличаются от этой позиции калькулятора. Совместите ширину, шаг, основу и нанесение.');
         }
       } else if (type === 'sticker') {
-        if (state.stickerQty <= 0 || state.stickerVariantId !== cfg.variantId ||
+        if (state.stickerQty !== Number(item.quantity.pieces) || state.stickerVariantId !== cfg.variantId ||
             !same(state.stickerBg, cfg.backgroundColor) ||
             !same(getProductStyle('sticker').print, cfg.printColor)) {
           throw new Error('Настройки стикера отличаются от этой позиции калькулятора. Совместите форму, основу и нанесение.');
@@ -5690,8 +5693,11 @@ const bootStudio = () => {
       } else {
         throw new Error('Неизвестный тип изделия.');
       }
+      window.PmQuoteHandoff.setEditorNotice('');
+      const before = window.PmQuoteHandoff.designSignature(state, type);
       window.PmQuoteHandoff.setCaptureBusy(true);
       const draft = await buildOrderPayload();
+      if (before !== window.PmQuoteHandoff.designSignature(state, type)) throw new Error('Макет изменился во время сохранения. Сохраните ещё раз.');
       const result = type === 'ribbon'
         ? {
             previewSvg: draft.artifacts.ribbonPreviewSvg,
@@ -5703,8 +5709,8 @@ const bootStudio = () => {
             printSvg: draft.artifacts.stickerPrintSvg,
             previewPng: draft.artifacts.stickerPreviewPng,
           };
-      window.PmQuoteHandoff.registerItemArtwork(itemId, result);
       window.PmQuoteHandoff.saveEditorDraft(itemId, state);
+      window.PmQuoteHandoff.registerItemArtwork(itemId, result);
       if (status) status.textContent =
         'Макет выбранной позиции сохранён отдельно. Можно изменить дизайн Studio и сохранить следующую позицию; каждый файл Максиму нужно проверить перед печатью.';
       if (event.detail?.advance) {
@@ -5719,8 +5725,9 @@ const bootStudio = () => {
         }
       }
     } catch (error) {
-      if (status) status.textContent =
-        'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      const feedback = 'Не удалось сохранить макет: ' + (error?.message || 'проверьте настройки изделия.');
+      window.PmQuoteHandoff.setEditorNotice(feedback);
+      if (status) status.textContent = feedback;
     } finally {
       if (window.PmQuoteHandoff.getCaptureBusy()) window.PmQuoteHandoff.setCaptureBusy(false);
     }
