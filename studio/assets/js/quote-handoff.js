@@ -85,6 +85,16 @@
   toggle.setAttribute('aria-controls', 'linkedQuoteLines');
   toggle.hidden = true;
   let expanded = false;
+  let reviewMode = false;
+  const review = document.createElement('section');
+  review.id = 'linkedQuoteReview';
+  review.hidden = true;
+  document.getElementById('openOrder')?.before(review);
+  const steps = document.createElement('div');
+  steps.id = 'linkedQuoteSteps';
+  steps.setAttribute('role', 'group');
+  steps.setAttribute('aria-label', 'Макеты изделий');
+  steps.hidden = true;
   const current = document.createElement('p');
   current.id = 'linkedQuoteCurrent';
   current.hidden = true;
@@ -110,7 +120,7 @@
   }
   jump.addEventListener('click', focusEditor);
   if (root && list) {
-    list.before(current, selector, toggle, jump);
+    list.before(steps, current, selector, toggle, jump);
     list.after(nextButton);
   }
   if (root && list) root.insertBefore(progress, list);
@@ -175,6 +185,8 @@
     selector.hidden = status !== 'ready';
     selector.disabled = captureBusy || renewalBusy;
     selector.replaceChildren();
+    steps.replaceChildren();
+    steps.hidden = status !== 'ready';
     if (status === 'ready') {
       const selected = record.orderItems.find(item => item.itemId === editingItemId);
       current.textContent = selected
@@ -185,6 +197,18 @@
       selector.append(placeholder);
       record.orderItems.forEach((item, index) => {
         selector.append(new Option((index + 1) + '. ' + label(item) + (lineArtworks.has(item.itemId) ? ' · готово' : ''), item.itemId));
+        const step = document.createElement('button');
+        step.type = 'button';
+        step.className = 'linked-quote-step';
+        step.textContent = (index + 1) + (lineArtworks.has(item.itemId) ? ' ✓' : '');
+        step.setAttribute('aria-label', 'Макет ' + (index + 1) + ': ' + label(item) + (lineArtworks.has(item.itemId) ? ', сохранён' : ''));
+        step.setAttribute('aria-current', editingItemId === item.itemId ? 'step' : 'false');
+        step.disabled = captureBusy || renewalBusy;
+        step.addEventListener('click', () => {
+          expanded = false;
+          document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: item.itemId, focusEditor: true}}));
+        });
+        steps.append(step);
       });
       selector.value = editingItemId || '';
     }
@@ -204,6 +228,7 @@
     renewalButton.textContent = renewalBusy
       ? 'Обновляем расчёт на сервере…'
       : status === 'ready' ? 'Продлить расчёт на 30 минут' : 'Восстановить расчёт';
+    renderReview();
     if (status === 'loading') {
       message.textContent = 'Проверяем корзину калькулятора на сервере…';
     } else if (status === 'ready') {
@@ -261,6 +286,44 @@
           (renewalMessage ? ' ' + renewalMessage : '')
         : 'Этот расчёт недействителен или устарел. Вернитесь в калькулятор и повторите расчёт: привязанную корзину нельзя отправлять как обычную заявку.';
     }
+  }
+
+  function renderReview() {
+    review.hidden = !reviewMode || status !== 'ready';
+    review.replaceChildren();
+    if (review.hidden) return;
+    const heading = document.createElement('h3');
+    heading.textContent = 'Ваш заказ · ' + lineArtworks.size + ' из ' + record.orderItems.length + ' макетов готовы';
+    review.append(heading);
+    for (const [index, item] of record.orderItems.entries()) {
+      const card = document.createElement('article');
+      card.className = 'linked-quote-review-card';
+      card.dataset.itemId = item.itemId;
+      const artwork = lineArtworks.get(item.itemId);
+      if (artwork?.previewPng.startsWith('data:image/png;base64,')) {
+        const preview = document.createElement('img');
+        preview.src = artwork.previewPng;
+        preview.alt = 'Макет ' + (index + 1);
+        card.append(preview);
+      }
+      const copy = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = (index + 1) + '. ' + label(item);
+      const state = document.createElement('small');
+      state.textContent = artwork ? 'Макет сохранён' : 'Нужен макет';
+      copy.append(title, state);
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'button ghost';
+      edit.textContent = 'Редактировать';
+      edit.addEventListener('click', () => document.dispatchEvent(new CustomEvent('studio:quote-edit-item', {detail: {itemId: item.itemId, focusEditor: true}})));
+      card.append(copy, edit);
+      review.append(card);
+    }
+    const total = document.createElement('p');
+    total.className = 'linked-quote-review-total';
+    total.textContent = 'Предварительная стоимость: ' + safeNumber(record.finalClientPrice).toLocaleString('ru-RU') + ' ₽';
+    review.append(total);
   }
 
   const isValidToken = (value) => typeof value === 'string' && /^[a-f0-9]{48}$/.test(value);
@@ -532,6 +595,9 @@
     getCaptureBusy: () => captureBusy,
     focusEditor,
     placeSaveAction: (panel) => {
+      if (!fromQuoteLink) return;
+      reviewMode = panel === 'order';
+      renderReview();
       const target = document.getElementById('panel-' + panel);
       if (!fromQuoteLink || !target || panel === 'order') {
         if (root && list) list.after(nextButton);
@@ -545,6 +611,8 @@
       const ordered = [...record.orderItems.slice(index + 1), ...record.orderItems.slice(0, index + 1)];
       return ordered.find(item => !lineArtworks.has(item.itemId))?.itemId ?? null;
     },
+    isComplete: () => status === 'ready' && record !== null && lineArtworks.size === record.orderItems.length,
+    isLinked: () => fromQuoteLink,
     getExpiresAt: () => record?.expiresAt ?? null,
     getClientPrice: () => record?.finalClientPrice ?? null,
     registerItemArtwork,
