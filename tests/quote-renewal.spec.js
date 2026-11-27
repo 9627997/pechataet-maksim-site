@@ -77,7 +77,7 @@ test('expired 3+3 quote can be reissued after reload without losing a line draft
 
   await page.goto('/studio/?product=ribbon#quote=' + oldToken);
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(6);
-  await page.locator('#linkedQuoteLines > li').first().locator('button').first().click();
+  await expect(page.locator('#linkedQuoteSelect')).toHaveValue('ribbon-1');
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'ПЕРВАЯ ЛЕНТА';
     input.dispatchEvent(new Event('input', {bubbles: true}));
@@ -162,7 +162,7 @@ test('changed preliminary amount requires consent before replacing an active quo
   });
   await page.goto('/studio/?product=ribbon#quote=' + oldToken);
   await expect(page.locator('#linkedQuoteLines > li')).toHaveCount(1);
-  await page.locator('#linkedQuoteLines > li button').first().click();
+  await expect(page.locator('#linkedQuoteSelect')).toHaveValue('ribbon-1');
   await page.locator('#textInput').evaluate((input) => {
     input.value = 'МОЙ ДИЗАЙН';
     input.dispatchEvent(new Event('input', {bubbles: true}));
